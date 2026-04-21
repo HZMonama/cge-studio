@@ -1,0 +1,17 @@
+{
+  "name": "cge-studio",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:web": "pnpm --dir apps/web dev",
+    "dev:runner": "node --watch apps/runner/src/server.js",
+    "build": "pnpm --dir apps/web build && node --check apps/runner/src/server.js",
+    "lint": "pnpm --dir apps/web lint && node --check apps/runner/src/server.js",
+    "typecheck": "pnpm --dir apps/web typecheck && node --check apps/runner/src/server.js"
+  },
+  "dependencies": {
+    "agentation": "^3.0.2"
+  }
+}

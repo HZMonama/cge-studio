@@ -1,0 +1,12 @@
+node_modules
+.DS_Store
+.env
+.env.local
+dist
+coverage
+.turbo
+
+apps/web/.next
+apps/web/node_modules
+apps/runner/node_modules
+packages/*/node_modules
