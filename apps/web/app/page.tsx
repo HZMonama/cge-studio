@@ -30,21 +30,26 @@ import {
 import { FALLBACK_PLUGINS, type Command, type Plugin } from "@/lib/plugins";
 import {
   createRun,
+  createWorkspace,
+  deleteWorkspace,
+  exportWorkspace,
   fetchArtifactDetail,
   fetchArtifacts,
+  fetchRunnerConfig,
   fetchPluginRegistry,
   fetchRunnerHealth,
   fetchRuns,
+  fetchWorkspaces,
+  refreshWorkspace,
+  renameWorkspace,
+  updateRunnerConfig,
+  type RunnerConfigSnapshot,
   type RunnerArtifactDetail,
   type RunnerArtifactSummary,
   type RunnerRun,
+  type RunnerWorkspace,
 } from "@/lib/runner";
 import { usePluginPanel } from "@/stores/plugin-panel-store";
-
-interface Workspace {
-  id: string;
-  title: string;
-}
 
 type AppSection = "chat" | "dashboards" | "findings" | "program" | "artifacts";
 
@@ -56,22 +61,13 @@ const HEADER_SECTIONS: AppHeaderSection[] = [
   { id: "artifacts", label: "Artifacts", Icon: FilesIcon },
 ];
 
-const INITIAL_WORKSPACE: Workspace = {
-  id: "workspace-initial",
-  title: "Untitled",
-};
-
-function newWorkspace(): Workspace {
-  return { id: crypto.randomUUID(), title: "Untitled" };
-}
+const ACTIVE_WORKSPACE_STORAGE_KEY = "cge.active-workspace-id";
 
 export default function Page() {
   const { openHistory } = usePluginPanel();
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([
-    INITIAL_WORKSPACE,
-  ]);
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>(
-    INITIAL_WORKSPACE.id,
+  const [workspaces, setWorkspaces] = useState<RunnerWorkspace[]>([]);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(
+    null,
   );
   const [activeSection, setActiveSection] = useState<AppSection>("chat");
   const [plugins, setPlugins] = useState<Plugin[]>(FALLBACK_PLUGINS);
@@ -94,9 +90,14 @@ export default function Page() {
     {},
   );
   const [sidebarFocusSearchToken, setSidebarFocusSearchToken] = useState(0);
+  const [workspaceRefreshPending, setWorkspaceRefreshPending] = useState(false);
+  const [runnerConfig, setRunnerConfig] = useState<RunnerConfigSnapshot | null>(
+    null,
+  );
+  const [configSavePending, setConfigSavePending] = useState(false);
   const activeWorkspace =
     workspaces.find((workspace) => workspace.id === activeWorkspaceId) ??
-    workspaces[0];
+    null;
   const selectedCommand = selectedCommandPath
     ? findCommandByPath(plugins, selectedCommandPath)
     : null;
@@ -119,6 +120,16 @@ export default function Page() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  useEffect(() => {
+    const storedWorkspaceId = window.localStorage.getItem(
+      ACTIVE_WORKSPACE_STORAGE_KEY,
+    );
+
+    if (storedWorkspaceId) {
+      setActiveWorkspaceId(storedWorkspaceId);
+    }
+  }, []);
+
   const refreshRunnerConnection = useCallback(
     async ({
       signal,
@@ -132,11 +143,11 @@ export default function Page() {
       }
 
       try {
-        const [health, registry, nextRuns, items] = await Promise.all([
+        const [health, config, registry, nextWorkspaces] = await Promise.all([
           fetchRunnerHealth(signal),
+          fetchRunnerConfig(signal),
           fetchPluginRegistry(signal),
-          fetchRuns(signal),
-          fetchArtifacts(signal),
+          fetchWorkspaces(signal),
         ]);
 
         if (signal?.aborted) {
@@ -150,9 +161,27 @@ export default function Page() {
           setSyncStatus(health ? "fallback" : "offline");
         }
 
-        setRuns(nextRuns);
-        setArtifacts(items);
-        setSelectedArtifactId((current) => current ?? items[0]?.id ?? null);
+        setRunnerConfig(config);
+        setWorkspaces(nextWorkspaces);
+        setActiveWorkspaceId((current) => {
+          const nextActiveWorkspaceId =
+            (current && nextWorkspaces.some((workspace) => workspace.id === current)
+              ? current
+              : null) ??
+            nextWorkspaces[0]?.id ??
+            null;
+
+          if (nextActiveWorkspaceId) {
+            window.localStorage.setItem(
+              ACTIVE_WORKSPACE_STORAGE_KEY,
+              nextActiveWorkspaceId,
+            );
+          } else {
+            window.localStorage.removeItem(ACTIVE_WORKSPACE_STORAGE_KEY);
+          }
+
+          return nextActiveWorkspaceId;
+        });
       } finally {
         if (!signal?.aborted) {
           setSyncPending(false);
@@ -176,20 +205,66 @@ export default function Page() {
   }, [refreshRunnerConnection]);
 
   useEffect(() => {
-    if (!selectedArtifactId) {
+    if (activeWorkspaceId) {
+      window.localStorage.setItem(
+        ACTIVE_WORKSPACE_STORAGE_KEY,
+        activeWorkspaceId,
+      );
+    } else {
+      window.localStorage.removeItem(ACTIVE_WORKSPACE_STORAGE_KEY);
+    }
+  }, [activeWorkspaceId]);
+
+  useEffect(() => {
+    if (!activeWorkspaceId) {
+      setRuns([]);
+      setArtifacts([]);
+      setSelectedArtifactId(null);
+      setSelectedArtifact(null);
       return;
     }
 
     const controller = new AbortController();
 
-    fetchArtifactDetail(selectedArtifactId, controller.signal).then(
+    Promise.all([
+      fetchRuns(activeWorkspaceId, controller.signal),
+      fetchArtifacts(activeWorkspaceId, controller.signal),
+    ]).then(([nextRuns, nextArtifacts]) => {
+      if (controller.signal.aborted) {
+        return;
+      }
+
+      setRuns(nextRuns);
+      setArtifacts(nextArtifacts);
+      setSelectedArtifact(null);
+      setSelectedArtifactId((current) =>
+        current && nextArtifacts.some((artifact) => artifact.id === current)
+          ? current
+          : (nextArtifacts[0]?.id ?? null),
+      );
+    });
+
+    return () => controller.abort();
+  }, [activeWorkspaceId]);
+
+  useEffect(() => {
+    if (!activeWorkspaceId || !selectedArtifactId) {
+      setSelectedArtifact(null);
+      return;
+    }
+
+    const controller = new AbortController();
+
+    fetchArtifactDetail(activeWorkspaceId, selectedArtifactId, controller.signal).then(
       (artifact) => {
-        setSelectedArtifact(artifact);
+        if (!controller.signal.aborted) {
+          setSelectedArtifact(artifact);
+        }
       },
     );
 
     return () => controller.abort();
-  }, [selectedArtifactId]);
+  }, [activeWorkspaceId, selectedArtifactId]);
 
   const visibleArtifact = selectedArtifactId ? selectedArtifact : null;
   const artifactLoading =
@@ -230,14 +305,23 @@ export default function Page() {
     setComposerFocusToken((prev) => prev + 1);
   }
 
-  async function refreshRunnerData() {
+  async function refreshRunnerData(workspaceId: string | null = activeWorkspaceId) {
+    if (!workspaceId) {
+      setRuns([]);
+      setArtifacts([]);
+      setSelectedArtifactId(null);
+      setSelectedArtifact(null);
+      return;
+    }
+
     const [nextRuns, nextArtifacts] = await Promise.all([
-      fetchRuns(),
-      fetchArtifacts(),
+      fetchRuns(workspaceId),
+      fetchArtifacts(workspaceId),
     ]);
 
     setRuns(nextRuns);
     setArtifacts(nextArtifacts);
+    setSelectedArtifact(null);
     setSelectedArtifactId((current) =>
       current && nextArtifacts.some((artifact) => artifact.id === current)
         ? current
@@ -247,7 +331,7 @@ export default function Page() {
 
   async function runComposerCommand() {
     const prompt = composerPrompt.trim();
-    if (!/^\/[a-z0-9-]+:[a-z0-9-]+/i.test(prompt)) {
+    if (!activeWorkspaceId || !/^\/[a-z0-9-]+:[a-z0-9-]+/i.test(prompt)) {
       return;
     }
 
@@ -255,8 +339,8 @@ export default function Page() {
     let run: RunnerRun | null = null;
 
     try {
-      run = await createRun(prompt);
-      await refreshRunnerData();
+      run = await createRun(activeWorkspaceId, prompt);
+      await refreshRunnerData(activeWorkspaceId);
     } finally {
       setRunPending(false);
     }
@@ -267,35 +351,142 @@ export default function Page() {
     }
   }
 
-  function addWorkspace() {
-    const workspace = newWorkspace();
-    setWorkspaces((prev) => [...prev, workspace]);
+  async function addWorkspace() {
+    const title = window.prompt("Workspace name", "Untitled Workspace")?.trim();
+    if (!title) {
+      return;
+    }
+
+    const workspace = await createWorkspace({
+      title: title || undefined,
+      workspaceRoot: runnerConfig?.workspaceRoot,
+    });
+
+    if (!workspace) {
+      window.alert("Workspace creation failed. Check the configured workspace root and try again.");
+      return;
+    }
+
+    setWorkspaces((prev) => {
+      const withoutExisting = prev.filter((item) => item.id !== workspace.id);
+      return [workspace, ...withoutExisting];
+    });
     setActiveWorkspaceId(workspace.id);
   }
 
-  function closeWorkspace(id: string) {
-    setWorkspaces((prev) => {
-      if (prev.length === 1) return prev;
-      const idx = prev.findIndex((workspace) => workspace.id === id);
-      const next = prev.filter((workspace) => workspace.id !== id);
-      if (activeWorkspaceId === id)
-        setActiveWorkspaceId(next[Math.max(0, idx - 1)].id);
-      return next;
-    });
+  async function closeWorkspace(id: string) {
+    const workspace = workspaces.find((item) => item.id === id);
+    if (!workspace) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Remove workspace "${workspace.title}"? This deletes ${workspace.folders.dataRoot} but leaves the rest of ${workspace.rootPath} intact.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    const deleted = await deleteWorkspace(id);
+    if (!deleted) {
+      window.alert("Workspace deletion failed.");
+      return;
+    }
+
+    const nextWorkspaces = workspaces.filter((item) => item.id !== id);
+    setWorkspaces(nextWorkspaces);
+    setActiveWorkspaceId((current) =>
+      current === id ? (nextWorkspaces[0]?.id ?? null) : current,
+    );
   }
 
-  function renameActiveWorkspace() {
+  async function renameActiveWorkspace() {
+    if (!activeWorkspace) {
+      return;
+    }
+
     const nextTitle = window.prompt("Rename workspace", activeWorkspace.title);
     const title = nextTitle?.trim();
     if (!title) return;
 
+    const updated = await renameWorkspace(activeWorkspace.id, title);
+    if (!updated) {
+      window.alert("Workspace rename failed.");
+      return;
+    }
+
     setWorkspaces((prev) =>
       prev.map((workspace) =>
-        workspace.id === activeWorkspace.id
-          ? { ...workspace, title }
-          : workspace,
+        workspace.id === updated.id ? updated : workspace,
       ),
     );
+  }
+
+  async function exportActiveWorkspace() {
+    if (!activeWorkspace) {
+      return;
+    }
+
+    const summary = await exportWorkspace(activeWorkspace.id);
+    if (!summary) {
+      window.alert("Workspace export failed.");
+      return;
+    }
+
+    const blob = new Blob([JSON.stringify(summary, null, 2)], {
+      type: "application/json",
+    });
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${summary.workspace.id}-export.json`;
+    anchor.click();
+    window.URL.revokeObjectURL(url);
+  }
+
+  async function refreshActiveWorkspace() {
+    if (!activeWorkspace) {
+      return;
+    }
+
+    setWorkspaceRefreshPending(true);
+
+    try {
+      const refreshed = await refreshWorkspace(activeWorkspace.id)
+      if (!refreshed) {
+        window.alert("Workspace refresh failed.")
+        return
+      }
+
+      setWorkspaces((prev) =>
+        prev.map((workspace) =>
+          workspace.id === refreshed.id ? refreshed : workspace,
+        ),
+      )
+      await refreshRunnerData(refreshed.id)
+    } finally {
+      setWorkspaceRefreshPending(false)
+    }
+  }
+
+  async function saveRunnerConfiguration(input: {
+    toolkitPath: string;
+    workspaceRoot: string;
+  }) {
+    setConfigSavePending(true);
+
+    try {
+      const nextConfig = await updateRunnerConfig(input);
+      if (!nextConfig) {
+        window.alert("Configuration save failed.");
+        return;
+      }
+
+      setRunnerConfig(nextConfig);
+      await refreshRunnerConnection();
+    } finally {
+      setConfigSavePending(false);
+    }
   }
 
   return (
@@ -316,14 +507,22 @@ export default function Page() {
           activeSection={activeSection}
           onSelectSection={(section) => setActiveSection(section as AppSection)}
           onRefreshSync={() => {
-            void refreshRunnerConnection();
+            void Promise.all([
+              refreshRunnerConnection(),
+              refreshRunnerData(activeWorkspaceId),
+            ]);
           }}
           sections={HEADER_SECTIONS}
           syncPending={syncPending}
           syncStatus={syncStatus}
         />
 
-        {activeSection === "chat" && (
+        {!activeWorkspace ? (
+          <SectionSurface
+            title="Create a workspace"
+            description="Choose a filesystem folder to initialize a .cge workspace before running commands or browsing artifacts."
+          />
+        ) : activeSection === "chat" ? (
           <ChatSurface
             commandFormValues={commandFormValues}
             focusToken={composerFocusToken}
@@ -339,26 +538,22 @@ export default function Page() {
             selectedCommandPath={selectedCommandPath}
             setPrompt={setComposerPrompt}
           />
-        )}
-        {activeSection === "dashboards" && (
+        ) : activeSection === "dashboards" ? (
           <SectionSurface
             title="Dashboards"
             description="Dashboard views will live here once the specialized monitoring surfaces are wired in."
           />
-        )}
-        {activeSection === "findings" && (
+        ) : activeSection === "findings" ? (
           <SectionSurface
             title="Findings"
             description="Structured findings will live here once the findings explorer and remediation links are wired in."
           />
-        )}
-        {activeSection === "program" && (
+        ) : activeSection === "program" ? (
           <SectionSurface
             title="Program"
             description="Program state, risks, and operational records will live here as a dedicated interface."
           />
-        )}
-        {activeSection === "artifacts" && (
+        ) : (
           <ArtifactsSurface
             artifact={visibleArtifact}
             loading={artifactLoading}
@@ -366,10 +561,15 @@ export default function Page() {
         )}
 
         <WorkspaceFooter
+          activeArtifactCount={artifacts.length}
           activeWorkspaceId={activeWorkspaceId}
+          activeWorkspaceRunCount={runs.length}
           onAddWorkspace={addWorkspace}
           onCloseWorkspace={closeWorkspace}
+          onExportWorkspace={exportActiveWorkspace}
+          onRefreshWorkspace={refreshActiveWorkspace}
           onRenameWorkspace={renameActiveWorkspace}
+          refreshPending={workspaceRefreshPending}
           setActiveWorkspaceId={setActiveWorkspaceId}
           workspaces={workspaces}
         />
@@ -387,7 +587,11 @@ export default function Page() {
         }}
         runs={runs}
       />
-      <ConfigPanel />
+      <ConfigPanel
+        config={runnerConfig}
+        savePending={configSavePending}
+        onSave={saveRunnerConfiguration}
+      />
     </div>
   );
 }

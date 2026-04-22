@@ -8,6 +8,27 @@ interface PluginRegistryResponse {
   toolkitPath: string | null
 }
 
+export interface RunnerWorkspace {
+  id: string
+  name: string
+  title: string
+  rootPath: string
+  createdAt: string | null
+  updatedAt: string | null
+  folders: {
+    dataRoot: string
+    runner: string
+    runs: string
+    findings: string
+    program: string
+    artifacts: string
+    artifactsGenerated: string
+    artifactsExports: string
+    artifactsBundles: string
+    dashboards: string
+  }
+}
+
 export interface RunnerHealthSnapshot {
   ok: boolean
   runnerVersion: string
@@ -17,6 +38,13 @@ export interface RunnerHealthSnapshot {
   appDataRoot: string
   cacheRoot: string
   configRoot: string
+  workspacesRoot: string
+}
+
+export interface RunnerConfigSnapshot {
+  toolkitPath: string
+  workspaceRoot: string
+  runnerConfigPath: string
 }
 
 export interface RunnerArtifactSummary {
@@ -49,6 +77,15 @@ export interface RunnerRun {
   commandPreview: string | null
   artifactCount?: number
   artifacts: RunnerArtifactSummary[]
+}
+
+export interface WorkspaceExportSummary {
+  workspace: RunnerWorkspace
+  exportedAt: string
+  summary: {
+    runs: number
+    artifacts: number
+  }
 }
 
 export async function fetchPluginRegistry(signal?: AbortSignal): Promise<Plugin[] | null> {
@@ -88,9 +125,152 @@ export async function fetchRunnerHealth(signal?: AbortSignal): Promise<RunnerHea
   }
 }
 
-export async function fetchRuns(signal?: AbortSignal): Promise<RunnerRun[]> {
+export async function fetchRunnerConfig(signal?: AbortSignal): Promise<RunnerConfigSnapshot | null> {
   try {
-    const response = await fetch(`${RUNNER_BASE_URL}/runs`, {
+    const response = await fetch(`${RUNNER_BASE_URL}/config`, {
+      cache: "no-store",
+      signal,
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    return (await response.json()) as RunnerConfigSnapshot
+  } catch {
+    return null
+  }
+}
+
+export async function updateRunnerConfig(
+  input: Partial<Pick<RunnerConfigSnapshot, "toolkitPath" | "workspaceRoot">>,
+): Promise<RunnerConfigSnapshot | null> {
+  try {
+    const response = await fetch(`${RUNNER_BASE_URL}/config`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    return (await response.json()) as RunnerConfigSnapshot
+  } catch {
+    return null
+  }
+}
+
+export async function fetchWorkspaces(signal?: AbortSignal): Promise<RunnerWorkspace[]> {
+  try {
+    const response = await fetch(`${RUNNER_BASE_URL}/workspaces`, {
+      cache: "no-store",
+      signal,
+    })
+
+    if (!response.ok) {
+      return []
+    }
+
+    return (await response.json()) as RunnerWorkspace[]
+  } catch {
+    return []
+  }
+}
+
+export async function createWorkspace(input: {
+  title?: string
+  workspaceRoot?: string
+}): Promise<RunnerWorkspace | null> {
+  try {
+    const response = await fetch(`${RUNNER_BASE_URL}/workspaces`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    return (await response.json()) as RunnerWorkspace
+  } catch {
+    return null
+  }
+}
+
+export async function renameWorkspace(workspaceId: string, title: string): Promise<RunnerWorkspace | null> {
+  try {
+    const response = await fetch(`${RUNNER_BASE_URL}/workspaces/${workspaceId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ title }),
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    return (await response.json()) as RunnerWorkspace
+  } catch {
+    return null
+  }
+}
+
+export async function refreshWorkspace(workspaceId: string): Promise<RunnerWorkspace | null> {
+  try {
+    const response = await fetch(`${RUNNER_BASE_URL}/workspaces/${workspaceId}/refresh`, {
+      method: "POST",
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    return (await response.json()) as RunnerWorkspace
+  } catch {
+    return null
+  }
+}
+
+export async function deleteWorkspace(workspaceId: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${RUNNER_BASE_URL}/workspaces/${workspaceId}`, {
+      method: "DELETE",
+    })
+
+    return response.ok
+  } catch {
+    return false
+  }
+}
+
+export async function exportWorkspace(workspaceId: string): Promise<WorkspaceExportSummary | null> {
+  try {
+    const response = await fetch(`${RUNNER_BASE_URL}/workspaces/${workspaceId}/export`, {
+      cache: "no-store",
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    return (await response.json()) as WorkspaceExportSummary
+  } catch {
+    return null
+  }
+}
+
+export async function fetchRuns(workspaceId: string, signal?: AbortSignal): Promise<RunnerRun[]> {
+  try {
+    const response = await fetch(`${RUNNER_BASE_URL}/workspaces/${workspaceId}/runs`, {
       cache: "no-store",
       signal,
     })
@@ -105,14 +285,14 @@ export async function fetchRuns(signal?: AbortSignal): Promise<RunnerRun[]> {
   }
 }
 
-export async function createRun(prompt: string): Promise<RunnerRun | null> {
+export async function createRun(workspaceId: string, prompt: string): Promise<RunnerRun | null> {
   try {
-    const response = await fetch(`${RUNNER_BASE_URL}/runs`, {
+    const response = await fetch(`${RUNNER_BASE_URL}/workspaces/${workspaceId}/runs`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify({ prompt, workspaceId }),
     })
 
     if (!response.ok) {
@@ -125,9 +305,12 @@ export async function createRun(prompt: string): Promise<RunnerRun | null> {
   }
 }
 
-export async function fetchArtifacts(signal?: AbortSignal): Promise<RunnerArtifactSummary[]> {
+export async function fetchArtifacts(
+  workspaceId: string,
+  signal?: AbortSignal,
+): Promise<RunnerArtifactSummary[]> {
   try {
-    const response = await fetch(`${RUNNER_BASE_URL}/artifacts`, {
+    const response = await fetch(`${RUNNER_BASE_URL}/workspaces/${workspaceId}/artifacts`, {
       cache: "no-store",
       signal,
     })
@@ -143,14 +326,18 @@ export async function fetchArtifacts(signal?: AbortSignal): Promise<RunnerArtifa
 }
 
 export async function fetchArtifactDetail(
+  workspaceId: string,
   artifactId: string,
   signal?: AbortSignal,
 ): Promise<RunnerArtifactDetail | null> {
   try {
-    const response = await fetch(`${RUNNER_BASE_URL}/artifacts/${artifactId}/content`, {
-      cache: "no-store",
-      signal,
-    })
+    const response = await fetch(
+      `${RUNNER_BASE_URL}/workspaces/${workspaceId}/artifacts/${artifactId}/content`,
+      {
+        cache: "no-store",
+        signal,
+      },
+    )
 
     if (!response.ok) {
       return null

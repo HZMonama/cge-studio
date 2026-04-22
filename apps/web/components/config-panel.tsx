@@ -1,8 +1,10 @@
 "use client";
 
-import { XIcon } from "@phosphor-icons/react";
+import { useEffect, useState } from "react";
+import { FloppyDiskIcon, XIcon } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
+import { type RunnerConfigSnapshot } from "@/lib/runner";
 import { usePluginPanel } from "@/stores/plugin-panel-store";
 
 const CONNECTORS = [
@@ -33,8 +35,26 @@ function Section({
   );
 }
 
-export function ConfigPanel() {
+export function ConfigPanel({
+  config,
+  savePending,
+  onSave,
+}: {
+  config: RunnerConfigSnapshot | null;
+  savePending: boolean;
+  onSave: (input: {
+    toolkitPath: string;
+    workspaceRoot: string;
+  }) => Promise<void>;
+}) {
   const { configOpen, closeConfig } = usePluginPanel();
+  const [toolkitPath, setToolkitPath] = useState("");
+  const [workspaceRoot, setWorkspaceRoot] = useState("");
+
+  useEffect(() => {
+    setToolkitPath(config?.toolkitPath ?? "");
+    setWorkspaceRoot(config?.workspaceRoot ?? "");
+  }, [config]);
 
   return (
     <div
@@ -58,11 +78,48 @@ export function ConfigPanel() {
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-color:var(--sidebar-border)_transparent] [scrollbar-width:thin]">
+          <Section title="Workspace Root">
+            <div className="space-y-2">
+              <input
+                value={workspaceRoot}
+                onChange={(event) => setWorkspaceRoot(event.target.value)}
+                placeholder="/"
+                className="w-full border border-sidebar-border bg-transparent px-2 py-1.5 text-xs placeholder:text-sidebar-foreground/30 focus:border-sidebar-ring focus:outline-none"
+              />
+              <p className="text-[10px] leading-4 text-sidebar-foreground/45">
+                New workspaces will be created as folders under this root.
+              </p>
+            </div>
+          </Section>
+
           <Section title="Toolkit Path">
             <input
+              value={toolkitPath}
+              onChange={(event) => setToolkitPath(event.target.value)}
               placeholder="/path/to/claude-grc-engineering"
-              className="w-full border border-sidebar-border bg-transparent px-2 py-1.5 text-xs placeholder:text-sidebar-foreground/30 focus:outline-none focus:border-sidebar-ring"
+              className="w-full border border-sidebar-border bg-transparent px-2 py-1.5 text-xs placeholder:text-sidebar-foreground/30 focus:border-sidebar-ring focus:outline-none"
             />
+          </Section>
+
+          <Section title="Runner Config">
+            <div className="space-y-3">
+              <p className="text-[10px] leading-4 text-sidebar-foreground/45">
+                {config?.runnerConfigPath ?? "No writable runner config path available."}
+              </p>
+              <button
+                onClick={() =>
+                  void onSave({
+                    toolkitPath,
+                    workspaceRoot,
+                  })
+                }
+                disabled={savePending}
+                className="flex w-full items-center justify-center gap-2 border border-sidebar-border px-3 py-2 text-xs transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground disabled:cursor-wait disabled:opacity-60"
+              >
+                <FloppyDiskIcon className="size-3.5" />
+                {savePending ? "Saving configuration" : "Save configuration"}
+              </button>
+            </div>
           </Section>
 
           <Section title="Connectors">
@@ -86,31 +143,6 @@ export function ConfigPanel() {
                 </li>
               ))}
             </ul>
-          </Section>
-
-          <Section title="LLM / BYOK">
-            <div className="space-y-2">
-              <div>
-                <p className="mb-1 text-[10px] text-sidebar-foreground/50 uppercase tracking-wide">
-                  Provider
-                </p>
-                <select className="w-full border border-sidebar-border bg-sidebar px-2 py-1.5 text-xs focus:outline-none focus:border-sidebar-ring">
-                  <option>Anthropic API</option>
-                  <option>AWS Bedrock</option>
-                  <option>Google Vertex AI</option>
-                </select>
-              </div>
-              <div>
-                <p className="mb-1 text-[10px] text-sidebar-foreground/50 uppercase tracking-wide">
-                  API Key
-                </p>
-                <input
-                  type="password"
-                  placeholder="sk-ant-..."
-                  className="w-full border border-sidebar-border bg-transparent px-2 py-1.5 text-xs placeholder:text-sidebar-foreground/30 focus:outline-none focus:border-sidebar-ring"
-                />
-              </div>
-            </div>
           </Section>
         </div>
       </div>
