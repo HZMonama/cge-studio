@@ -1,0 +1,63 @@
+{
+  "mode": "inline",
+  "extends": "connector-collect",
+  "compose": [],
+  "fields": [
+    {
+      "name": "project",
+      "label": "GCP Project",
+      "type": "text",
+      "required": false,
+      "flag": "--project",
+      "description": "Override the configured GCP project for this collection run.",
+      "placeholder": "prod-01"
+    },
+    {
+      "name": "services",
+      "label": "Services",
+      "type": "multiselect",
+      "required": false,
+      "flag": "--services",
+      "description": "Limit collection to a subset of GCP services.",
+      "placeholder": "Select GCP services",
+      "options": [
+        { "label": "IAM", "value": "iam" },
+        { "label": "Cloud Storage", "value": "storage" },
+        { "label": "Logging", "value": "logging" },
+        { "label": "KMS", "value": "kms" },
+        { "label": "Compute", "value": "compute" }
+      ]
+    }
+  ],
+  "overrides": {
+    "output": {
+      "label": "Output Format",
+      "description": "Choose how collection results should be emitted.",
+      "defaultValue": "summary",
+      "options": [
+        { "label": "Summary", "value": "summary" },
+        { "label": "JSON", "value": "json" },
+        { "label": "Silent", "value": "silent" }
+      ]
+    },
+    "refresh": {
+      "label": "Refresh cached findings",
+      "description": "Ignore cached findings and query GCP again.",
+      "defaultValue": false
+    },
+    "quiet": {
+      "label": "Quiet output",
+      "description": "Suppress progress output to stderr.",
+      "defaultValue": false
+    }
+  },
+  "remove": [],
+  "order": [
+    "project",
+    "services",
+    "output",
+    "refresh",
+    "quiet"
+  ],
+  "submitLabel": "Run GCP Collect"
+}

@@ -1,0 +1,33 @@
+{
+  "mode": "inline",
+  "extends": "connector-setup",
+  "compose": [],
+  "fields": [
+    {
+      "name": "domain",
+      "label": "Okta Domain",
+      "type": "text",
+      "required": true,
+      "flag": "--domain",
+      "description": "Okta org domain to verify and persist in the connector config.",
+      "placeholder": "acme.okta.com"
+    },
+    {
+      "name": "tokenEnv",
+      "label": "Token Environment Variable",
+      "type": "text",
+      "required": false,
+      "flag": "--token-env",
+      "description": "Environment variable name that holds the Okta API token. The token value itself is not stored in the config.",
+      "placeholder": "OKTA_API_TOKEN",
+      "defaultValue": "OKTA_API_TOKEN"
+    }
+  ],
+  "overrides": {},
+  "remove": [],
+  "order": [
+    "domain",
+    "tokenEnv"
+  ],
+  "submitLabel": "Run Okta Setup"
+}

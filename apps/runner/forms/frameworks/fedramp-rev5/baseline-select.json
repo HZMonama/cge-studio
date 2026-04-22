@@ -1,0 +1,58 @@
+{
+  "mode": "inline",
+  "extends": "framework-baseline-select",
+  "compose": [],
+  "fields": [
+    {
+      "name": "impactLevel",
+      "label": "Impact Level",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required FedRAMP impact level to select and tailor.",
+      "defaultValue": "moderate",
+      "options": [
+        { "label": "Low", "value": "low" },
+        { "label": "Moderate", "value": "moderate" },
+        { "label": "High", "value": "high" }
+      ]
+    },
+    {
+      "name": "systemType",
+      "label": "System Type",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional deployment model used to tailor the baseline.",
+      "defaultValue": "",
+      "options": [
+        { "label": "Select system type", "value": "" },
+        { "label": "SaaS", "value": "saas" },
+        { "label": "PaaS", "value": "paas" },
+        { "label": "IaaS", "value": "iaas" }
+      ]
+    }
+  ],
+  "overrides": {
+    "reportDir": {
+      "label": "Output Directory",
+      "description": "Optional directory where the tailored FedRAMP baseline output should be written.",
+      "placeholder": "./fedramp-baseline"
+    },
+    "quiet": {
+      "label": "Quiet output",
+      "description": "Suppress progress output while selecting and tailoring the baseline.",
+      "defaultValue": false
+    }
+  },
+  "remove": [
+    "output"
+  ],
+  "order": [
+    "impactLevel",
+    "systemType",
+    "reportDir",
+    "quiet"
+  ],
+  "submitLabel": "Select FedRAMP Baseline"
+}

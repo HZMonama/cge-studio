@@ -1,0 +1,29 @@
+{
+  "mode": "inline",
+  "compose": [
+    "output-format",
+    "quiet-flag",
+    "refresh-flag"
+  ],
+  "fields": [],
+  "overrides": {
+    "output": {
+      "label": "Output Format",
+      "description": "Choose how connector results should be emitted.",
+      "defaultValue": "summary",
+      "options": [
+        { "label": "Summary", "value": "summary" },
+        { "label": "JSON", "value": "json" },
+        { "label": "Silent", "value": "silent" }
+      ]
+    },
+    "quiet": {
+      "label": "Quiet output",
+      "description": "Suppress progress output to stderr."
+    },
+    "refresh": {
+      "label": "Refresh cached findings",
+      "description": "Ignore cached findings and collect fresh data."
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "mode": "inline",
+  "compose": [],
+  "fields": [],
+  "overrides": {},
+  "remove": [],
+  "order": [],
+  "submitLabel": "Run Status Check",
+  "source": {
+    "kind": "preset",
+    "name": "connector-status"
+  }
+}

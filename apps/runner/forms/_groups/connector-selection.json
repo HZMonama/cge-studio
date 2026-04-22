@@ -1,0 +1,19 @@
+{
+  "fields": [
+    {
+      "name": "sources",
+      "label": "Sources",
+      "type": "multiselect",
+      "required": false,
+      "flag": "--sources",
+      "description": "Restrict the command to specific connectors.",
+      "placeholder": "Select connectors",
+      "options": [
+        { "label": "AWS Inspector", "value": "aws-inspector" },
+        { "label": "GCP Inspector", "value": "gcp-inspector" },
+        { "label": "GitHub Inspector", "value": "github-inspector" },
+        { "label": "Okta Inspector", "value": "okta-inspector" }
+      ]
+    }
+  ]
+}

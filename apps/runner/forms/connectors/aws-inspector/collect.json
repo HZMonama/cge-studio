@@ -1,0 +1,84 @@
+{
+  "mode": "inline",
+  "extends": "connector-collect",
+  "compose": [],
+  "fields": [
+    {
+      "name": "regions",
+      "label": "Regions",
+      "type": "multiselect",
+      "required": false,
+      "flag": "--regions",
+      "description": "Regions to scan. Leave empty to use the connector's default region.",
+      "placeholder": "Select AWS regions",
+      "options": [
+        { "label": "us-east-1", "value": "us-east-1" },
+        { "label": "us-east-2", "value": "us-east-2" },
+        { "label": "us-west-1", "value": "us-west-1" },
+        { "label": "us-west-2", "value": "us-west-2" },
+        { "label": "ca-central-1", "value": "ca-central-1" },
+        { "label": "eu-west-1", "value": "eu-west-1" },
+        { "label": "eu-west-2", "value": "eu-west-2" },
+        { "label": "eu-central-1", "value": "eu-central-1" },
+        { "label": "ap-southeast-1", "value": "ap-southeast-1" },
+        { "label": "ap-southeast-2", "value": "ap-southeast-2" }
+      ]
+    },
+    {
+      "name": "services",
+      "label": "Services",
+      "type": "multiselect",
+      "required": false,
+      "flag": "--services",
+      "description": "Limit collection to a subset of AWS services.",
+      "placeholder": "Select AWS services",
+      "options": [
+        { "label": "IAM", "value": "iam" },
+        { "label": "S3", "value": "s3" },
+        { "label": "CloudTrail", "value": "cloudtrail" },
+        { "label": "EBS", "value": "ebs" }
+      ]
+    },
+    {
+      "name": "profile",
+      "label": "AWS Profile",
+      "type": "text",
+      "required": false,
+      "flag": "--profile",
+      "description": "Override the configured AWS profile for this collection run.",
+      "placeholder": "audit-role"
+    }
+  ],
+  "overrides": {
+    "output": {
+      "label": "Output Format",
+      "description": "Choose how collection results should be emitted.",
+      "defaultValue": "summary",
+      "options": [
+        { "label": "Summary", "value": "summary" },
+        { "label": "JSON", "value": "json" },
+        { "label": "Silent", "value": "silent" }
+      ]
+    },
+    "refresh": {
+      "label": "Refresh cached findings",
+      "description": "Ignore cached findings and query AWS again.",
+      "defaultValue": false
+    },
+    "quiet": {
+      "label": "Quiet output",
+      "description": "Suppress progress output to stderr.",
+      "defaultValue": false
+    }
+  },
+  "remove": [],
+  "order": [
+    "regions",
+    "services",
+    "profile",
+    "output",
+    "refresh",
+    "quiet"
+  ],
+  "submitLabel": "Run AWS Collect"
+}

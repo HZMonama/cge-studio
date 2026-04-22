@@ -1,0 +1,19 @@
+{
+  "fields": [
+    {
+      "name": "output",
+      "label": "Output Format",
+      "type": "select",
+      "required": false,
+      "flag": "--output",
+      "description": "Choose the output format for this command.",
+      "defaultValue": "markdown",
+      "options": [
+        { "label": "Markdown", "value": "markdown" },
+        { "label": "JSON", "value": "json" },
+        { "label": "SARIF", "value": "sarif" },
+        { "label": "OSCAL Assessment Results", "value": "oscal-ar" }
+      ]
+    }
+  ]
+}

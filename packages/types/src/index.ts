@@ -12,7 +12,49 @@ export type FrameworkId =
   | "ISO-27001-2022"
   | "CIS-v8";
 
-export type RunStatus = "planned" | "queued" | "running" | "completed" | "failed";
+export type RunStatus =
+  | "planned"
+  | "queued"
+  | "running"
+  | "completed"
+  | "failed";
+
+export type CommandFieldType =
+  | "text"
+  | "textarea"
+  | "select"
+  | "multiselect"
+  | "boolean"
+  | "number"
+  | "path"
+  | "secret";
+
+export type CommandFieldPosition = "argument" | "option";
+
+export interface CommandFormOption {
+  label: string;
+  value: string;
+}
+
+export interface CommandFormField {
+  name: string;
+  label: string;
+  type: CommandFieldType;
+  required?: boolean;
+  description?: string;
+  placeholder?: string;
+  defaultValue?: string | string[] | number | boolean | null;
+  options?: CommandFormOption[];
+  flag?: string;
+  position?: CommandFieldPosition;
+  sensitive?: boolean;
+}
+
+export interface CommandFormSchema {
+  mode: "inline";
+  submitLabel?: string;
+  fields: CommandFormField[];
+}
 
 export interface ConnectorSummary {
   id: ConnectorId;

@@ -1,0 +1,40 @@
+{
+  "mode": "inline",
+  "extends": null,
+  "compose": [
+    "quiet-flag"
+  ],
+  "fields": [
+    {
+      "name": "file",
+      "label": "OSCAL File",
+      "type": "path",
+      "required": true,
+      "position": "argument",
+      "description": "Path to the OSCAL document to validate."
+    },
+    {
+      "name": "json",
+      "label": "JSON Output",
+      "type": "boolean",
+      "required": false,
+      "flag": "--json",
+      "description": "Emit structured JSON output for CI pipelines.",
+      "defaultValue": false
+    }
+  ],
+  "overrides": {
+    "quiet": {
+      "label": "Quiet output",
+      "description": "Only emit output on validation failure.",
+      "defaultValue": false
+    }
+  },
+  "remove": [],
+  "order": [
+    "file",
+    "quiet",
+    "json"
+  ],
+  "submitLabel": "Run OSCAL Validate"
+}

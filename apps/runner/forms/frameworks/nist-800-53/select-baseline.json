@@ -1,0 +1,56 @@
+{
+  "mode": "inline",
+  "extends": "framework-baseline-select",
+  "compose": [],
+  "fields": [
+    {
+      "name": "impactLevel",
+      "label": "Impact Level",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Select the NIST 800-53 impact level baseline to tailor.",
+      "defaultValue": "moderate",
+      "options": [
+        { "label": "Low", "value": "low" },
+        { "label": "Moderate", "value": "moderate" },
+        { "label": "High", "value": "high" }
+      ]
+    },
+    {
+      "name": "systemType",
+      "label": "System Type",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional system type to help tailor the baseline.",
+      "defaultValue": "",
+      "options": [
+        { "label": "General", "value": "general" },
+        { "label": "Cloud", "value": "cloud" },
+        { "label": "Mobile", "value": "mobile" },
+        { "label": "Industrial", "value": "industrial" }
+      ]
+    }
+  ],
+  "overrides": {
+    "reportDir": {
+      "label": "Output Directory",
+      "description": "Optional directory where the selected NIST baseline output should be written.",
+      "placeholder": "./nist-baseline-select"
+    },
+    "quiet": {
+      "label": "Quiet output",
+      "description": "Suppress progress output while selecting and tailoring the baseline.",
+      "defaultValue": false
+    }
+  },
+  "remove": [],
+  "order": [
+    "impactLevel",
+    "systemType",
+    "reportDir",
+    "quiet"
+  ],
+  "submitLabel": "Select NIST Baseline"
+}

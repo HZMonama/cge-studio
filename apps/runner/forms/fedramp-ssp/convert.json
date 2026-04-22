@@ -1,0 +1,49 @@
+{
+  "mode": "inline",
+  "extends": null,
+  "compose": [],
+  "fields": [
+    {
+      "name": "sspDocx",
+      "label": "SSP DOCX",
+      "type": "path",
+      "required": true,
+      "flag": "--ssp-docx",
+      "description": "Path to the filled-in official FedRAMP Rev 5 SSP template DOCX."
+    },
+    {
+      "name": "appendixADocx",
+      "label": "Appendix A DOCX",
+      "type": "path",
+      "required": true,
+      "flag": "--appendix-a-docx",
+      "description": "Path to the FedRAMP Appendix A control responses DOCX."
+    },
+    {
+      "name": "output",
+      "label": "Output File",
+      "type": "path",
+      "required": false,
+      "flag": "--output",
+      "description": "Optional path for the generated OSCAL SSP JSON. Leave empty to use the command default."
+    },
+    {
+      "name": "validate",
+      "label": "Validate output",
+      "type": "boolean",
+      "required": false,
+      "flag": "--validate",
+      "description": "Run OSCAL validation on the generated SSP after conversion.",
+      "defaultValue": false
+    }
+  ],
+  "overrides": {},
+  "remove": [],
+  "order": [
+    "sspDocx",
+    "appendixADocx",
+    "output",
+    "validate"
+  ],
+  "submitLabel": "Run FedRAMP SSP Convert"
+}

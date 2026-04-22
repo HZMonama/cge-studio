@@ -1,0 +1,10 @@
+{
+  "mode": "inline",
+  "extends": null,
+  "compose": [],
+  "fields": [],
+  "overrides": {},
+  "remove": [],
+  "order": [],
+  "submitLabel": "Run ISMAP Registration"
+}

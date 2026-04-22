@@ -1,0 +1,98 @@
+{
+  "mode": "inline",
+  "extends": null,
+  "compose": [
+    "offline-flag"
+  ],
+  "fields": [
+    {
+      "name": "region",
+      "label": "Region",
+      "type": "select",
+      "required": false,
+      "flag": "--region",
+      "description": "Filter frameworks by SCF region.",
+      "options": [
+        { "label": "Americas", "value": "americas" },
+        { "label": "APAC", "value": "apac" },
+        { "label": "EMEA", "value": "emea" },
+        { "label": "Global", "value": "global" }
+      ]
+    },
+    {
+      "name": "depth",
+      "label": "Plugin Depth",
+      "type": "select",
+      "required": false,
+      "flag": "--depth",
+      "description": "Filter by plugin implementation depth.",
+      "options": [
+        { "label": "Stub", "value": "stub" },
+        { "label": "Reference", "value": "reference" },
+        { "label": "Full", "value": "full" },
+        { "label": "Unknown", "value": "unknown" }
+      ]
+    },
+    {
+      "name": "status",
+      "label": "Plugin Status",
+      "type": "select",
+      "required": false,
+      "flag": "--status",
+      "description": "Filter by whether a dedicated framework plugin exists.",
+      "options": [
+        { "label": "Shipped", "value": "shipped" },
+        { "label": "Not started", "value": "not-started" }
+      ]
+    },
+    {
+      "name": "search",
+      "label": "Search",
+      "type": "text",
+      "required": false,
+      "flag": "--search",
+      "description": "Case-insensitive substring match against display name, SCF framework ID, or plugin slug.",
+      "placeholder": "pdpa"
+    },
+    {
+      "name": "format",
+      "label": "Output Format",
+      "type": "select",
+      "required": false,
+      "flag": "--format",
+      "description": "Choose how framework discovery results should be rendered.",
+      "defaultValue": "text",
+      "options": [
+        { "label": "Text", "value": "text" },
+        { "label": "JSON", "value": "json" },
+        { "label": "Table", "value": "table" }
+      ]
+    },
+    {
+      "name": "limit",
+      "label": "Result Limit",
+      "type": "number",
+      "required": false,
+      "flag": "--limit",
+      "description": "Optional cap on the number of rows returned.",
+      "placeholder": "25"
+    }
+  ],
+  "overrides": {
+    "offline": {
+      "label": "Offline mode",
+      "description": "Use cached SCF data only and skip network access."
+    }
+  },
+  "remove": [],
+  "order": [
+    "region",
+    "depth",
+    "status",
+    "search",
+    "format",
+    "limit",
+    "offline"
+  ],
+  "submitLabel": "Run Framework Discovery"
+}

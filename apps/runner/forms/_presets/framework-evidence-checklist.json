@@ -1,0 +1,70 @@
+{
+  "mode": "inline",
+  "compose": [
+    "report-dir",
+    "quiet-flag"
+  ],
+  "fields": [
+    {
+      "name": "controlId",
+      "label": "Control or Safeguard",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Enter a control identifier, safeguard ID, or category name to generate an evidence checklist.",
+      "placeholder": "CC6.1"
+    },
+    {
+      "name": "auditType",
+      "label": "Audit Type",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional audit mode or evidence period to tailor the checklist.",
+      "defaultValue": "",
+      "options": [
+        { "label": "Type I", "value": "type1" },
+        { "label": "Type II", "value": "type2" }
+      ]
+    },
+    {
+      "name": "export",
+      "label": "Export Format",
+      "type": "select",
+      "required": false,
+      "flag": "--export",
+      "description": "Choose the format for the generated evidence checklist.",
+      "defaultValue": "markdown",
+      "options": [
+        { "label": "Markdown", "value": "markdown" },
+        { "label": "JSON", "value": "json" },
+        { "label": "CSV", "value": "csv" }
+      ]
+    }
+  ],
+  "overrides": {
+    "reportDir": {
+      "label": "Output Directory",
+      "description": "Optional directory where the evidence checklist output should be written.",
+      "placeholder": "./evidence-checklist"
+    },
+    "quiet": {
+      "label": "Quiet output",
+      "description": "Suppress progress output to stderr.",
+      "defaultValue": false
+    }
+  },
+  "remove": [],
+  "order": [
+    "controlId",
+    "auditType",
+    "export",
+    "reportDir",
+    "quiet"
+  ],
+  "submitLabel": "Generate Evidence Checklist",
+  "source": {
+    "kind": "preset",
+    "name": "framework-evidence-checklist"
+  }
+}

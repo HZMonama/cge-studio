@@ -1,0 +1,27 @@
+{
+  "mode": "inline",
+  "extends": "connector-setup",
+  "compose": [
+    "aws-profile",
+    "aws-region"
+  ],
+  "fields": [],
+  "overrides": {
+    "profile": {
+      "label": "AWS Profile",
+      "description": "Optional AWS profile to verify and persist in the connector config.",
+      "placeholder": "default"
+    },
+    "region": {
+      "label": "Default Region",
+      "description": "Default AWS region to store in the connector config.",
+      "placeholder": "us-east-1"
+    }
+  },
+  "remove": [],
+  "order": [
+    "profile",
+    "region"
+  ],
+  "submitLabel": "Run AWS Setup"
+}

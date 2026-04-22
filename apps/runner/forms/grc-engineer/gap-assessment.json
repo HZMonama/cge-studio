@@ -1,0 +1,74 @@
+{
+  "mode": "inline",
+  "extends": null,
+  "compose": [
+    "framework-selection",
+    "connector-selection",
+    "output-format",
+    "report-dir",
+    "refresh-flag",
+    "offline-flag",
+    "quiet-flag"
+  ],
+  "fields": [],
+  "overrides": {
+    "frameworks": {
+      "label": "Frameworks",
+      "required": true,
+      "position": "argument",
+      "description": "Choose one or more target frameworks to assess."
+    },
+    "sources": {
+      "label": "Sources",
+      "flag": "--sources",
+      "description": "Restrict the assessment to specific connectors."
+    },
+    "output": {
+      "label": "Output Format",
+      "flag": "--output",
+      "description": "Choose the report format to generate.",
+      "defaultValue": "markdown",
+      "options": [
+        { "label": "Markdown", "value": "markdown" },
+        { "label": "JSON", "value": "json" },
+        { "label": "SARIF", "value": "sarif" },
+        { "label": "OSCAL Assessment Results", "value": "oscal-ar" }
+      ]
+    },
+    "reportDir": {
+      "label": "Report Directory",
+      "flag": "--report-dir",
+      "description": "Optional output directory for the generated report bundle.",
+      "placeholder": "./gap-assessment-run"
+    },
+    "refresh": {
+      "label": "Refresh source findings",
+      "flag": "--refresh",
+      "description": "Force fresh collection from each selected source before assessment.",
+      "defaultValue": false
+    },
+    "offline": {
+      "label": "Offline mode",
+      "flag": "--offline",
+      "description": "Use cached SCF data only and skip network access.",
+      "defaultValue": false
+    },
+    "quiet": {
+      "label": "Quiet output",
+      "flag": "--quiet",
+      "description": "Suppress progress output to stderr.",
+      "defaultValue": false
+    }
+  },
+  "remove": [],
+  "order": [
+    "frameworks",
+    "sources",
+    "output",
+    "reportDir",
+    "refresh",
+    "offline",
+    "quiet"
+  ],
+  "submitLabel": "Run Gap Assessment"
+}

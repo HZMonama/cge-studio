@@ -1,0 +1,13 @@
+{
+  "fields": [
+    {
+      "name": "project",
+      "label": "GCP Project",
+      "type": "text",
+      "required": false,
+      "flag": "--project",
+      "description": "Override the configured GCP project for this command.",
+      "placeholder": "prod-01"
+    }
+  ]
+}

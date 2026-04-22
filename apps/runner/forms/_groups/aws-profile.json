@@ -1,0 +1,13 @@
+{
+  "fields": [
+    {
+      "name": "profile",
+      "label": "AWS Profile",
+      "type": "text",
+      "required": false,
+      "flag": "--profile",
+      "description": "Override the configured AWS profile for this run.",
+      "placeholder": "audit-role"
+    }
+  ]
+}

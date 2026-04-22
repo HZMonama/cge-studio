@@ -1,0 +1,72 @@
+{
+  "mode": "inline",
+  "extends": "connector-collect",
+  "compose": [],
+  "fields": [
+    {
+      "name": "scope",
+      "label": "Repository Scope",
+      "type": "select",
+      "required": false,
+      "flag": "--scope",
+      "description": "Choose which repositories to scan.",
+      "defaultValue": "@me",
+      "options": [
+        { "label": "My repositories", "value": "@me" },
+        { "label": "Organization repositories", "value": "org:acme" },
+        { "label": "Single repository", "value": "repo:owner/repo" }
+      ]
+    },
+    {
+      "name": "limit",
+      "label": "Repository Limit",
+      "type": "number",
+      "required": false,
+      "flag": "--limit",
+      "description": "Cap the number of repositories scanned for testing or smaller runs.",
+      "placeholder": "25"
+    },
+    {
+      "name": "concurrency",
+      "label": "Concurrency",
+      "type": "number",
+      "required": false,
+      "flag": "--concurrency",
+      "description": "Parallel API calls to make during collection.",
+      "defaultValue": 4,
+      "placeholder": "4"
+    }
+  ],
+  "overrides": {
+    "output": {
+      "label": "Output Format",
+      "description": "Choose how GitHub collection results should be emitted.",
+      "defaultValue": "summary",
+      "options": [
+        { "label": "Summary", "value": "summary" },
+        { "label": "JSON", "value": "json" },
+        { "label": "Silent", "value": "silent" }
+      ]
+    },
+    "refresh": {
+      "label": "Refresh cached findings",
+      "description": "Ignore cache and always re-query GitHub.",
+      "defaultValue": false
+    },
+    "quiet": {
+      "label": "Quiet output",
+      "description": "Suppress progress output to stderr.",
+      "defaultValue": false
+    }
+  },
+  "remove": [],
+  "order": [
+    "scope",
+    "limit",
+    "concurrency",
+    "output",
+    "refresh",
+    "quiet"
+  ],
+  "submitLabel": "Run GitHub Collect"
+}

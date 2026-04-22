@@ -1,0 +1,13 @@
+{
+  "fields": [
+    {
+      "name": "refresh",
+      "label": "Refresh source findings",
+      "type": "boolean",
+      "required": false,
+      "flag": "--refresh",
+      "description": "Force a fresh collection or regeneration step before running the command.",
+      "defaultValue": false
+    }
+  ]
+}

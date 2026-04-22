@@ -1,0 +1,13 @@
+{
+  "fields": [
+    {
+      "name": "reportDir",
+      "label": "Report Directory",
+      "type": "path",
+      "required": false,
+      "flag": "--report-dir",
+      "description": "Optional output directory for the generated report bundle.",
+      "placeholder": "./reports/run-output"
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "mode": "inline",
+  "extends": "framework-evidence-checklist",
+  "compose": [],
+  "fields": [
+    {
+      "name": "safeguardId",
+      "label": "Safeguard or Domain",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Enter a CIS safeguard id like 5.1, 8.3, or a domain name like Asset Management or Access Control.",
+      "placeholder": "5.1"
+    },
+    {
+      "name": "igLevel",
+      "label": "Implementation Group",
+      "type": "select",
+      "required": false,
+      "flag": "--ig-level",
+      "description": "Filter the checklist to a specific CIS Implementation Group.",
+      "options": [
+        { "label": "All applicable", "value": "" },
+        { "label": "IG1", "value": "1" },
+        { "label": "IG2", "value": "2" },
+        { "label": "IG3", "value": "3" }
+      ],
+      "defaultValue": ""
+    },
+    {
+      "name": "export",
+      "label": "Export Format",
+      "type": "select",
+      "required": false,
+      "flag": "--export",
+      "description": "Choose the output format for the evidence checklist.",
+      "options": [
+        { "label": "Markdown", "value": "markdown" },
+        { "label": "JSON", "value": "json" },
+        { "label": "CSV", "value": "csv" }
+      ],
+      "defaultValue": "markdown"
+    }
+  ],
+  "overrides": {
+    "reportDir": {
+      "label": "Output Directory",
+      "description": "Optional directory where the generated CIS evidence checklist should be written.",
+      "placeholder": "./cis-evidence-checklist"
+    },
+    "quiet": {
+      "label": "Quiet output",
+      "description": "Suppress progress output while generating the evidence checklist.",
+      "defaultValue": false
+    }
+  },
+  "remove": [
+    "output"
+  ],
+  "order": [
+    "safeguardId",
+    "igLevel",
+    "export",
+    "reportDir",
+    "quiet"
+  ],
+  "submitLabel": "Generate CIS Evidence Checklist"
+}

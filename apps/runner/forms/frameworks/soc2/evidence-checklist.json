@@ -1,0 +1,59 @@
+{
+  "mode": "inline",
+  "extends": "framework-evidence-checklist",
+  "compose": [],
+  "fields": [
+    {
+      "name": "controlId",
+      "label": "Control ID or Category",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "SOC 2 control ID or category, such as CC6.1, CC7.2, CC6, or security.",
+      "placeholder": "CC6.1"
+    },
+    {
+      "name": "auditType",
+      "label": "Audit Type",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional SOC 2 audit type to target.",
+      "defaultValue": "type2",
+      "options": [
+        { "label": "Type I", "value": "type1" },
+        { "label": "Type II", "value": "type2" }
+      ]
+    }
+  ],
+  "overrides": {
+    "output": {
+      "label": "Export Format",
+      "description": "Choose the format for the generated SOC 2 evidence checklist.",
+      "defaultValue": "markdown",
+      "options": [
+        { "label": "Markdown", "value": "markdown" },
+        { "label": "JSON", "value": "json" }
+      ]
+    },
+    "reportDir": {
+      "label": "Evidence Output Directory",
+      "description": "Optional directory where the SOC 2 evidence checklist should be written.",
+      "placeholder": "./soc2-evidence-checklist"
+    },
+    "quiet": {
+      "label": "Quiet output",
+      "description": "Suppress progress output while generating the evidence checklist.",
+      "defaultValue": false
+    }
+  },
+  "remove": [],
+  "order": [
+    "controlId",
+    "auditType",
+    "output",
+    "reportDir",
+    "quiet"
+  ],
+  "submitLabel": "Generate SOC 2 Evidence Checklist"
+}

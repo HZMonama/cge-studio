@@ -1,0 +1,13 @@
+{
+  "mode": "inline",
+  "compose": [],
+  "fields": [],
+  "overrides": {},
+  "remove": [],
+  "order": [],
+  "submitLabel": "Run Setup",
+  "source": {
+    "kind": "preset",
+    "name": "connector-setup"
+  }
+}

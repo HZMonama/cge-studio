@@ -1,0 +1,13 @@
+{
+  "fields": [
+    {
+      "name": "offline",
+      "label": "Offline mode",
+      "type": "boolean",
+      "required": false,
+      "flag": "--offline",
+      "description": "Use cached data only and skip network access.",
+      "defaultValue": false
+    }
+  ]
+}

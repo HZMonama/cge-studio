@@ -1,0 +1,32 @@
+{
+  "mode": "inline",
+  "extends": null,
+  "compose": [],
+  "fields": [
+    {
+      "name": "fromSource",
+      "label": "Build from Source",
+      "type": "boolean",
+      "required": false,
+      "flag": "--from-source",
+      "description": "Build the OSCAL CLI from source instead of using an existing binary or downloading a release.",
+      "defaultValue": false
+    },
+    {
+      "name": "prefix",
+      "label": "Install Prefix",
+      "type": "path",
+      "required": false,
+      "flag": "--prefix",
+      "description": "Optional install prefix to use for the oscal binary symlink.",
+      "placeholder": "~/.local"
+    }
+  ],
+  "overrides": {},
+  "remove": [],
+  "order": [
+    "fromSource",
+    "prefix"
+  ],
+  "submitLabel": "Run OSCAL Setup"
+}

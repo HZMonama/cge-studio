@@ -1,0 +1,32 @@
+{
+  "mode": "inline",
+  "extends": "connector-setup",
+  "compose": [],
+  "fields": [
+    {
+      "name": "project",
+      "label": "GCP Project",
+      "type": "text",
+      "required": false,
+      "flag": "--project",
+      "description": "Optional GCP project ID to verify and persist in the connector config.",
+      "placeholder": "acme-prod"
+    },
+    {
+      "name": "region",
+      "label": "Default Region",
+      "type": "text",
+      "required": false,
+      "flag": "--region",
+      "description": "Optional default region to persist in the connector config.",
+      "placeholder": "us-central1"
+    }
+  ],
+  "overrides": {},
+  "remove": [],
+  "order": [
+    "project",
+    "region"
+  ],
+  "submitLabel": "Run GCP Setup"
+}

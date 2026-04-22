@@ -1,0 +1,56 @@
+{
+  "mode": "inline",
+  "extends": null,
+  "compose": [],
+  "fields": [
+    {
+      "name": "input",
+      "label": "Input File",
+      "type": "path",
+      "required": true,
+      "position": "argument",
+      "description": "Path to the OSCAL document to convert.",
+      "placeholder": "./catalog.json"
+    },
+    {
+      "name": "to",
+      "label": "Target Format",
+      "type": "select",
+      "required": true,
+      "flag": "--to",
+      "description": "Choose the output format to convert into.",
+      "options": [
+        { "label": "JSON", "value": "json" },
+        { "label": "XML", "value": "xml" },
+        { "label": "YAML", "value": "yaml" }
+      ]
+    },
+    {
+      "name": "output",
+      "label": "Output File",
+      "type": "path",
+      "required": false,
+      "flag": "--output",
+      "description": "Optional path to write the converted document. Leave empty to print to stdout.",
+      "placeholder": "./catalog.yaml"
+    },
+    {
+      "name": "overwrite",
+      "label": "Overwrite Existing Output",
+      "type": "boolean",
+      "required": false,
+      "flag": "--overwrite",
+      "description": "Allow overwriting an existing output file.",
+      "defaultValue": false
+    }
+  ],
+  "overrides": {},
+  "remove": [],
+  "order": [
+    "input",
+    "to",
+    "output",
+    "overwrite"
+  ],
+  "submitLabel": "Run OSCAL Convert"
+}

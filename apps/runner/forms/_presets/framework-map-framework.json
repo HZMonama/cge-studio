@@ -1,0 +1,78 @@
+{
+  "mode": "inline",
+  "compose": [
+    "report-dir",
+    "quiet-flag"
+  ],
+  "fields": [
+    {
+      "name": "sourceControlId",
+      "label": "Source Control ID",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Enter the source control, safeguard, or framework-specific identifier to map from.",
+      "placeholder": "CEK-01"
+    },
+    {
+      "name": "targetFramework",
+      "label": "Target Framework",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Choose the target framework to map into, or select all supported frameworks.",
+      "defaultValue": "",
+      "options": [
+        { "label": "All supported frameworks", "value": "all" },
+        { "label": "ISO 27001", "value": "ISO27001" },
+        { "label": "SOC 2", "value": "SOC2" },
+        { "label": "PCI DSS", "value": "PCIDSS" },
+        { "label": "NIST", "value": "NIST" },
+        { "label": "HIPAA", "value": "HIPAA" },
+        { "label": "GDPR", "value": "GDPR" },
+        { "label": "FedRAMP", "value": "FedRAMP" },
+        { "label": "CIS Controls", "value": "CIS" },
+        { "label": "COBIT", "value": "COBIT" }
+      ]
+    },
+    {
+      "name": "output",
+      "label": "Output Format",
+      "type": "select",
+      "required": false,
+      "flag": "--output",
+      "description": "Choose the format for the generated framework mapping output.",
+      "defaultValue": "markdown",
+      "options": [
+        { "label": "Markdown", "value": "markdown" },
+        { "label": "JSON", "value": "json" },
+        { "label": "SARIF", "value": "sarif" }
+      ]
+    }
+  ],
+  "overrides": {
+    "reportDir": {
+      "label": "Output Directory",
+      "description": "Optional directory where the generated framework mapping output should be written.",
+      "placeholder": "./framework-mapping"
+    },
+    "quiet": {
+      "label": "Quiet output",
+      "description": "Suppress progress output while generating the framework mapping.",
+      "defaultValue": false
+    }
+  },
+  "remove": [],
+  "order": [
+    "sourceControlId",
+    "targetFramework",
+    "output",
+    "reportDir",
+    "quiet"
+  ],
+  "submitLabel": "Run Framework Mapping",
+  "source": {
+    "kind": "preset",
+    "name": "framework-map-framework"
+  }
+}

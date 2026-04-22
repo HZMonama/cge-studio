@@ -4,12 +4,23 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { resolveCommandForm } from "./form-engine.js";
+
+const formOverlayRoot = path.join(
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."),
+  "forms",
+);
+
 const port = Number(process.env.CGE_RUNNER_PORT ?? 3333);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const runnerRoot = path.resolve(__dirname, "..");
 const repoRoot = path.resolve(runnerRoot, "..", "..");
-const embeddedToolkitPath = path.join(repoRoot, "cli", "claude-grc-engineering");
+const embeddedToolkitPath = path.join(
+  repoRoot,
+  "cli",
+  "claude-grc-engineering",
+);
 const allPersonas = ["engineer", "auditor", "internal", "tprm"];
 
 const knownConnectors = [
@@ -41,7 +52,9 @@ const server = createServer(async (request, response) => {
     setCorsHeaders(response);
     const runnerConfig = await readRunnerConfig();
     const toolkitPath = getToolkitPath(runnerConfig);
-    const toolkitAvailable = toolkitPath ? await pathExists(toolkitPath) : false;
+    const toolkitAvailable = toolkitPath
+      ? await pathExists(toolkitPath)
+      : false;
 
     if (request.method === "OPTIONS") {
       response.writeHead(204);
@@ -126,7 +139,9 @@ const server = createServer(async (request, response) => {
       const artifactPath = url.pathname.slice("/artifacts/".length);
       const separatorIndex = artifactPath.indexOf("/");
       const artifactId = decodeURIComponent(
-        separatorIndex === -1 ? artifactPath : artifactPath.slice(0, separatorIndex),
+        separatorIndex === -1
+          ? artifactPath
+          : artifactPath.slice(0, separatorIndex),
       );
       const artifact = await readArtifact(artifactId);
 
@@ -134,7 +149,10 @@ const server = createServer(async (request, response) => {
         return json(response, 404, { error: "not_found" });
       }
 
-      if (separatorIndex !== -1 && artifactPath.slice(separatorIndex + 1) === "content") {
+      if (
+        separatorIndex !== -1 &&
+        artifactPath.slice(separatorIndex + 1) === "content"
+      ) {
         const content = await fs.readFile(artifact.path, "utf8");
         return json(response, 200, { ...artifact, content });
       }
@@ -182,7 +200,12 @@ async function readRunnerConfig() {
         value: JSON.parse(contents),
       };
     } catch (error) {
-      if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === "ENOENT"
+      ) {
         continue;
       }
 
@@ -194,9 +217,8 @@ async function readRunnerConfig() {
 }
 
 function getToolkitPath(runnerConfig) {
-  const configuredPath = process.env.CGE_TOOLKIT_PATH
-    ?? runnerConfig.value.toolkitPath
-    ?? null;
+  const configuredPath =
+    process.env.CGE_TOOLKIT_PATH ?? runnerConfig.value.toolkitPath ?? null;
 
   if (configuredPath) {
     return path.resolve(runnerRoot, configuredPath);
@@ -212,7 +234,9 @@ async function discoverPlugins(toolkitPath) {
   }
 
   const pluginDirs = await findPluginDirectories(pluginsRoot);
-  const plugins = await Promise.all(pluginDirs.map((pluginDir) => readPluginManifest(toolkitPath, pluginDir)));
+  const plugins = await Promise.all(
+    pluginDirs.map((pluginDir) => readPluginManifest(toolkitPath, pluginDir)),
+  );
   return plugins
     .filter((plugin) => plugin.commands.length > 0)
     .sort((left, right) => left.label.localeCompare(right.label));
@@ -223,7 +247,9 @@ async function findPluginDirectories(rootPath) {
 
   async function walk(currentPath) {
     const entries = await fs.readdir(currentPath, { withFileTypes: true });
-    if (entries.some((entry) => entry.isDirectory() && entry.name === "commands")) {
+    if (
+      entries.some((entry) => entry.isDirectory() && entry.name === "commands")
+    ) {
       directories.push(currentPath);
       return;
     }
@@ -243,7 +269,10 @@ async function readPluginManifest(toolkitPath, pluginDir) {
   const commandsDir = path.join(pluginDir, "commands");
   const commandFiles = await fs.readdir(commandsDir, { withFileTypes: true });
   const pluginId = path.basename(pluginDir);
-  const relativePluginPath = path.relative(path.join(toolkitPath, "plugins"), pluginDir);
+  const relativePluginPath = path.relative(
+    path.join(toolkitPath, "plugins"),
+    pluginDir,
+  );
   const pathSegments = relativePluginPath.split(path.sep);
   const metadata = inferPluginMetadata(pathSegments, pluginId);
 
@@ -252,15 +281,28 @@ async function readPluginManifest(toolkitPath, pluginDir) {
       .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
       .map(async (entry) => {
         const commandId = entry.name.replace(/\.md$/, "");
-        const contents = await fs.readFile(path.join(commandsDir, entry.name), "utf8");
+        const contents = await fs.readFile(
+          path.join(commandsDir, entry.name),
+          "utf8",
+        );
         const frontmatter = parseFrontmatter(contents);
+        const form = await resolveCommandForm({
+          commandId,
+          commandPath: `/${pluginId}:${commandId}`,
+          contents,
+          formRoot: formOverlayRoot,
+          pluginId,
+          pluginMetadata: metadata,
+        });
 
         return {
           id: commandId,
-          description: frontmatter.description
-            ?? extractFirstParagraph(contents)
-            ?? humanizeId(commandId),
+          description:
+            frontmatter.description ??
+            extractFirstParagraph(contents) ??
+            humanizeId(commandId),
           output: inferOutputType(commandId, frontmatter.output),
+          form,
         };
       }),
   );
@@ -344,7 +386,10 @@ function parseFrontmatter(contents) {
 
         return [
           line.slice(0, separatorIndex).trim(),
-          line.slice(separatorIndex + 1).trim().replace(/^['"]|['"]$/g, ""),
+          line
+            .slice(separatorIndex + 1)
+            .trim()
+            .replace(/^['"]|['"]$/g, ""),
         ];
       })
       .filter(Boolean),
@@ -362,11 +407,18 @@ function extractFirstParagraph(contents) {
 }
 
 function inferOutputType(commandId, declaredOutput) {
-  if (declaredOutput && ["report", "code", "document", "status", "score"].includes(declaredOutput)) {
+  if (
+    declaredOutput &&
+    ["report", "code", "document", "status", "score"].includes(declaredOutput)
+  ) {
     return declaredOutput;
   }
 
-  if (commandId.startsWith("status") || commandId === "setup" || commandId.endsWith("status")) {
+  if (
+    commandId.startsWith("status") ||
+    commandId === "setup" ||
+    commandId.endsWith("status")
+  ) {
     return "status";
   }
 
@@ -374,7 +426,11 @@ function inferOutputType(commandId, declaredOutput) {
     return "code";
   }
 
-  if (commandId.startsWith("report-") || commandId.includes("assessment") || commandId.startsWith("assess")) {
+  if (
+    commandId.startsWith("report-") ||
+    commandId.includes("assessment") ||
+    commandId.startsWith("assess")
+  ) {
     return "report";
   }
 
@@ -394,7 +450,9 @@ function humanizeId(value) {
 }
 
 async function readConnectorSummaries() {
-  await fs.mkdir(path.join(roots.configRoot, "connectors"), { recursive: true });
+  await fs.mkdir(path.join(roots.configRoot, "connectors"), {
+    recursive: true,
+  });
   await fs.mkdir(path.join(roots.cacheRoot, "findings"), { recursive: true });
 
   return Promise.all(
@@ -430,12 +488,17 @@ async function readRuns() {
       }),
   );
 
-  return runs.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+  return runs.sort((left, right) =>
+    right.createdAt.localeCompare(left.createdAt),
+  );
 }
 
 async function readRun(runId) {
   try {
-    const contents = await fs.readFile(path.join(runsDir, `${runId}.json`), "utf8");
+    const contents = await fs.readFile(
+      path.join(runsDir, `${runId}.json`),
+      "utf8",
+    );
     return JSON.parse(contents);
   } catch {
     return null;
@@ -500,7 +563,10 @@ async function createCommandRun(input) {
   };
 
   await fs.mkdir(runArtifactsDir, { recursive: true });
-  await fs.writeFile(path.join(runsDir, `${runId}.json`), JSON.stringify(run, null, 2));
+  await fs.writeFile(
+    path.join(runsDir, `${runId}.json`),
+    JSON.stringify(run, null, 2),
+  );
   return run;
 }
 
@@ -527,7 +593,10 @@ async function createPlannedRun(input) {
   };
 
   await fs.mkdir(path.dirname(outputDir), { recursive: true });
-  await fs.writeFile(path.join(runsDir, `${id}.json`), JSON.stringify(run, null, 2));
+  await fs.writeFile(
+    path.join(runsDir, `${id}.json`),
+    JSON.stringify(run, null, 2),
+  );
 
   return run;
 }
@@ -537,7 +606,10 @@ async function createRunArtifact(input) {
 
   const artifactId = `artifact-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const extension = artifactExtension(input.outputType);
-  const artifactPath = path.join(input.runArtifactsDir, `${artifactId}.${extension}`);
+  const artifactPath = path.join(
+    input.runArtifactsDir,
+    `${artifactId}.${extension}`,
+  );
   const content = artifactContent({
     commandPath: input.commandPath,
     outputType: input.outputType,
@@ -587,7 +659,9 @@ function buildCommandPreview(input) {
 
 function parsePrompt(prompt) {
   const trimmed = prompt.trim();
-  const match = trimmed.match(/^\/(?<pluginId>[a-z0-9-]+):(?<commandId>[a-z0-9-]+)/i);
+  const match = trimmed.match(
+    /^\/(?<pluginId>[a-z0-9-]+):(?<commandId>[a-z0-9-]+)/i,
+  );
 
   if (!match?.groups) {
     return null;
@@ -626,13 +700,17 @@ function artifactFormat(outputType) {
 
 function artifactContent(input) {
   if (input.outputType === "score") {
-    return JSON.stringify({
-      commandPath: input.commandPath,
-      createdAt: input.timestamp,
-      pluginId: input.pluginId,
-      prompt: input.prompt,
-      status: "recorded",
-    }, null, 2);
+    return JSON.stringify(
+      {
+        commandPath: input.commandPath,
+        createdAt: input.timestamp,
+        pluginId: input.pluginId,
+        prompt: input.prompt,
+        status: "recorded",
+      },
+      null,
+      2,
+    );
   }
 
   if (input.outputType === "code") {

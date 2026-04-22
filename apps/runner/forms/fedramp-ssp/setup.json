@@ -1,0 +1,22 @@
+{
+  "mode": "inline",
+  "extends": null,
+  "compose": [],
+  "fields": [
+    {
+      "name": "python",
+      "label": "Python Executable",
+      "type": "path",
+      "required": false,
+      "flag": "--python",
+      "description": "Optional Python 3.10+ executable to use for installing and running the FedRAMP SSP conversion pipeline.",
+      "placeholder": "/usr/bin/python3"
+    }
+  ],
+  "overrides": {},
+  "remove": [],
+  "order": [
+    "python"
+  ],
+  "submitLabel": "Run FedRAMP SSP Setup"
+}

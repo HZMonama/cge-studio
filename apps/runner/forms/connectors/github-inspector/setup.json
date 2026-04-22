@@ -1,0 +1,10 @@
+{
+  "mode": "inline",
+  "extends": "connector-setup",
+  "compose": [],
+  "fields": [],
+  "overrides": {},
+  "remove": [],
+  "order": [],
+  "submitLabel": "Run GitHub Setup"
+}

@@ -1,0 +1,64 @@
+{
+  "mode": "inline",
+  "extends": "framework-assess",
+  "compose": [],
+  "fields": [
+    {
+      "name": "assessmentScope",
+      "label": "Assessment Scope",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional Trust Service Category to assess. Security is always in scope for SOC 2.",
+      "options": [
+        { "label": "Security", "value": "security" },
+        { "label": "Availability", "value": "availability" },
+        { "label": "Confidentiality", "value": "confidentiality" },
+        { "label": "Processing Integrity", "value": "processing-integrity" },
+        { "label": "Privacy", "value": "privacy" }
+      ]
+    },
+    {
+      "name": "auditType",
+      "label": "Audit Type",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional SOC 2 audit type to target.",
+      "options": [
+        { "label": "Type I", "value": "type1" },
+        { "label": "Type II", "value": "type2" }
+      ]
+    }
+  ],
+  "overrides": {
+    "output": {
+      "label": "Output Format",
+      "description": "Choose the format for the generated SOC 2 readiness report.",
+      "defaultValue": "markdown",
+      "options": [
+        { "label": "Markdown", "value": "markdown" },
+        { "label": "JSON", "value": "json" }
+      ]
+    },
+    "reportDir": {
+      "label": "Report Directory",
+      "description": "Optional output directory for the SOC 2 assessment bundle.",
+      "placeholder": "./soc2-assessment"
+    },
+    "quiet": {
+      "label": "Quiet output",
+      "description": "Suppress progress output while the assessment runs.",
+      "defaultValue": false
+    }
+  },
+  "remove": [],
+  "order": [
+    "assessmentScope",
+    "auditType",
+    "output",
+    "reportDir",
+    "quiet"
+  ],
+  "submitLabel": "Run SOC 2 Assessment"
+}

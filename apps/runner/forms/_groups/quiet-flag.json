@@ -1,0 +1,13 @@
+{
+  "fields": [
+    {
+      "name": "quiet",
+      "label": "Quiet output",
+      "type": "boolean",
+      "required": false,
+      "flag": "--quiet",
+      "description": "Suppress progress output to stderr.",
+      "defaultValue": false
+    }
+  ]
+}

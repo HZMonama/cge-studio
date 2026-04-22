@@ -1,0 +1,10 @@
+{
+  "mode": "inline",
+  "extends": "connector-status",
+  "compose": [],
+  "fields": [],
+  "overrides": {},
+  "remove": [],
+  "order": [],
+  "submitLabel": "Run GCP Status"
+}
