@@ -399,11 +399,45 @@ export function ChatSurface({
   }
 
   return (
-    <div className="flex flex-1 flex-col bg-(--editor-bg)">
-      <div className="flex h-16 shrink-0 items-center justify-end px-6">
+    <div className="relative flex flex-1 flex-col overflow-hidden bg-(--editor-bg)">
+      {/* Scroll view */}
+      <div className="flex-1 overflow-y-auto [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin]">
+        <div className="pt-14 pb-40">
+          <RunnerTimeline
+            events={events}
+            loading={loadingEvents}
+            onSelectArtifact={onOpenArtifact}
+            onSubmitPrompt={onSubmitPrompt}
+            run={run}
+          />
+        </div>
+      </div>
+
+      {/* Floating run bar */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 flex h-14 items-center justify-between gap-4 border-b border-border/70 bg-background/88 px-4 backdrop-blur">
+        {run ? (
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate font-mono text-xs text-foreground">
+              {run.commandPath ?? run.prompt ?? run.id}
+            </span>
+            <span
+              className={cn(
+                "shrink-0 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em]",
+                run.status === "completed" && "bg-emerald-500/10 text-emerald-400",
+                run.status === "failed" && "bg-rose-500/10 text-rose-400",
+                run.status === "running" && "bg-sky-500/10 text-sky-400",
+                run.status === "planned" && "bg-muted text-muted-foreground",
+              )}
+            >
+              {run.status}
+            </span>
+          </div>
+        ) : (
+          <div />
+        )}
         <button
           onClick={onOpenHistory}
-          className="group flex h-9 items-center gap-2 border border-border/70 bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+          className="pointer-events-auto group flex shrink-0 h-8 items-center gap-2 border border-border/70 bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent"
         >
           <span className="relative flex size-3.5 shrink-0 items-center justify-center">
             <ClockCounterClockwiseIcon className="size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0" />
@@ -415,15 +449,10 @@ export function ChatSurface({
           History
         </button>
       </div>
-      <RunnerTimeline
-        events={events}
-        loading={loadingEvents}
-        onSelectArtifact={onOpenArtifact}
-        onSubmitPrompt={onSubmitPrompt}
-        run={run}
-      />
-      <div className="flex justify-center px-6 pb-2">
-        <div className="w-full max-w-[80%]">
+
+      {/* Floating composer */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-6 pb-6 pt-12 [background:linear-gradient(to_top,var(--editor-bg)_60%,transparent)]">
+        <div className="pointer-events-auto w-full max-w-[80%]">
           <div className="border border-border/70 bg-background">
             {inlineFormActive && selectedCommand ? (
               <div className="flex items-center border-b border-border/70">
@@ -576,3 +605,4 @@ export function ChatSurface({
     </div>
   );
 }
+

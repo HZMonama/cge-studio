@@ -446,6 +446,16 @@ const server = createServer(async (request, response) => {
       return json(response, 200, artifact);
     }
 
+    if (request.method === "GET" && url.pathname === "/claude-code/status") {
+      return json(response, 200, await readClaudeCodeStatus());
+    }
+
+    if (request.method === "PATCH" && url.pathname === "/claude-code/config") {
+      const body = await readJsonBody(request);
+      const updated = await writeClaudeCodeSettings(body);
+      return json(response, 200, await readClaudeCodeStatus(updated));
+    }
+
     if (request.method === "POST" && url.pathname === "/gap-assessment") {
       const body = await readJsonBody(request);
       const frameworks = coerceArray(body.frameworks);
@@ -487,6 +497,92 @@ const server = createServer(async (request, response) => {
     return json(response, 500, { error: message });
   }
 });
+
+function getClaudeSettingsPath() {
+  return path.join(os.homedir(), ".claude", "settings.json");
+}
+
+async function readClaudeCodeSettings() {
+  try {
+    const contents = await fs.readFile(getClaudeSettingsPath(), "utf8");
+    return JSON.parse(contents);
+  } catch {
+    return {};
+  }
+}
+
+async function writeClaudeCodeSettings(input) {
+  const current = await readClaudeCodeSettings();
+  const next = { ...current };
+
+  if (typeof input.model === "string") {
+    if (input.model.trim()) {
+      next.model = input.model.trim();
+    } else {
+      delete next.model;
+    }
+  }
+
+  const settingsPath = getClaudeSettingsPath();
+  await fs.mkdir(path.dirname(settingsPath), { recursive: true });
+  await fs.writeFile(settingsPath, JSON.stringify(next, null, 2), "utf8");
+  return next;
+}
+
+function getClaudeVersion() {
+  return new Promise((resolve) => {
+    const proc = spawn("claude", ["--version"], { shell: false });
+    let output = "";
+
+    proc.stdout.on("data", (chunk) => {
+      output += chunk.toString();
+    });
+
+    proc.on("close", (code) => {
+      resolve(code === 0 && output.trim() ? output.trim() : null);
+    });
+
+    proc.on("error", () => resolve(null));
+  });
+}
+
+function getClaudeCredentialsPath() {
+  return path.join(os.homedir(), ".claude", ".credentials.json");
+}
+
+async function readClaudeSubscriptionStatus() {
+  try {
+    const contents = await fs.readFile(getClaudeCredentialsPath(), "utf8");
+    const parsed = JSON.parse(contents);
+    const oauth = parsed?.claudeAiOauth;
+    if (!oauth || typeof oauth.accessToken !== "string" || !oauth.accessToken) {
+      return false;
+    }
+    if (typeof oauth.expiresAt === "number" && oauth.expiresAt < Date.now()) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function readClaudeCodeStatus(settings) {
+  const [version, resolvedSettings, subscriptionLoginConfigured] = await Promise.all([
+    getClaudeVersion(),
+    settings ? Promise.resolve(settings) : readClaudeCodeSettings(),
+    readClaudeSubscriptionStatus(),
+  ]);
+
+  return {
+    installed: version !== null,
+    version,
+    apiKeyConfigured: Boolean(process.env.ANTHROPIC_API_KEY),
+    subscriptionLoginConfigured,
+    model: resolvedSettings.model ?? null,
+    settingsPath: getClaudeSettingsPath(),
+  };
+}
 
 server.listen(port, "127.0.0.1", () => {
   console.log(`[runner] listening on http://127.0.0.1:${port}`);

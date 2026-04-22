@@ -11,6 +11,7 @@ import {
 
 import { cn } from "@/lib/utils";
 import {
+  type ClaudeCodeStatus,
   type ConnectorSummary,
   type RunnerConfigSnapshot,
   type RunnerHealthSnapshot,
@@ -41,27 +42,43 @@ function Section({
   );
 }
 
+const CLAUDE_MODELS = [
+  { value: "", label: "Default" },
+  { value: "claude-opus-4-7", label: "Claude Opus 4.7" },
+  { value: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
+  { value: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5" },
+];
+
 export function ConfigPanel({
+  claudeCodeStatus,
+  claudeCodeSavePending,
   config,
   connectors,
   health,
   savePending,
   onSave,
+  onSaveClaudeCode,
 }: {
+  claudeCodeStatus: ClaudeCodeStatus | null;
+  claudeCodeSavePending: boolean;
   config: RunnerConfigSnapshot | null;
   connectors: ConnectorSummary[];
   health: RunnerHealthSnapshot | null;
   savePending: boolean;
-  onSave: (input: {
-    toolkitPath: string;
-  }) => Promise<void>;
+  onSave: (input: { toolkitPath: string }) => Promise<void>;
+  onSaveClaudeCode: (input: { model: string }) => Promise<void>;
 }) {
   const { configOpen, closeConfig } = usePluginPanel();
   const [toolkitPath, setToolkitPath] = useState("");
+  const [claudeModel, setClaudeModel] = useState("");
 
   useEffect(() => {
     setToolkitPath(config?.toolkitPath ?? "");
   }, [config]);
+
+  useEffect(() => {
+    setClaudeModel(claudeCodeStatus?.model ?? "");
+  }, [claudeCodeStatus]);
 
   const toolkitConnected = Boolean(health?.toolkitConfigured);
 
@@ -167,6 +184,77 @@ export function ConfigPanel({
               >
                 <FloppyDiskIcon className="size-3.5" />
                 {savePending ? "Saving configuration" : "Save configuration"}
+              </button>
+            </div>
+          </Section>
+
+          <Section title="Claude Code">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between border border-sidebar-border px-3 py-2">
+                <span className="text-xs">CLI</span>
+                <span
+                  className={cn(
+                    "text-[10px] uppercase tracking-[0.12em]",
+                    claudeCodeStatus?.installed
+                      ? "text-emerald-400"
+                      : "text-rose-400",
+                  )}
+                >
+                  {claudeCodeStatus === null
+                    ? "Unknown"
+                    : claudeCodeStatus.installed
+                      ? (claudeCodeStatus.version ?? "Installed")
+                      : "Not installed"}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between border border-sidebar-border px-3 py-2">
+                <span className="text-xs">API key</span>
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.12em]",
+                    claudeCodeStatus?.apiKeyConfigured
+                      ? "text-emerald-400"
+                      : "text-amber-400",
+                  )}
+                >
+                  {!claudeCodeStatus?.apiKeyConfigured && (
+                    <WarningCircleIcon className="size-3.5" weight="fill" />
+                  )}
+                  {claudeCodeStatus?.apiKeyConfigured ? "Configured" : "Not set"}
+                </span>
+              </div>
+
+              <div className="space-y-1.5">
+                <p className="text-[10px] uppercase tracking-[0.12em] text-sidebar-foreground/35">
+                  Model
+                </p>
+                <select
+                  value={claudeModel}
+                  onChange={(event) => setClaudeModel(event.target.value)}
+                  className="w-full border border-sidebar-border bg-sidebar px-2 py-1.5 text-xs text-sidebar-foreground focus:border-sidebar-ring focus:outline-none"
+                >
+                  {CLAUDE_MODELS.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {claudeCodeStatus?.settingsPath && (
+                <p className="break-all text-[10px] leading-4 text-sidebar-foreground/45">
+                  {claudeCodeStatus.settingsPath}
+                </p>
+              )}
+
+              <button
+                onClick={() => void onSaveClaudeCode({ model: claudeModel })}
+                disabled={claudeCodeSavePending}
+                className="flex w-full items-center justify-center gap-2 border border-sidebar-border px-3 py-2 text-xs transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground disabled:cursor-wait disabled:opacity-60"
+              >
+                <FloppyDiskIcon className="size-3.5" />
+                {claudeCodeSavePending ? "Saving..." : "Save Claude Code config"}
               </button>
             </div>
           </Section>

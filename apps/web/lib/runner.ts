@@ -107,12 +107,50 @@ export interface RunnerRun {
   artifacts: RunnerArtifactSummary[]
 }
 
+export interface ClaudeCodeStatus {
+  installed: boolean
+  version: string | null
+  apiKeyConfigured: boolean
+  subscriptionLoginConfigured: boolean
+  model: string | null
+  settingsPath: string
+}
+
 export interface WorkspaceExportSummary {
   workspace: RunnerWorkspace
   exportedAt: string
   summary: {
     runs: number
     artifacts: number
+  }
+}
+
+export async function fetchClaudeCodeStatus(signal?: AbortSignal): Promise<ClaudeCodeStatus | null> {
+  try {
+    const response = await fetch(`${RUNNER_BASE_URL}/claude-code/status`, {
+      cache: "no-store",
+      signal,
+    })
+    if (!response.ok) return null
+    return (await response.json()) as ClaudeCodeStatus
+  } catch {
+    return null
+  }
+}
+
+export async function updateClaudeCodeConfig(
+  input: Partial<Pick<ClaudeCodeStatus, "model">>,
+): Promise<ClaudeCodeStatus | null> {
+  try {
+    const response = await fetch(`${RUNNER_BASE_URL}/claude-code/config`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    })
+    if (!response.ok) return null
+    return (await response.json()) as ClaudeCodeStatus
+  } catch {
+    return null
   }
 }
 

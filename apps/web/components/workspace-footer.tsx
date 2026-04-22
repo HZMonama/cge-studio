@@ -57,7 +57,7 @@ export function WorkspaceFooter({
       <div className="flex h-full min-w-0 items-center pr-2">
         <button
           onClick={onRefreshWorkspace}
-          disabled={!activeWorkspace || refreshPending}
+          disabled={!activeWorkspace || refreshPending ? true : false}
           className="mr-1 flex size-8 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
           aria-label="Refresh workspace"
           title="Refresh workspace"
@@ -67,7 +67,7 @@ export function WorkspaceFooter({
         <div className="flex h-full min-w-0 items-center border-r border-border/70 pr-2">
           <Popover open={selectorPopoverOpen} onOpenChange={setSelectorPopoverOpen}>
             <PopoverTrigger
-              disabled={!activeWorkspace}
+              disabled={!activeWorkspace ? true : false}
               onClick={() => {
                 setSelectorPopoverMode("list")
                 setSelectorPopoverOpen(true)
@@ -133,7 +133,7 @@ export function WorkspaceFooter({
       <div className="flex items-center gap-1">
         <button
           onClick={onRenameWorkspace}
-          disabled={!activeWorkspace}
+          disabled={!activeWorkspace ? true : false}
           className="flex items-center gap-1.5 px-2 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
         >
           <NotePencilIcon className="size-3.5" />
@@ -141,7 +141,7 @@ export function WorkspaceFooter({
         </button>
         <button
           onClick={onExportWorkspace}
-          disabled={!activeWorkspace}
+          disabled={!activeWorkspace ? true : false}
           className="flex items-center gap-1.5 px-2 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
         >
           <DownloadSimpleIcon className="size-3.5" />
@@ -149,7 +149,7 @@ export function WorkspaceFooter({
         </button>
         <button
           onClick={() => activeWorkspace && onCloseWorkspace(activeWorkspace.id)}
-          disabled={!activeWorkspace}
+          disabled={!activeWorkspace ? true : false}
           className="flex items-center gap-1.5 px-2 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
         >
           <TrashIcon className="size-3.5" />

@@ -266,7 +266,7 @@ export function RunnerTimeline({
 }) {
   if (!run) {
     return (
-      <div className="flex flex-1 items-center justify-center px-6 py-10">
+      <div className="flex min-h-full items-center justify-center px-6 py-16">
         <div className="max-w-lg text-center">
           <p className="text-sm font-medium text-foreground">No run selected</p>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
@@ -280,102 +280,64 @@ export function RunnerTimeline({
   const items = toTimelineItems(events);
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden px-6 py-6">
-      <div className="border border-border/70 bg-background px-5 py-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-sm font-medium text-foreground">
-                {run.commandPath ?? run.id}
-              </p>
-              <span
-                className={cn(
-                  "px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em]",
-                  statusTone(run.status),
-                )}
-              >
-                {run.status}
-              </span>
-              {run.executionMode ? (
-                <span className="px-1.5 py-0.5 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                  {run.executionMode}
-                </span>
-              ) : null}
-            </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {new Date(run.createdAt).toLocaleString()}
+    <div>
+      {loading ? (
+        <div className="flex items-center justify-center px-6 py-16 text-sm text-muted-foreground">
+          Loading run events…
+        </div>
+      ) : items.length === 0 ? (
+        <div className="flex items-center justify-center px-6 py-16 text-center">
+          <div className="max-w-md">
+            <p className="text-sm font-medium text-foreground">No events yet</p>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              This run has been created, but the runner has not recorded any event frames yet.
             </p>
-            {run.commandPreview ? (
-              <pre className="mt-3 overflow-x-auto whitespace-pre-wrap break-words border border-border/60 bg-muted/20 px-3 py-2 text-xs leading-5 text-foreground">
-                {run.commandPreview}
-              </pre>
-            ) : null}
-          </div>
-          <div className="max-w-sm text-xs leading-5 text-muted-foreground">
-            The timeline renders typed runner events so script output, artifacts, and final status stay distinct from prose.
           </div>
         </div>
-      </div>
-
-      <div className="mt-4 min-h-0 flex-1 overflow-y-auto border border-border/70 bg-background [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin]">
-        {loading ? (
-          <div className="flex h-full items-center justify-center px-6 py-10 text-sm text-muted-foreground">
-            Loading run events…
-          </div>
-        ) : items.length === 0 ? (
-          <div className="flex h-full items-center justify-center px-6 py-10 text-center">
-            <div className="max-w-md">
-              <p className="text-sm font-medium text-foreground">No events yet</p>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                This run has been created, but the runner has not recorded any event frames yet.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="divide-y divide-border/60">
-            {items.map((item) =>
-              item.kind === "stream" ? (
-                <div key={item.id} className="px-5 py-4">
-                  <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                    <TerminalWindowIcon className="size-3.5" />
-                    <span>{item.stream}</span>
-                    <span>{new Date(item.createdAt).toLocaleTimeString()}</span>
-                  </div>
-                  <pre
-                    className={cn(
-                      "mt-3 overflow-x-auto whitespace-pre-wrap break-words border px-3 py-2 text-xs leading-5",
-                      item.stream === "stderr"
-                        ? "border-rose-500/20 bg-rose-500/5 text-rose-200"
-                        : "border-border/60 bg-muted/20 text-foreground",
-                    )}
-                  >
-                    {item.text}
-                  </pre>
+      ) : (
+        <div className="divide-y divide-border/60">
+          {items.map((item) =>
+            item.kind === "stream" ? (
+              <div key={item.id} className="px-6 py-4">
+                <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                  <TerminalWindowIcon className="size-3.5" />
+                  <span>{item.stream}</span>
+                  <span>{new Date(item.createdAt).toLocaleTimeString()}</span>
                 </div>
-              ) : (
-                <div key={item.event.id} className="px-5 py-4">
-                  <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                    {item.event.type === "run.failed" ? (
-                      <WarningCircleIcon className="size-3.5" />
-                    ) : (
-                      <ClockCounterClockwiseIcon className="size-3.5" />
-                    )}
-                    <span>{item.event.type}</span>
-                    <span>{new Date(item.event.createdAt).toLocaleTimeString()}</span>
-                  </div>
-                  <div className="mt-3">
-                    <EventBody
-                      event={item.event}
-                      onSelectArtifact={onSelectArtifact}
-                      onSubmitPrompt={onSubmitPrompt}
-                    />
-                  </div>
+                <pre
+                  className={cn(
+                    "mt-3 overflow-x-auto whitespace-pre-wrap break-words border px-3 py-2 text-xs leading-5",
+                    item.stream === "stderr"
+                      ? "border-rose-500/20 bg-rose-500/5 text-rose-200"
+                      : "border-border/60 bg-muted/20 text-foreground",
+                  )}
+                >
+                  {item.text}
+                </pre>
+              </div>
+            ) : (
+              <div key={item.event.id} className="px-6 py-4">
+                <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                  {item.event.type === "run.failed" ? (
+                    <WarningCircleIcon className="size-3.5" />
+                  ) : (
+                    <ClockCounterClockwiseIcon className="size-3.5" />
+                  )}
+                  <span>{item.event.type}</span>
+                  <span>{new Date(item.event.createdAt).toLocaleTimeString()}</span>
                 </div>
-              ),
-            )}
-          </div>
-        )}
-      </div>
+                <div className="mt-3">
+                  <EventBody
+                    event={item.event}
+                    onSelectArtifact={onSelectArtifact}
+                    onSubmitPrompt={onSubmitPrompt}
+                  />
+                </div>
+              </div>
+            ),
+          )}
+        </div>
+      )}
     </div>
   );
 }

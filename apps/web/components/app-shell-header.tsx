@@ -1,14 +1,26 @@
 "use client";
 
-import type { ElementType } from "react";
+import { useState, type ElementType } from "react";
 import {
   ArrowClockwiseIcon,
   CheckCircleIcon,
+  CircleIcon,
   WarningCircleIcon,
   XCircleIcon,
 } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
+import {
+  Popover,
+  PopoverContent,
+  PopoverPortal,
+  PopoverPositioner,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  type ClaudeCodeStatus,
+  type RunnerHealthSnapshot,
+} from "@/lib/runner";
 
 export interface AppHeaderSection {
   id: string;
@@ -18,65 +30,154 @@ export interface AppHeaderSection {
 
 export type SyncStatus = "synced" | "fallback" | "offline";
 
+type SignalTone = "ok" | "warn" | "error" | "unknown";
+
+function signalDot(tone: SignalTone) {
+  if (tone === "ok") return <CheckCircleIcon className="size-3.5 text-emerald-400" weight="fill" />;
+  if (tone === "warn") return <WarningCircleIcon className="size-3.5 text-amber-400" weight="fill" />;
+  if (tone === "error") return <XCircleIcon className="size-3.5 text-rose-400" weight="fill" />;
+  return <CircleIcon className="size-3.5 text-muted-foreground/40" weight="fill" />;
+}
+
+function overallTone(tones: SignalTone[]): SignalTone {
+  if (tones.includes("error")) return "error";
+  if (tones.includes("warn")) return "warn";
+  if (tones.every((t) => t === "ok")) return "ok";
+  return "unknown";
+}
+
 function SyncIndicator({
-  status,
+  claudeCodeStatus,
+  health,
   pending,
+  status,
   onRefresh,
 }: {
-  status: SyncStatus;
+  claudeCodeStatus: ClaudeCodeStatus | null;
+  health: RunnerHealthSnapshot | null;
   pending: boolean;
+  status: SyncStatus;
   onRefresh: () => void;
 }) {
-  const config = {
-    synced: {
-      Icon: CheckCircleIcon,
-      className:
-        "border-emerald-500/20 bg-emerald-500/8 text-emerald-700 dark:text-emerald-400",
-      label: "Live registry",
-    },
-    fallback: {
-      Icon: WarningCircleIcon,
-      className:
-        "border-amber-500/20 bg-amber-500/8 text-amber-700 dark:text-amber-400",
-      label: "Fallback registry",
-    },
-    offline: {
-      Icon: XCircleIcon,
-      className:
-        "border-rose-500/20 bg-rose-500/8 text-rose-700 dark:text-rose-400",
-      label: "Runner offline",
-    },
-  }[status];
+  const [open, setOpen] = useState(false);
+
+  const registryTone: SignalTone =
+    status === "synced" ? "ok" : status === "fallback" ? "warn" : "error";
+  const runnerTone: SignalTone =
+    health === null ? "unknown" : health.ok ? "ok" : "error";
+  const authSatisfied =
+    claudeCodeStatus !== null &&
+    claudeCodeStatus.installed &&
+    (claudeCodeStatus.apiKeyConfigured || claudeCodeStatus.subscriptionLoginConfigured);
+
+  const claudeTone: SignalTone =
+    claudeCodeStatus === null
+      ? "unknown"
+      : !claudeCodeStatus.installed
+        ? "error"
+        : authSatisfied
+          ? "ok"
+          : "warn";
+
+  const buttonTone = overallTone([registryTone, runnerTone, claudeTone]);
+
+  const registryLabel =
+    status === "synced" ? "Live registry" : status === "fallback" ? "Fallback registry" : "Registry offline";
+  const runnerLabel =
+    health === null ? "Unknown" : health.ok ? "Runner connected" : "Runner offline";
+
+  const claudeAuthLabel = claudeCodeStatus === null
+    ? "Unknown"
+    : !claudeCodeStatus.installed
+      ? "Not installed"
+      : claudeCodeStatus.subscriptionLoginConfigured
+        ? `Subscription · ${claudeCodeStatus.model ?? "Default model"}`
+        : claudeCodeStatus.apiKeyConfigured
+          ? `API key · ${claudeCodeStatus.model ?? "Default model"}`
+          : "No auth configured";
+  const claudeLabel = claudeCodeStatus?.version
+    ? `${claudeCodeStatus.version} · ${claudeAuthLabel}`
+    : claudeAuthLabel;
 
   return (
     <div className="flex h-full items-center pr-3">
-      <button
-        type="button"
-        onClick={onRefresh}
-        disabled={pending}
-        title="Refresh runner status and test the live registry connection"
-        aria-label="Refresh runner status and test the live registry connection"
-        className={cn(
-          "flex h-8 items-center gap-2 border px-3 text-[11px] font-medium tracking-[0.08em] uppercase transition-colors hover:bg-accent disabled:cursor-wait disabled:opacity-80",
-          config.className,
-        )}
-      >
-        {pending ? (
-          <ArrowClockwiseIcon
-            className="size-3.5 shrink-0 animate-spin"
-            weight="bold"
-          />
-        ) : (
-          <config.Icon className="size-3.5 shrink-0" weight="fill" />
-        )}
-        <span>{pending ? "Checking connection" : config.label}</span>
-      </button>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger
+          className={cn(
+            "flex size-8 items-center justify-center transition-colors hover:bg-accent",
+            pending && "opacity-60",
+          )}
+          aria-label="System health"
+          title="System health"
+        >
+          {pending ? (
+            <ArrowClockwiseIcon className="size-3.5 animate-spin text-muted-foreground" weight="bold" />
+          ) : buttonTone === "ok" ? (
+            <CheckCircleIcon className="size-3.5 text-emerald-400" weight="fill" />
+          ) : buttonTone === "warn" ? (
+            <WarningCircleIcon className="size-3.5 text-amber-400" weight="fill" />
+          ) : buttonTone === "error" ? (
+            <XCircleIcon className="size-3.5 text-rose-400" weight="fill" />
+          ) : (
+            <CircleIcon className="size-3.5 text-muted-foreground/40" weight="fill" />
+          )}
+        </PopoverTrigger>
+        <PopoverPortal>
+          <PopoverPositioner side="bottom" align="end" sideOffset={4}>
+            <PopoverContent className="w-64 p-0">
+              <div className="border-b px-3 py-2.5">
+                <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                  System health
+                </p>
+              </div>
+              <ul className="divide-y">
+                <li className="flex items-center justify-between px-3 py-2.5">
+                  <span className="text-xs text-foreground">Registry</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-muted-foreground">{registryLabel}</span>
+                    {signalDot(registryTone)}
+                  </div>
+                </li>
+                <li className="flex items-center justify-between px-3 py-2.5">
+                  <span className="text-xs text-foreground">Runner</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-muted-foreground">{runnerLabel}</span>
+                    {signalDot(runnerTone)}
+                  </div>
+                </li>
+                <li className="flex items-center justify-between gap-3 px-3 py-2.5">
+                  <span className="shrink-0 text-xs text-foreground">Agent</span>
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <span className="truncate text-right text-[10px] text-muted-foreground">{claudeLabel}</span>
+                    {signalDot(claudeTone)}
+                  </div>
+                </li>
+              </ul>
+              <div className="border-t px-3 py-2">
+                <button
+                  onClick={() => {
+                    setOpen(false);
+                    onRefresh();
+                  }}
+                  disabled={pending ? true : false}
+                  className="flex w-full items-center justify-center gap-1.5 text-[10px] uppercase tracking-[0.1em] text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                >
+                  <ArrowClockwiseIcon className="size-3" />
+                  Refresh
+                </button>
+              </div>
+            </PopoverContent>
+          </PopoverPositioner>
+        </PopoverPortal>
+      </Popover>
     </div>
   );
 }
 
 export function AppShellHeader({
   activeSection,
+  claudeCodeStatus,
+  health,
   onSelectSection,
   sections,
   syncStatus,
@@ -84,6 +185,8 @@ export function AppShellHeader({
   onRefreshSync,
 }: {
   activeSection: string;
+  claudeCodeStatus: ClaudeCodeStatus | null;
+  health: RunnerHealthSnapshot | null;
   onSelectSection: (section: string) => void;
   sections: AppHeaderSection[];
   syncStatus: SyncStatus;
@@ -131,6 +234,8 @@ export function AppShellHeader({
         </div>
       </div>
       <SyncIndicator
+        claudeCodeStatus={claudeCodeStatus}
+        health={health}
         status={syncStatus}
         pending={syncPending}
         onRefresh={onRefreshSync}

@@ -47,6 +47,7 @@ import {
   exportWorkspace,
   fetchArtifactDetail,
   fetchArtifacts,
+  fetchClaudeCodeStatus,
   fetchRunnerConfig,
   fetchPluginRegistry,
   fetchRunnerHealth,
@@ -56,7 +57,9 @@ import {
   refreshWorkspace,
   renameWorkspace,
   respondToRunPrompt,
+  updateClaudeCodeConfig,
   updateRunnerConfig,
+  type ClaudeCodeStatus,
   type ConnectorSummary,
   type RunnerConfigSnapshot,
   type RunnerArtifactDetail,
@@ -144,6 +147,8 @@ export default function Page() {
   );
   const [connectors, setConnectors] = useState<ConnectorSummary[]>([]);
   const [configSavePending, setConfigSavePending] = useState(false);
+  const [claudeCodeStatus, setClaudeCodeStatus] = useState<ClaudeCodeStatus | null>(null);
+  const [claudeCodeSavePending, setClaudeCodeSavePending] = useState(false);
   const [modalState, setModalState] = useState<AppModalState>({ type: "closed" });
   const [modalInputValue, setModalInputValue] = useState("");
   const [modalPending, setModalPending] = useState(false);
@@ -199,13 +204,14 @@ export default function Page() {
       }
 
       try {
-        const [health, config, registry, nextWorkspaces, nextConnectors] =
+        const [health, config, registry, nextWorkspaces, nextConnectors, nextClaudeCodeStatus] =
           await Promise.all([
             fetchRunnerHealth(signal),
             fetchRunnerConfig(signal),
             fetchPluginRegistry(signal),
             fetchWorkspaces(signal),
             fetchConnectors(signal),
+            fetchClaudeCodeStatus(signal),
           ]);
 
         if (signal?.aborted) {
@@ -222,6 +228,7 @@ export default function Page() {
         setRunnerHealth(health);
         setRunnerConfig(config);
         setConnectors(nextConnectors);
+        setClaudeCodeStatus(nextClaudeCodeStatus);
         setWorkspaces(nextWorkspaces);
         setActiveWorkspaceId((current) => {
           const nextActiveWorkspaceId =
@@ -678,6 +685,22 @@ export default function Page() {
     }
   }
 
+  async function saveClaudeCodeConfiguration(input: { model: string }) {
+    setClaudeCodeSavePending(true);
+
+    try {
+      const next = await updateClaudeCodeConfig({ model: input.model });
+      if (!next) {
+        openAlert("Claude Code save failed", "The Claude Code configuration could not be saved.");
+        return;
+      }
+
+      setClaudeCodeStatus(next);
+    } finally {
+      setClaudeCodeSavePending(false);
+    }
+  }
+
   return (
     <div className="flex h-svh overflow-hidden bg-sidebar">
       <AppSidebar
@@ -694,6 +717,8 @@ export default function Page() {
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
         <AppShellHeader
           activeSection={activeSection}
+          claudeCodeStatus={claudeCodeStatus}
+          health={runnerHealth}
           onSelectSection={(section) => setActiveSection(section as AppSection)}
           onRefreshSync={() => {
             void Promise.all([
@@ -817,10 +842,13 @@ export default function Page() {
         selectedRunId={selectedRunId}
       />
       <ConfigPanel
+        claudeCodeStatus={claudeCodeStatus}
+        claudeCodeSavePending={claudeCodeSavePending}
         config={runnerConfig}
         connectors={connectors}
         health={runnerHealth}
         onSave={saveRunnerConfiguration}
+        onSaveClaudeCode={saveClaudeCodeConfiguration}
         savePending={configSavePending}
       />
       <Dialog open={modalState.type !== "closed"} onOpenChange={(open) => !open && closeModal()}>
