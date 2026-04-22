@@ -1,0 +1,37 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "assessmentScope",
+      "label": "Assessment Scope",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional GDPR assessment scope.",
+      "options": [
+        { "label": "Full", "value": "full" },
+        { "label": "Data Mapping", "value": "data-mapping" },
+        { "label": "Rights Management", "value": "rights-management" },
+        { "label": "Security Measures", "value": "security-measures" }
+      ]
+    },
+    {
+      "name": "organizationType",
+      "label": "Organization Type",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional GDPR role classification.",
+      "options": [
+        { "label": "Controller", "value": "controller" },
+        { "label": "Processor", "value": "processor" },
+        { "label": "Joint Controller", "value": "joint-controller" }
+      ]
+    }
+  ],
+  "remove": [
+    "assessmentScopeOptionalFullDataMappingRightsManagementSecurityMeasures",
+    "organizationTypeOptionalControllerProcessorJointController"
+  ],
+  "submitLabel": "Run GDPR Assessment"
+}

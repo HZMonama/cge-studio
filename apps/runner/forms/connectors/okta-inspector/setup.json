@@ -2,6 +2,9 @@
   "mode": "inline",
   "extends": "connector-setup",
   "compose": [],
+  "minimumConfiguration": [
+    "domain"
+  ],
   "fields": [
     {
       "name": "domain",
@@ -11,6 +14,15 @@
       "flag": "--domain",
       "description": "Okta org domain to verify and persist in the connector config.",
       "placeholder": "acme.okta.com"
+    },
+    {
+      "name": "token",
+      "label": "Okta API Token",
+      "type": "secret",
+      "required": false,
+      "flag": "--token",
+      "description": "Optional direct token value for setup. This is masked in the composer and redacted from persisted run metadata.",
+      "placeholder": "00abc..."
     },
     {
       "name": "tokenEnv",
@@ -27,6 +39,7 @@
   "remove": [],
   "order": [
     "domain",
+    "token",
     "tokenEnv"
   ],
   "submitLabel": "Run Okta Setup"

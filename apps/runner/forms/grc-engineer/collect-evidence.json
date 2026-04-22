@@ -1,0 +1,51 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "controlDescription"
+  ],
+  "fields": [
+    {
+      "name": "controlDescription",
+      "label": "Control Description",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Describe the evidence you want to collect.",
+      "placeholder": "MFA for all root users"
+    },
+    {
+      "name": "cloudProvider",
+      "label": "Cloud Provider",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Target cloud provider for the evidence collection script.",
+      "defaultValue": "aws",
+      "options": [
+        { "label": "AWS", "value": "aws" },
+        { "label": "Azure", "value": "azure" },
+        { "label": "GCP", "value": "gcp" },
+        { "label": "Kubernetes", "value": "kubernetes" }
+      ]
+    },
+    {
+      "name": "outputFormat",
+      "label": "Output Format",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Choose the generated script format.",
+      "defaultValue": "python",
+      "options": [
+        { "label": "Python", "value": "python" },
+        { "label": "Bash", "value": "bash" }
+      ]
+    }
+  ],
+  "remove": [
+    "controlDescriptionRequiredInQuotes)",
+    "cloudProviderOptionalDefaultsToAws)",
+    "outputFormatOptionalDefaultsToPython)"
+  ],
+  "submitLabel": "Run Collect Evidence"
+}

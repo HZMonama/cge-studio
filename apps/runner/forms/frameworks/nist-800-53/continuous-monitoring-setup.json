@@ -1,0 +1,54 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "programType",
+      "label": "Program Type",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Continuous monitoring program profile to set up.",
+      "defaultValue": "standard",
+      "options": [
+        { "label": "Standard", "value": "standard" },
+        { "label": "FedRAMP", "value": "fedramp" },
+        { "label": "FISMA", "value": "fisma" }
+      ]
+    },
+    {
+      "name": "environment",
+      "label": "Environment",
+      "type": "select",
+      "required": false,
+      "flag": "--environment",
+      "description": "Target environment profile for the monitoring setup.",
+      "options": [
+        { "label": "Cloud", "value": "cloud" },
+        { "label": "Hybrid", "value": "hybrid" }
+      ]
+    },
+    {
+      "name": "autoDeploy",
+      "label": "Auto-deploy monitoring stack",
+      "type": "boolean",
+      "required": false,
+      "flag": "--auto-deploy",
+      "description": "Include deployment-oriented output and automation steps.",
+      "defaultValue": false
+    },
+    {
+      "name": "skipFedrampReports",
+      "label": "Skip FedRAMP reports",
+      "type": "boolean",
+      "required": false,
+      "flag": "--skip-fedramp-reports",
+      "description": "Omit FedRAMP-specific reporting guidance from the generated setup.",
+      "defaultValue": false
+    }
+  ],
+  "remove": [
+    "programTypeOptionalFedrampFismaStandardDefaultStandard",
+    "optionsOptionalEnvironmentCloudHybridAutoDeploySkipFedrampReports"
+  ],
+  "submitLabel": "Run Continuous Monitoring Setup"
+}

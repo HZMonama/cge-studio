@@ -1,0 +1,43 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "controlDocumentOrIacFile"
+  ],
+  "fields": [
+    {
+      "name": "controlDocumentOrIacFile",
+      "label": "Control Document Or IaC File",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Required control source document or infrastructure-as-code file to map.",
+      "placeholder": "./policies/access-control.md"
+    },
+    {
+      "name": "trustServiceCategory",
+      "label": "Trust Service Category",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional SOC 2 category filter. Defaults to all criteria.",
+      "options": [
+        { "label": "All", "value": "" },
+        { "label": "CC1 Control Environment", "value": "CC1" },
+        { "label": "CC2 Communication and Information", "value": "CC2" },
+        { "label": "CC3 Risk Assessment", "value": "CC3" },
+        { "label": "CC4 Monitoring Activities", "value": "CC4" },
+        { "label": "CC5 Control Activities", "value": "CC5" },
+        { "label": "CC6 Logical and Physical Access", "value": "CC6" },
+        { "label": "CC7 System Operations", "value": "CC7" },
+        { "label": "CC8 Change Management", "value": "CC8" },
+        { "label": "CC9 Risk Mitigation", "value": "CC9" }
+      ],
+      "defaultValue": ""
+    }
+  ],
+  "remove": [
+    "controlDocumentOrIacFileRequired",
+    "trustServiceCategoryOptionalDefaultsToAll"
+  ],
+  "submitLabel": "Run Map Controls"
+}

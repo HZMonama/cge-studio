@@ -1,0 +1,34 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "currentControlsDocument"
+  ],
+  "fields": [
+    {
+      "name": "currentControlsDocument",
+      "label": "Current Controls Document",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Required path to the current controls source document.",
+      "placeholder": "./current-controls.xlsx"
+    },
+    {
+      "name": "target",
+      "label": "Target",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional gap analysis target.",
+      "options": [
+        { "label": "Certification", "value": "certification" },
+        { "label": "Maintenance", "value": "maintenance" }
+      ]
+    }
+  ],
+  "remove": [
+    "currentControlsDocumentRequired",
+    "targetOptionalCertificationMaintenance"
+  ],
+  "submitLabel": "Run Gap Analysis"
+}

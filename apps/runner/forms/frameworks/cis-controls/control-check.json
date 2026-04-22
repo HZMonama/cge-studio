@@ -1,0 +1,35 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "controlNumberOrName"
+  ],
+  "fields": [
+    {
+      "name": "controlNumberOrName",
+      "label": "Control Number Or Name",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Required control number `1-18` or a CIS control name.",
+      "placeholder": "5 or Account Management"
+    },
+    {
+      "name": "implementationGroup",
+      "label": "Implementation Group",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional CIS Implementation Group level.",
+      "options": [
+        { "label": "IG1", "value": "IG1" },
+        { "label": "IG2", "value": "IG2" },
+        { "label": "IG3", "value": "IG3" }
+      ]
+    }
+  ],
+  "remove": [
+    "controlNumberOrNameRequired118OrControlName",
+    "implementationGroupLevelOptionalIg1Ig2Ig3"
+  ],
+  "submitLabel": "Run Control Check"
+}

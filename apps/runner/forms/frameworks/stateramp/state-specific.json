@@ -1,0 +1,16 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "stateCode",
+      "label": "State Code",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Optional two-letter state code or `all` to review multiple states.",
+      "placeholder": "CA"
+    }
+  ],
+  "remove": [],
+  "submitLabel": "Run State-Specific StateRAMP Guidance"
+}

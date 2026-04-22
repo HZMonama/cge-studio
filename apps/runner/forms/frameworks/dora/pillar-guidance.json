@@ -1,0 +1,42 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "pillar"
+  ],
+  "fields": [
+    {
+      "name": "pillar",
+      "label": "Pillar",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required DORA pillar to analyze.",
+      "options": [
+        { "label": "ICT Risk", "value": "ict-risk" },
+        { "label": "Incident Management", "value": "incident-management" },
+        { "label": "Resilience Testing", "value": "resilience-testing" },
+        { "label": "Third-Party Risk", "value": "third-party-risk" },
+        { "label": "Information Sharing", "value": "information-sharing" },
+        { "label": "All", "value": "all" }
+      ]
+    },
+    {
+      "name": "detailLevel",
+      "label": "Detail Level",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional level of implementation detail.",
+      "options": [
+        { "label": "Overview", "value": "overview" },
+        { "label": "Implementation", "value": "implementation" },
+        { "label": "Evidence", "value": "evidence" }
+      ]
+    }
+  ],
+  "remove": [
+    "pillarRequiredIctRiskIncidentManagementResilienceTestingThirdPartyRiskInformationSharingAll",
+    "detailLevelOptionalOverviewImplementationEvidence"
+  ],
+  "submitLabel": "Run Pillar Guidance"
+}

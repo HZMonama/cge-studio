@@ -1,0 +1,35 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "strategyNumberOrName"
+  ],
+  "fields": [
+    {
+      "name": "strategyNumberOrName",
+      "label": "Strategy Number Or Name",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Required Essential Eight strategy number `1-8` or a strategy name.",
+      "placeholder": "7 or Multi-Factor Authentication"
+    },
+    {
+      "name": "targetMaturityLevel",
+      "label": "Target Maturity Level",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional target maturity level for the strategy check.",
+      "options": [
+        { "label": "Level 1", "value": "1" },
+        { "label": "Level 2", "value": "2" },
+        { "label": "Level 3", "value": "3" }
+      ]
+    }
+  ],
+  "remove": [
+    "strategyNumberRequired1_8OrName",
+    "targetMaturityLevelOptional1_2Or3"
+  ],
+  "submitLabel": "Run Strategy Check"
+}

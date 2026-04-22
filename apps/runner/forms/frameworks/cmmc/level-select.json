@@ -1,0 +1,36 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "contractType",
+      "label": "Contract Type",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional DoD contract relationship.",
+      "options": [
+        { "label": "Prime", "value": "prime" },
+        { "label": "Subcontractor", "value": "subcontractor" },
+        { "label": "Service Provider", "value": "service-provider" }
+      ]
+    },
+    {
+      "name": "dataType",
+      "label": "Data Type",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional data sensitivity driving the required level.",
+      "options": [
+        { "label": "FCI", "value": "FCI" },
+        { "label": "CUI", "value": "CUI" },
+        { "label": "Classified", "value": "classified" }
+      ]
+    }
+  ],
+  "remove": [
+    "contractTypeOptionalPrimeSubcontractorServiceProvider",
+    "dataTypeOptionalFciCuiClassified"
+  ],
+  "submitLabel": "Run Level Selection"
+}

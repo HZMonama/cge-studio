@@ -1,0 +1,35 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "poamFileOrAction"
+  ],
+  "fields": [
+    {
+      "name": "poamFileOrAction",
+      "label": "POA&M File Or Action",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Required POA&M source file or action to review.",
+      "placeholder": "./poam.xlsx"
+    },
+    {
+      "name": "analysisType",
+      "label": "Analysis Type",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional POA&M analysis focus.",
+      "options": [
+        { "label": "Gaps", "value": "gaps" },
+        { "label": "Priorities", "value": "priorities" },
+        { "label": "Aging", "value": "aging" }
+      ]
+    }
+  ],
+  "remove": [
+    "PoamFileOrActionRequired",
+    "analysisTypeOptionalGapsPrioritiesAging"
+  ],
+  "submitLabel": "Run POA&M Review"
+}

@@ -1,0 +1,39 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "targetMaturityLevel"
+  ],
+  "fields": [
+    {
+      "name": "targetMaturityLevel",
+      "label": "Target Maturity Level",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required Essential Eight target maturity level.",
+      "options": [
+        { "label": "Level 1", "value": "1" },
+        { "label": "Level 2", "value": "2" },
+        { "label": "Level 3", "value": "3" }
+      ]
+    },
+    {
+      "name": "assessmentScope",
+      "label": "Assessment Scope",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional Essential Eight assessment scope.",
+      "options": [
+        { "label": "Full", "value": "full" },
+        { "label": "Gap Analysis", "value": "gap-analysis" },
+        { "label": "Specific Strategy", "value": "specific-strategy" }
+      ]
+    }
+  ],
+  "remove": [
+    "targetMaturityLevelRequired1_2Or3",
+    "assessmentScopeOptionalFullGapAnalysisSpecificStrategy"
+  ],
+  "submitLabel": "Run Essential Eight Assessment"
+}

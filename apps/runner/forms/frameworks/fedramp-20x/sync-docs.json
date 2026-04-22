@@ -1,0 +1,20 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "syncMode",
+      "label": "Sync Mode",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional synchronization mode for FedRAMP 20X policy files.",
+      "options": [
+        { "label": "Check", "value": "check" },
+        { "label": "Full", "value": "full" },
+        { "label": "Force", "value": "force" }
+      ]
+    }
+  ],
+  "remove": [],
+  "submitLabel": "Sync FedRAMP 20X Docs"
+}

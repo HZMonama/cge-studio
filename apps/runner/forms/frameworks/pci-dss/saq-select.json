@@ -1,0 +1,18 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "businessDescriptionOrSaqType",
+      "label": "Business Description Or SAQ Type",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Optional business description or SAQ type hint.",
+      "placeholder": "e-commerce with Stripe or A-EP"
+    }
+  ],
+  "remove": [
+    "businessDescriptionOrSaqTypeOptional"
+  ],
+  "submitLabel": "Run SAQ Selection"
+}

@@ -1,0 +1,31 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "workpaperType",
+    "controlOrArea"
+  ],
+  "fields": [
+    {
+      "name": "workpaperType",
+      "label": "Workpaper Type",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Type of workpaper to generate.",
+      "options": [
+        { "label": "Finding", "value": "finding" },
+        { "label": "Test", "value": "test" },
+        { "label": "Summary", "value": "summary" }
+      ]
+    },
+    {
+      "name": "controlOrArea",
+      "label": "Control Or Area",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Control, requirement, or audit area to document."
+    }
+  ],
+  "submitLabel": "Run Generate Workpaper"
+}

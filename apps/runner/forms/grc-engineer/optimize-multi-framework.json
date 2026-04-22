@@ -1,0 +1,47 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "frameworks"
+  ],
+  "fields": [
+    {
+      "name": "frameworks",
+      "label": "Frameworks",
+      "type": "multiselect",
+      "required": true,
+      "position": "argument",
+      "description": "Select the frameworks to optimize together.",
+      "options": [
+        { "label": "SOC 2", "value": "SOC2" },
+        { "label": "PCI DSS", "value": "PCI-DSS" },
+        { "label": "NIST 800-53", "value": "NIST" },
+        { "label": "ISO 27001", "value": "ISO" },
+        { "label": "CIS Controls", "value": "CIS" },
+        { "label": "CMMC", "value": "CMMC" },
+        { "label": "FedRAMP", "value": "FedRAMP" },
+        { "label": "HITRUST", "value": "HITRUST" },
+        { "label": "GDPR", "value": "GDPR" },
+        { "label": "HIPAA", "value": "HIPAA" }
+      ]
+    },
+    {
+      "name": "outputFormat",
+      "label": "Output Format",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optimization report shape.",
+      "defaultValue": "roadmap",
+      "options": [
+        { "label": "Roadmap", "value": "roadmap" },
+        { "label": "Matrix", "value": "matrix" },
+        { "label": "Summary", "value": "summary" }
+      ]
+    }
+  ],
+  "remove": [
+    "commaSeparatedListOfFrameworksEGSOC2PCIDSSNISTISO)",
+    "outputFormatOptionalRoadmapMatrixSummaryDefaultRoadmap)"
+  ],
+  "submitLabel": "Run Optimize Multi-Framework"
+}

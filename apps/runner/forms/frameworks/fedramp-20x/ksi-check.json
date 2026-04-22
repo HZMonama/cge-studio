@@ -1,0 +1,42 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "ksiCategory",
+      "label": "KSI Category",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional FedRAMP 20X KSI category to focus on.",
+      "defaultValue": "all",
+      "options": [
+        { "label": "All Categories", "value": "all" },
+        { "label": "AFR", "value": "AFR" },
+        { "label": "CED", "value": "CED" },
+        { "label": "CMT", "value": "CMT" },
+        { "label": "CNA", "value": "CNA" },
+        { "label": "IAM", "value": "IAM" },
+        { "label": "INR", "value": "INR" },
+        { "label": "MLA", "value": "MLA" },
+        { "label": "PIY", "value": "PIY" }
+      ]
+    },
+    {
+      "name": "evidencePath",
+      "label": "Evidence Path",
+      "type": "path",
+      "required": false,
+      "position": "argument",
+      "description": "Optional evidence directory or file to assess against.",
+      "placeholder": "./evidence"
+    }
+  ],
+  "remove": [
+    "kSICategoryOptionalDefaultsToAll)"
+  ],
+  "order": [
+    "ksiCategory",
+    "evidencePath"
+  ],
+  "submitLabel": "Run KSI Check"
+}

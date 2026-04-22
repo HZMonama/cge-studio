@@ -1,0 +1,24 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "focusArea",
+      "label": "Focus Area",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional matrix focus area.",
+      "defaultValue": "overview",
+      "options": [
+        { "label": "Overview", "value": "overview" },
+        { "label": "Controls", "value": "controls" },
+        { "label": "Cloud", "value": "cloud" },
+        { "label": "Licensing", "value": "licensing" }
+      ]
+    }
+  ],
+  "remove": [
+    "focusAreaOptionalOverviewControlsCloudLicensingDefaultsToOverview\""
+  ],
+  "submitLabel": "Run Export Compliance Matrix"
+}

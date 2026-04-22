@@ -1,0 +1,23 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "assessmentScope",
+      "label": "Assessment Scope",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional ISMAP assessment scope.",
+      "defaultValue": "full",
+      "options": [
+        { "label": "Full", "value": "full" },
+        { "label": "ISO Mapping", "value": "iso-mapping" },
+        { "label": "Readiness", "value": "readiness" }
+      ]
+    }
+  ],
+  "remove": [
+    "assessmentScopeOptionalFullIsoMappingReadinessDefaultsToFull\""
+  ],
+  "submitLabel": "Run ISMAP Assessment"
+}

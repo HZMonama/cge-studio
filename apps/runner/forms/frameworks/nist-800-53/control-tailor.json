@@ -1,0 +1,64 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "controlIdOrFamily",
+    "baseline"
+  ],
+  "fields": [
+    {
+      "name": "controlIdOrFamily",
+      "label": "Control ID Or Family",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Required control identifier like `AC-2` or a family like `AC`.",
+      "placeholder": "AC-2"
+    },
+    {
+      "name": "baseline",
+      "label": "Baseline",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required baseline to tailor against.",
+      "options": [
+        { "label": "Low", "value": "low" },
+        { "label": "Moderate", "value": "moderate" },
+        { "label": "High", "value": "high" },
+        { "label": "Privacy", "value": "privacy" }
+      ]
+    },
+    {
+      "name": "environment",
+      "label": "Environment",
+      "type": "select",
+      "required": false,
+      "flag": "--environment",
+      "description": "Optional environment profile for tailoring guidance.",
+      "options": [
+        { "label": "Cloud", "value": "cloud" },
+        { "label": "Hybrid", "value": "hybrid" },
+        { "label": "On-Prem", "value": "on-prem" }
+      ]
+    },
+    {
+      "name": "output",
+      "label": "Output Mode",
+      "type": "select",
+      "required": false,
+      "flag": "--output",
+      "description": "How the tailoring guidance should be emitted.",
+      "options": [
+        { "label": "Guidance", "value": "guidance" },
+        { "label": "SSP Text", "value": "ssp-text" },
+        { "label": "YAML", "value": "yaml" }
+      ]
+    }
+  ],
+  "remove": [
+    "controlIdE.gAc2Au2Sc7OrFamilyE.gAcAu",
+    "baselineLowModerateHighPrivacy",
+    "optionsOptionalEnvironmentCloudHybridOnPremOutputGuidanceSspTextYaml"
+  ],
+  "submitLabel": "Run Control Tailoring"
+}

@@ -1,0 +1,23 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "classificationLevel",
+      "label": "Classification Level",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional IRAP classification level to assess.",
+      "defaultValue": "official",
+      "options": [
+        { "label": "Official", "value": "official" },
+        { "label": "Protected", "value": "protected" },
+        { "label": "Secret", "value": "secret" }
+      ]
+    }
+  ],
+  "remove": [
+    "classificationLevelOptionalOfficialProtectedSecretDefaultsToOfficial\""
+  ],
+  "submitLabel": "Run IRAP Assessment"
+}

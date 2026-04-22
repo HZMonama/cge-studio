@@ -1,0 +1,33 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "quarter",
+      "label": "Quarter",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Optional reporting quarter. Defaults to the current quarter.",
+      "placeholder": "2026-Q1"
+    },
+    {
+      "name": "audience",
+      "label": "Audience",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Board audience for the brief.",
+      "defaultValue": "audit-committee",
+      "options": [
+        { "label": "Audit Committee", "value": "audit-committee" },
+        { "label": "Board", "value": "board" },
+        { "label": "Risk Committee", "value": "risk-committee" }
+      ]
+    }
+  ],
+  "remove": [
+    "quarterOptionalDefaultsToCurrentQuarterE.g2026Q1",
+    "audienceOptionalBoardAuditCommitteeRiskCommitteeDefaultsToAuditCommittee"
+  ],
+  "submitLabel": "Run Board Brief"
+}

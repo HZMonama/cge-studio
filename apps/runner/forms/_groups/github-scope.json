@@ -3,16 +3,12 @@
     {
       "name": "scope",
       "label": "GitHub Scope",
-      "type": "select",
+      "type": "text",
       "required": false,
       "flag": "--scope",
-      "description": "Select which repositories to scan. Use your personal account, an organization, or a single repository.",
-      "placeholder": "Select a GitHub scope",
-      "options": [
-        { "label": "Personal account (@me)", "value": "@me" },
-        { "label": "Organization (org:<name>)", "value": "org:acme" },
-        { "label": "Single repository (repo:<owner>/<name>)", "value": "repo:acme/prod-api" }
-      ]
+      "description": "Repository scope in the CLI format: `@me`, `org:<name>`, or `repo:<owner>/<name>`.",
+      "placeholder": "@me | org:acme | repo:owner/repo",
+      "defaultValue": "@me"
     }
   ]
 }

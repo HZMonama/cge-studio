@@ -1,0 +1,21 @@
+{
+  "mode": "inline",
+  "compose": [
+    "connector-selection"
+  ],
+  "fields": [
+    {
+      "name": "scope",
+      "label": "Scope",
+      "type": "text",
+      "required": false,
+      "flag": "--scope",
+      "description": "Optional framework scope to narrow the assessment.",
+      "placeholder": "consent or breach-notification"
+    }
+  ],
+  "remove": [
+    "connectorList"
+  ],
+  "submitLabel": "Run Singapore PDPA Assessment"
+}

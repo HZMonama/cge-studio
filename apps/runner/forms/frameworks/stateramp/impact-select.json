@@ -1,0 +1,16 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "systemType",
+      "label": "System Type",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Optional description of the system or service being categorized.",
+      "placeholder": "Benefits administration platform"
+    }
+  ],
+  "remove": [],
+  "submitLabel": "Run StateRAMP Impact Selection"
+}

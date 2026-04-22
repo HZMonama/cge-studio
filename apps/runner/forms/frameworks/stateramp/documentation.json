@@ -1,0 +1,34 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "documentType",
+      "label": "Document Type",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional StateRAMP document type to focus on.",
+      "options": [
+        { "label": "SSP", "value": "ssp" },
+        { "label": "SAP", "value": "sap" },
+        { "label": "SAR", "value": "sar" },
+        { "label": "POA&M", "value": "poam" },
+        { "label": "All Documents", "value": "all" }
+      ]
+    },
+    {
+      "name": "impactLevel",
+      "label": "Impact Level",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional impact level to tailor the documentation guidance.",
+      "options": [
+        { "label": "Low", "value": "low" },
+        { "label": "Moderate", "value": "moderate" }
+      ]
+    }
+  ],
+  "remove": [],
+  "submitLabel": "Run StateRAMP Documentation Guidance"
+}

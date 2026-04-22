@@ -1,0 +1,31 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "impactLevel"
+  ],
+  "fields": [
+    {
+      "name": "impactLevel",
+      "label": "Impact Level",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required StateRAMP impact level.",
+      "options": [
+        { "label": "Low", "value": "low" },
+        { "label": "Moderate", "value": "moderate" }
+      ]
+    },
+    {
+      "name": "targetState",
+      "label": "Target State",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Optional target state code or `multi-state`.",
+      "placeholder": "CA or multi-state"
+    }
+  ],
+  "remove": [],
+  "submitLabel": "Run StateRAMP Assessment"
+}

@@ -1,0 +1,39 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "assessmentType"
+  ],
+  "fields": [
+    {
+      "name": "assessmentType",
+      "label": "Assessment Type",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required HITRUST assessment type.",
+      "options": [
+        { "label": "i1", "value": "i1" },
+        { "label": "r2", "value": "r2" },
+        { "label": "e1", "value": "e1" }
+      ]
+    },
+    {
+      "name": "scope",
+      "label": "Scope",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional HITRUST assessment scope.",
+      "options": [
+        { "label": "Full", "value": "full" },
+        { "label": "Self-Assessment", "value": "self-assessment" },
+        { "label": "Validated", "value": "validated" }
+      ]
+    }
+  ],
+  "remove": [
+    "assessmentTypeRequiredI1R2E1",
+    "scopeOptionalFullSelfAssessmentValidated"
+  ],
+  "submitLabel": "Run HITRUST Assessment"
+}

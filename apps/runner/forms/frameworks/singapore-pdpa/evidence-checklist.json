@@ -1,0 +1,18 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "family",
+      "label": "SCF Family",
+      "type": "text",
+      "required": false,
+      "flag": "--family",
+      "description": "Optional SCF family code to restrict the checklist.",
+      "placeholder": "IAC"
+    }
+  ],
+  "remove": [
+    "sCFFamilyCode"
+  ],
+  "submitLabel": "Generate Singapore PDPA Evidence Checklist"
+}

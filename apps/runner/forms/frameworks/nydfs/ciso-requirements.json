@@ -1,0 +1,40 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "cisoType",
+      "label": "CISO Type",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional CISO model to evaluate.",
+      "options": [
+        { "label": "Employee", "value": "employee" },
+        { "label": "Affiliate", "value": "affiliate" },
+        { "label": "Third-Party", "value": "third-party" }
+      ]
+    },
+    {
+      "name": "focusArea",
+      "label": "Focus Area",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional CISO requirement area to focus on.",
+      "options": [
+        { "label": "Qualifications", "value": "qualifications" },
+        { "label": "Responsibilities", "value": "responsibilities" },
+        { "label": "Reporting", "value": "reporting" },
+        { "label": "Compensation", "value": "compensation" }
+      ]
+    }
+  ],
+  "remove": [
+    "cISOType"
+  ],
+  "order": [
+    "cisoType",
+    "focusArea"
+  ],
+  "submitLabel": "Run NYDFS CISO Requirements Review"
+}

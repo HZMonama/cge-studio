@@ -1,0 +1,57 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "riskLevel",
+      "label": "Risk Level",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional risk level filter.",
+      "defaultValue": "all",
+      "options": [
+        { "label": "All", "value": "all" },
+        { "label": "Critical", "value": "critical" },
+        { "label": "High", "value": "high" },
+        { "label": "Medium", "value": "medium" },
+        { "label": "Low", "value": "low" }
+      ]
+    },
+    {
+      "name": "format",
+      "label": "Format",
+      "type": "select",
+      "required": false,
+      "flag": "--format",
+      "description": "Output document format.",
+      "options": [
+        { "label": "DOCX", "value": "docx" },
+        { "label": "XLSX", "value": "xlsx" },
+        { "label": "Markdown", "value": "markdown" }
+      ]
+    },
+    {
+      "name": "includeCosts",
+      "label": "Include costs",
+      "type": "boolean",
+      "required": false,
+      "flag": "--include-costs",
+      "description": "Include cost estimates in the generated plan.",
+      "defaultValue": false
+    },
+    {
+      "name": "showResidualOnly",
+      "label": "Show residual only",
+      "type": "boolean",
+      "required": false,
+      "flag": "--show-residual-only",
+      "description": "Only show residual risks that require acceptance.",
+      "defaultValue": false
+    }
+  ],
+  "remove": [
+    "riskLevelFilterOptionalCriticalHighMediumLowOrAllDefaultAll",
+    "optionsOptionalFormatDocxXlsxMarkdownIncludeCostsShowResidualOnly"
+  ],
+  "submitLabel": "Run Risk Treatment Plan"
+}

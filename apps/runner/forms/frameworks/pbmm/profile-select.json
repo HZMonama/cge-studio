@@ -1,0 +1,16 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "dataTypeDescription",
+      "label": "Data Type Description",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Optional description of the data set or workload to classify.",
+      "placeholder": "Provincial health information"
+    }
+  ],
+  "remove": [],
+  "submitLabel": "Run PBMM Profile Selection"
+}

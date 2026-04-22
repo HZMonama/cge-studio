@@ -1,0 +1,41 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "assessmentScope"
+  ],
+  "fields": [
+    {
+      "name": "assessmentScope",
+      "label": "Assessment Scope",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required DORA assessment scope.",
+      "options": [
+        { "label": "Full", "value": "full" },
+        { "label": "Pillar Specific", "value": "pillar-specific" },
+        { "label": "Entity Type", "value": "entity-type" }
+      ]
+    },
+    {
+      "name": "entityClassification",
+      "label": "Entity Classification",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional entity classification for tailored guidance.",
+      "options": [
+        { "label": "Credit Institution", "value": "credit-institution" },
+        { "label": "Payment Institution", "value": "payment-institution" },
+        { "label": "Investment Firm", "value": "investment-firm" },
+        { "label": "Crypto-Asset Provider", "value": "crypto-asset-provider" },
+        { "label": "ICT Provider", "value": "ict-provider" }
+      ]
+    }
+  ],
+  "remove": [
+    "assessmentScopeRequiredFullPillarSpecificEntityType",
+    "entityClassificationOptionalCreditInstitutionPaymentInstitutionInvestmentFirmCryptoAssetProviderIctProvider"
+  ],
+  "submitLabel": "Run DORA Assessment"
+}

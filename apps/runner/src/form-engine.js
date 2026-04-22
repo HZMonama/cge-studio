@@ -214,6 +214,10 @@ function normalizeResolvedForm(form) {
     mode: form.mode ?? "inline",
     commandPath: form.commandPath ?? null,
     submitLabel: form.submitLabel ?? "Run",
+    minimumConfiguration: normalizeArray(form.minimumConfiguration).filter(
+      (name) => typeof name === "string" && name.trim().length > 0,
+    ),
+    readinessRules: normalizeReadinessRules(form.readinessRules),
     fields: normalizedFields,
     source: form.source ?? {
       parser: "markdown",
@@ -252,6 +256,52 @@ function normalizeField(field) {
   }
 
   return normalized;
+}
+
+function normalizeReadinessRules(rules) {
+  return normalizeArray(rules)
+    .filter((rule) => rule && typeof rule === "object")
+    .map((rule) => ({
+      when: normalizeReadinessCondition(rule.when),
+      requireAll: normalizeArray(rule.requireAll).filter(
+        (name) => typeof name === "string" && name.trim().length > 0,
+      ),
+      requireOneOf: normalizeArray(rule.requireOneOf).filter(
+        (name) => typeof name === "string" && name.trim().length > 0,
+      ),
+    }))
+    .filter(
+      (rule) =>
+        rule.when &&
+        typeof rule.when.field === "string" &&
+        rule.when.field.trim().length > 0 &&
+        (rule.requireAll.length > 0 || rule.requireOneOf.length > 0),
+    );
+}
+
+function normalizeReadinessCondition(condition) {
+  if (!condition || typeof condition !== "object") {
+    return null;
+  }
+
+  return {
+    field:
+      typeof condition.field === "string" ? condition.field.trim() : undefined,
+    hasValue:
+      typeof condition.hasValue === "boolean" ? condition.hasValue : undefined,
+    equals:
+      typeof condition.equals === "string" ||
+      typeof condition.equals === "number" ||
+      typeof condition.equals === "boolean"
+        ? condition.equals
+        : undefined,
+    in: normalizeArray(condition.in).filter(
+      (value) =>
+        typeof value === "string" ||
+        typeof value === "number" ||
+        typeof value === "boolean",
+    ),
+  };
 }
 
 function normalizeOptions(options) {

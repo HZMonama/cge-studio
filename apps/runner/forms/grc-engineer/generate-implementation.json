@@ -1,0 +1,57 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "control",
+    "cloudProvider"
+  ],
+  "fields": [
+    {
+      "name": "control",
+      "label": "Control",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Control ID or control name to implement.",
+      "placeholder": "access_control_account_management"
+    },
+    {
+      "name": "cloudProvider",
+      "label": "Cloud Provider",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Target platform for the generated implementation.",
+      "options": [
+        { "label": "AWS", "value": "aws" },
+        { "label": "Azure", "value": "azure" },
+        { "label": "GCP", "value": "gcp" },
+        { "label": "Kubernetes", "value": "kubernetes" }
+      ]
+    },
+    {
+      "name": "outputDirectory",
+      "label": "Output Directory",
+      "type": "path",
+      "required": false,
+      "position": "argument",
+      "description": "Optional directory for generated files.",
+      "placeholder": "./generated"
+    },
+    {
+      "name": "option",
+      "label": "Option",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Optional generation mode such as --terraform-only, --scripts-only, or --with-tests.",
+      "placeholder": "--with-tests"
+    }
+  ],
+  "remove": [
+    "controlIDOrNameEGAccessControlAccountManagementAC2EncryptionAtRest)",
+    "cloudProviderAwsAzureGcpOrKubernetes`",
+    "outputDirectoryOptionalDefaultsToGenerated)",
+    "optionsOptionalTerraformOnlyScriptsOnlyWithTests`"
+  ],
+  "submitLabel": "Run Generate Implementation"
+}

@@ -1,0 +1,28 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "asOfDate",
+      "label": "As-Of Date",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Optional report date. Defaults to today.",
+      "placeholder": "2026-04-18"
+    },
+    {
+      "name": "frameworks",
+      "label": "Frameworks",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Optional comma-separated framework aliases. Defaults to all frameworks with recent runs.",
+      "placeholder": "soc2,fedramp-moderate,iso27001"
+    }
+  ],
+  "remove": [
+    "asOfDateOptionalDefaultsToTodayE.g20260418",
+    "frameworksOptionalCommaSeparatedFrameworkAliasesAcceptedByGrcEngineerGapAssessmentDefaultsToAllFrameworksWithRecentRuns"
+  ],
+  "submitLabel": "Run Program Health"
+}

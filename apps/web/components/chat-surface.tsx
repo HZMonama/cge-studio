@@ -353,6 +353,7 @@ export function ChatSurface({
       selectedCommandPath,
       selectedForm,
       commandFormValues,
+      { redactSecrets: true },
     );
   }, [
     commandFormValues,

@@ -1,0 +1,53 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "domain"
+  ],
+  "fields": [
+    {
+      "name": "domain",
+      "label": "Domain",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required CMMC domain abbreviation.",
+      "options": [
+        { "label": "AC Access Control", "value": "AC" },
+        { "label": "AM Asset Management", "value": "AM" },
+        { "label": "AU Audit and Accountability", "value": "AU" },
+        { "label": "AT Awareness and Training", "value": "AT" },
+        { "label": "CM Configuration Management", "value": "CM" },
+        { "label": "IA Identification and Authentication", "value": "IA" },
+        { "label": "IR Incident Response", "value": "IR" },
+        { "label": "MA Maintenance", "value": "MA" },
+        { "label": "MP Media Protection", "value": "MP" },
+        { "label": "PS Personnel Security", "value": "PS" },
+        { "label": "PE Physical Protection", "value": "PE" },
+        { "label": "RE Recovery", "value": "RE" },
+        { "label": "RM Risk Management", "value": "RM" },
+        { "label": "CA Security Assessment", "value": "CA" },
+        { "label": "SA Situational Awareness", "value": "SA" },
+        { "label": "SC System and Communications Protection", "value": "SC" },
+        { "label": "SI System and Information Integrity", "value": "SI" }
+      ]
+    },
+    {
+      "name": "level",
+      "label": "CMMC Level",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional level to filter practices shown in the domain guidance.",
+      "options": [
+        { "label": "Level 1", "value": "1" },
+        { "label": "Level 2", "value": "2" },
+        { "label": "Level 3", "value": "3" }
+      ]
+    }
+  ],
+  "remove": [
+    "domainAbbreviationRequiredAcAmAuAtCmIaIrMaMpPsPeReRmCaSaScSi",
+    "cmmcLevelOptional1_2_3ShowsPracticesForThatLevel"
+  ],
+  "submitLabel": "Run Domain Guidance"
+}

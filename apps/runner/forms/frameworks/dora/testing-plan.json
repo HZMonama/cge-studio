@@ -1,0 +1,40 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "testingType"
+  ],
+  "fields": [
+    {
+      "name": "testingType",
+      "label": "Testing Type",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required DORA resilience testing type.",
+      "options": [
+        { "label": "General", "value": "general" },
+        { "label": "Advanced TLPT", "value": "advanced-tlpt" },
+        { "label": "Vulnerability", "value": "vulnerability" },
+        { "label": "Scenario", "value": "scenario" },
+        { "label": "All", "value": "all" }
+      ]
+    },
+    {
+      "name": "entityProfile",
+      "label": "Entity Profile",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional entity significance profile.",
+      "options": [
+        { "label": "Significant", "value": "significant" },
+        { "label": "Non-Significant", "value": "non-significant" }
+      ]
+    }
+  ],
+  "remove": [
+    "testingTypeRequiredGeneralAdvancedTlptVulnerabilityScenarioAll",
+    "entityProfileOptionalSignificantNonSignificant"
+  ],
+  "submitLabel": "Run Testing Plan"
+}

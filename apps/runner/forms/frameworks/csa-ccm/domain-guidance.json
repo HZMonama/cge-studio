@@ -1,0 +1,53 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "domainAbbreviation"
+  ],
+  "fields": [
+    {
+      "name": "domainAbbreviation",
+      "label": "Domain",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required CSA CCM domain abbreviation.",
+      "options": [
+        { "label": "A&A Audit and Assurance", "value": "A&A" },
+        { "label": "AIS Application and Interface Security", "value": "AIS" },
+        { "label": "BCR Business Continuity and Operational Resilience", "value": "BCR" },
+        { "label": "CCC Change Control and Configuration Management", "value": "CCC" },
+        { "label": "CEK Cryptography, Encryption and Key Management", "value": "CEK" },
+        { "label": "DCS Data Security and Privacy Lifecycle Management", "value": "DCS" },
+        { "label": "DSP Data Security and Privacy", "value": "DSP" },
+        { "label": "GRC Governance, Risk and Compliance", "value": "GRC" },
+        { "label": "HRS Human Resources", "value": "HRS" },
+        { "label": "IAM Identity and Access Management", "value": "IAM" },
+        { "label": "IPY Interoperability and Portability", "value": "IPY" },
+        { "label": "IVS Infrastructure and Virtualization Security", "value": "IVS" },
+        { "label": "LOG Logging and Monitoring", "value": "LOG" },
+        { "label": "SEF Security Incident Management", "value": "SEF" },
+        { "label": "STA Supply Chain Management, Transparency and Accountability", "value": "STA" },
+        { "label": "TVM Threat and Vulnerability Management", "value": "TVM" },
+        { "label": "UEM Universal Endpoint Management", "value": "UEM" }
+      ]
+    },
+    {
+      "name": "serviceModelContext",
+      "label": "Service Model Context",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional cloud service model context.",
+      "options": [
+        { "label": "IaaS", "value": "IaaS" },
+        { "label": "PaaS", "value": "PaaS" },
+        { "label": "SaaS", "value": "SaaS" }
+      ]
+    }
+  ],
+  "remove": [
+    "domainAbbreviationRequiredAAAisBcrCccCekDcsDspGrcHrsIamIpyIvsLogSefStaTvmUem",
+    "serviceModelContextOptionalIaaSPaaSSaaS"
+  ],
+  "submitLabel": "Run Domain Guidance"
+}

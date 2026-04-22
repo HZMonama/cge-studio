@@ -1,0 +1,35 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "controlFamilyOrBaseline"
+  ],
+  "fields": [
+    {
+      "name": "controlFamilyOrBaseline",
+      "label": "Control Family Or Baseline",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Required NIST 800-53 control family or baseline, such as `AC`, `AU`, `low`, `moderate`, or `high`.",
+      "placeholder": "AC or moderate"
+    },
+    {
+      "name": "revision",
+      "label": "Revision",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional NIST revision to assess against.",
+      "defaultValue": "r5",
+      "options": [
+        { "label": "Rev 5", "value": "r5" },
+        { "label": "Rev 4", "value": "r4" }
+      ]
+    }
+  ],
+  "remove": [
+    "controlFamilyOrBaselineRequiredAcAtAuEtcOrLowModerateHigh",
+    "revisionOptionalR4R5DefaultsToR5"
+  ],
+  "submitLabel": "Run NIST Assessment"
+}

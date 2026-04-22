@@ -1,0 +1,68 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "family"
+  ],
+  "fields": [
+    {
+      "name": "family",
+      "label": "Control Family",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Required NIST control family such as `AC`, `AU`, `SC`, `IA`, or `CM`.",
+      "placeholder": "AC"
+    },
+    {
+      "name": "baseline",
+      "label": "Baseline",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional baseline depth for the family analysis.",
+      "defaultValue": "moderate",
+      "options": [
+        { "label": "Low", "value": "low" },
+        { "label": "Moderate", "value": "moderate" },
+        { "label": "High", "value": "high" }
+      ]
+    },
+    {
+      "name": "environment",
+      "label": "Environment",
+      "type": "select",
+      "required": false,
+      "flag": "--environment",
+      "description": "Optional environment profile for cloud-specific guidance.",
+      "options": [
+        { "label": "Cloud", "value": "cloud" },
+        { "label": "Hybrid", "value": "hybrid" },
+        { "label": "On-Prem", "value": "on-prem" }
+      ]
+    },
+    {
+      "name": "showControls",
+      "label": "Show all controls",
+      "type": "boolean",
+      "required": false,
+      "flag": "--show-controls",
+      "description": "Include the full control listing for the selected family.",
+      "defaultValue": false
+    },
+    {
+      "name": "implementationOnly",
+      "label": "Implementation guidance only",
+      "type": "boolean",
+      "required": false,
+      "flag": "--implementation-only",
+      "description": "Skip theory and focus on implementation guidance.",
+      "defaultValue": false
+    }
+  ],
+  "remove": [
+    "controlFamilyAcAuScIaCmCpIrSiRaEtc",
+    "baselineOptionalLowModerateHighDefaultModerate",
+    "optionsOptionalEnvironmentCloudHybridOnPremShowControlsImplementationOnly"
+  ],
+  "submitLabel": "Run Family Deep Dive"
+}

@@ -1,0 +1,42 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "focusArea"
+  ],
+  "fields": [
+    {
+      "name": "focusArea",
+      "label": "Focus Area",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required GLBA Privacy Rule focus area.",
+      "options": [
+        { "label": "All", "value": "all" },
+        { "label": "Initial Notice", "value": "initial-notice" },
+        { "label": "Annual Notice", "value": "annual-notice" },
+        { "label": "Opt-Out", "value": "opt-out" },
+        { "label": "Sharing Practices", "value": "sharing-practices" },
+        { "label": "Exceptions", "value": "exceptions" }
+      ]
+    },
+    {
+      "name": "deliveryMethod",
+      "label": "Delivery Method",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional privacy notice delivery method context.",
+      "options": [
+        { "label": "Paper", "value": "paper" },
+        { "label": "Electronic", "value": "electronic" },
+        { "label": "Website", "value": "website" }
+      ]
+    }
+  ],
+  "remove": [
+    "focusAreaRequiredAllInitialNoticeAnnualNoticeOptOutSharingPracticesExceptions",
+    "deliveryMethodOptionalPaperElectronicWebsite"
+  ],
+  "submitLabel": "Run Privacy Rule Guidance"
+}

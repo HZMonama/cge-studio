@@ -1,0 +1,55 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "periodStart",
+    "periodEnd"
+  ],
+  "fields": [
+    {
+      "name": "periodStart",
+      "label": "Period Start",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Required SOC 2 Type II period start date in `YYYY-MM-DD` format.",
+      "placeholder": "2024-01-01"
+    },
+    {
+      "name": "periodEnd",
+      "label": "Period End",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Required SOC 2 Type II period end date in `YYYY-MM-DD` format.",
+      "placeholder": "2024-12-31"
+    },
+    {
+      "name": "auditFirm",
+      "label": "Audit Firm",
+      "type": "text",
+      "required": false,
+      "flag": "--audit-firm",
+      "description": "Optional audit firm name.",
+      "placeholder": "Example Audit LLP"
+    },
+    {
+      "name": "output",
+      "label": "Output Mode",
+      "type": "select",
+      "required": false,
+      "flag": "--output",
+      "description": "Optional planning output shape.",
+      "options": [
+        { "label": "Timeline", "value": "timeline" },
+        { "label": "Checklist", "value": "checklist" },
+        { "label": "Gantt", "value": "gantt" }
+      ]
+    }
+  ],
+  "remove": [
+    "periodStartDateFormatYyyyMmDd",
+    "periodEndDateFormatYyyyMmDd",
+    "optionsAuditFirmNameOutputFormatTimelineChecklistGantt"
+  ],
+  "submitLabel": "Run Type II Planner"
+}

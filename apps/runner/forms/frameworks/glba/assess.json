@@ -1,0 +1,42 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "assessmentScope"
+  ],
+  "fields": [
+    {
+      "name": "assessmentScope",
+      "label": "Assessment Scope",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required GLBA assessment scope.",
+      "options": [
+        { "label": "Full", "value": "full" },
+        { "label": "Safeguards", "value": "safeguards" },
+        { "label": "Privacy", "value": "privacy" },
+        { "label": "Pretexting", "value": "pretexting" }
+      ]
+    },
+    {
+      "name": "institutionType",
+      "label": "Institution Type",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional financial institution type.",
+      "options": [
+        { "label": "Bank", "value": "bank" },
+        { "label": "Credit Union", "value": "credit-union" },
+        { "label": "Securities Firm", "value": "securities-firm" },
+        { "label": "Insurance Company", "value": "insurance-company" },
+        { "label": "Other", "value": "other" }
+      ]
+    }
+  ],
+  "remove": [
+    "assessmentScopeRequiredFullSafeguardsPrivacyPretexting",
+    "institutionTypeOptionalBankCreditUnionSecuritiesFirmInsuranceCompanyOther"
+  ],
+  "submitLabel": "Run GLBA Assessment"
+}

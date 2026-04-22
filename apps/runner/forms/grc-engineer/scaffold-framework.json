@@ -1,0 +1,73 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "frameworkIdOrLabel"
+  ],
+  "fields": [
+    {
+      "name": "frameworkIdOrLabel",
+      "label": "SCF Framework ID Or Label",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Raw SCF framework ID or human label."
+    },
+    {
+      "name": "depth",
+      "label": "Depth",
+      "type": "select",
+      "required": false,
+      "flag": "--depth",
+      "description": "Template depth.",
+      "defaultValue": "stub",
+      "options": [
+        { "label": "Stub", "value": "stub" },
+        { "label": "Reference", "value": "reference" }
+      ]
+    },
+    {
+      "name": "slug",
+      "label": "Slug",
+      "type": "text",
+      "required": false,
+      "flag": "--slug",
+      "description": "Optional plugin directory name override."
+    },
+    {
+      "name": "noRegister",
+      "label": "Skip marketplace registration",
+      "type": "boolean",
+      "required": false,
+      "flag": "--no-register",
+      "defaultValue": false
+    },
+    {
+      "name": "force",
+      "label": "Force overwrite",
+      "type": "boolean",
+      "required": false,
+      "flag": "--force",
+      "defaultValue": false
+    },
+    {
+      "name": "offline",
+      "label": "Offline mode",
+      "type": "boolean",
+      "required": false,
+      "flag": "--offline",
+      "defaultValue": false
+    },
+    {
+      "name": "dryRun",
+      "label": "Dry run",
+      "type": "boolean",
+      "required": false,
+      "flag": "--dry-run",
+      "defaultValue": false
+    }
+  ],
+  "remove": [
+    "scfFrameworkIdOrLabel"
+  ],
+  "submitLabel": "Run Scaffold Framework"
+}

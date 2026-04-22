@@ -1,0 +1,37 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "organizationSize",
+      "label": "Organization Size",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional organization size used for IG selection guidance.",
+      "options": [
+        { "label": "Small", "value": "small" },
+        { "label": "Medium", "value": "medium" },
+        { "label": "Large", "value": "large" }
+      ]
+    },
+    {
+      "name": "riskProfile",
+      "label": "Risk Profile",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional organizational risk profile.",
+      "options": [
+        { "label": "Low", "value": "low" },
+        { "label": "Moderate", "value": "moderate" },
+        { "label": "High", "value": "high" },
+        { "label": "Critical", "value": "critical" }
+      ]
+    }
+  ],
+  "remove": [
+    "organizationSizeOptionalSmallMediumLarge",
+    "riskProfileOptionalLowModerateHighCritical"
+  ],
+  "submitLabel": "Run IG Selection"
+}

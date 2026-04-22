@@ -1,0 +1,48 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "iacPath"
+  ],
+  "fields": [
+    {
+      "name": "iacPath",
+      "label": "IaC Path",
+      "type": "path",
+      "required": true,
+      "position": "argument",
+      "description": "IaC file or directory to map to framework controls.",
+      "placeholder": "./terraform"
+    },
+    {
+      "name": "framework",
+      "label": "Framework",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Framework to map against.",
+      "defaultValue": "SOC2",
+      "options": [
+        { "label": "SOC 2", "value": "SOC2" },
+        { "label": "ISO 27001", "value": "ISO27001" },
+        { "label": "NIST 800-53", "value": "NIST80053" },
+        { "label": "PCI DSS", "value": "PCIDSS" },
+        { "label": "HIPAA", "value": "HIPAA" },
+        { "label": "GDPR", "value": "GDPR" },
+        { "label": "CMMC", "value": "CMMC" },
+        { "label": "HITRUST", "value": "HITRUST" },
+        { "label": "CIS", "value": "CIS" },
+        { "label": "CSA CCM", "value": "CSA-CCM" },
+        { "label": "NYDFS", "value": "NYDFS" },
+        { "label": "DORA", "value": "DORA" },
+        { "label": "StateRAMP", "value": "STATERAMP" },
+        { "label": "Essential 8", "value": "ESSENTIAL8" },
+        { "label": "GLBA", "value": "GLBA" }
+      ]
+    }
+  ],
+  "remove": [
+    "iaCFilePath",
+    "frameworkNameOptionalDefaultsToSOC2)"
+  ],
+  "submitLabel": "Run Map Control"
+}

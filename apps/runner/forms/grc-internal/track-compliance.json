@@ -1,0 +1,32 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "frameworkOrControlSet",
+      "label": "Framework Or Control Set",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Optional framework or control set. Defaults to all.",
+      "placeholder": "all"
+    },
+    {
+      "name": "outputFormat",
+      "label": "Output Format",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Compliance tracking output format.",
+      "defaultValue": "summary",
+      "options": [
+        { "label": "Summary", "value": "summary" },
+        { "label": "Detailed", "value": "detailed" },
+        { "label": "Dashboard", "value": "dashboard" }
+      ]
+    }
+  ],
+  "remove": [
+    "frameworkOrControlSetOptionalDefaultsToAll)"
+  ],
+  "submitLabel": "Run Track Compliance"
+}

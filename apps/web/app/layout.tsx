@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { JetBrains_Mono, Space_Grotesk } from "next/font/google";
+import "flag-icons/css/flag-icons.min.css";
 
 import { cn } from "@/lib/utils";
 import { AgentationProvider } from "@/components/agentation-provider";

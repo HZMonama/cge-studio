@@ -17,6 +17,7 @@ import {
 } from "@/components/app-shell-header";
 import { ArtifactsSurface } from "@/components/artifacts-surface";
 import { ChatSurface } from "@/components/chat-surface";
+import { FindingsSurface } from "@/components/findings-surface";
 import { ConfigPanel } from "@/components/config-panel";
 import { PluginPanel } from "@/components/plugin-panel";
 import { RunnerHistoryPanel } from "@/components/runner-history-panel";
@@ -48,6 +49,8 @@ import {
   fetchArtifactDetail,
   fetchArtifacts,
   fetchClaudeCodeStatus,
+  fetchFindingDetail,
+  fetchFindings,
   fetchRunnerConfig,
   fetchPluginRegistry,
   fetchRunnerHealth,
@@ -64,6 +67,8 @@ import {
   type RunnerConfigSnapshot,
   type RunnerArtifactDetail,
   type RunnerArtifactSummary,
+  type RunnerFindingDetail,
+  type RunnerFindingSummary,
   type RunnerHealthSnapshot,
   type RunnerRun,
   type RunnerRunEvent,
@@ -127,6 +132,10 @@ export default function Page() {
   );
   const [selectedArtifact, setSelectedArtifact] =
     useState<RunnerArtifactDetail | null>(null);
+  const [findings, setFindings] = useState<RunnerFindingSummary[]>([]);
+  const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
+  const [selectedFinding, setSelectedFinding] = useState<RunnerFindingDetail | null>(null);
+  const [findingLoading, setFindingLoading] = useState(false);
   const [runPending, setRunPending] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("fallback");
   const [syncPending, setSyncPending] = useState(true);
@@ -292,6 +301,9 @@ export default function Page() {
       setArtifacts([]);
       setSelectedArtifactId(null);
       setSelectedArtifact(null);
+      setFindings([]);
+      setSelectedFindingId(null);
+      setSelectedFinding(null);
       return;
     }
 
@@ -300,7 +312,8 @@ export default function Page() {
     Promise.all([
       fetchRuns(activeWorkspaceId, controller.signal),
       fetchArtifacts(activeWorkspaceId, controller.signal),
-    ]).then(([nextRuns, nextArtifacts]) => {
+      fetchFindings(activeWorkspaceId, controller.signal),
+    ]).then(([nextRuns, nextArtifacts, nextFindings]) => {
       if (controller.signal.aborted) {
         return;
       }
@@ -317,6 +330,12 @@ export default function Page() {
         current && nextArtifacts.some((artifact) => artifact.id === current)
           ? current
           : (nextArtifacts[0]?.id ?? null),
+      );
+      setFindings(nextFindings);
+      setSelectedFindingId((current) =>
+        current && nextFindings.some((f) => f.id === current)
+          ? current
+          : (nextFindings[0]?.id ?? null),
       );
     });
 
@@ -380,6 +399,28 @@ export default function Page() {
 
     return () => controller.abort();
   }, [activeWorkspaceId, selectedArtifactId]);
+
+  useEffect(() => {
+    if (!activeWorkspaceId || !selectedFindingId) {
+      setSelectedFinding(null);
+      setFindingLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setFindingLoading(true);
+
+    fetchFindingDetail(activeWorkspaceId, selectedFindingId, controller.signal).then(
+      (finding) => {
+        if (!controller.signal.aborted) {
+          setSelectedFinding(finding);
+          setFindingLoading(false);
+        }
+      },
+    );
+
+    return () => controller.abort();
+  }, [activeWorkspaceId, selectedFindingId]);
 
   const visibleArtifact = selectedArtifactId ? selectedArtifact : null;
   const artifactLoading =
@@ -494,12 +535,16 @@ export default function Page() {
       setArtifacts([]);
       setSelectedArtifactId(null);
       setSelectedArtifact(null);
+      setFindings([]);
+      setSelectedFindingId(null);
+      setSelectedFinding(null);
       return;
     }
 
-    const [nextRuns, nextArtifacts] = await Promise.all([
+    const [nextRuns, nextArtifacts, nextFindings] = await Promise.all([
       fetchRuns(workspaceId),
       fetchArtifacts(workspaceId),
+      fetchFindings(workspaceId),
     ]);
 
     setRuns(nextRuns);
@@ -515,10 +560,26 @@ export default function Page() {
         ? current
         : (nextArtifacts[0]?.id ?? null),
     );
+    setFindings(nextFindings);
+    setSelectedFindingId((current) =>
+      current && nextFindings.some((f) => f.id === current)
+        ? current
+        : (nextFindings[0]?.id ?? null),
+    );
   }
 
   async function runComposerCommand() {
     const prompt = composerPrompt.trim();
+    const redactedPrompt =
+      selectedCommandPath && selectedCommand?.form
+        ? buildPromptFromCommandForm(
+            selectedCommandPath,
+            selectedCommand.form,
+            commandFormValues,
+            { redactSecrets: true },
+          )
+        : prompt;
+
     if (!activeWorkspaceId || !/^\/[a-z0-9-]+:[a-z0-9-]+/i.test(prompt)) {
       return;
     }
@@ -527,7 +588,7 @@ export default function Page() {
     let run: RunnerRun | null = null;
 
     try {
-      run = await createRun(activeWorkspaceId, prompt);
+      run = await createRun(activeWorkspaceId, prompt, redactedPrompt);
       setRunnerSurfaceCleared(false);
       setSelectedRunId(run?.id ?? null);
       setSelectedRunEvents([]);
@@ -709,13 +770,20 @@ export default function Page() {
       <AppSidebar
         activeSection={activeSection}
         artifacts={artifacts}
+        findings={findings}
         focusSearchToken={sidebarFocusSearchToken}
         onSelectArtifact={(artifactId) => {
           setActiveSection("artifacts");
           setSelectedArtifactId(artifactId);
         }}
+        onSelectFinding={(findingId) => {
+          setActiveSection("findings");
+          setSelectedFindingId(findingId);
+          setSelectedFinding(null);
+        }}
         plugins={plugins}
         selectedArtifactId={selectedArtifactId}
+        selectedFindingId={selectedFindingId}
       />
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
         <AppShellHeader
@@ -807,9 +875,9 @@ export default function Page() {
             description="Dashboard views will live here once the specialized monitoring surfaces are wired in."
           />
         ) : activeSection === "findings" ? (
-          <SectionSurface
-            title="Findings"
-            description="Structured findings will live here once the findings explorer and remediation links are wired in."
+          <FindingsSurface
+            finding={selectedFindingId ? selectedFinding : null}
+            loading={findingLoading && selectedFindingId !== null}
           />
         ) : activeSection === "program" ? (
           <SectionSurface

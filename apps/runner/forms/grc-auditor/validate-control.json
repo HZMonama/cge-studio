@@ -1,0 +1,30 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "controlId"
+  ],
+  "fields": [
+    {
+      "name": "controlId",
+      "label": "Control ID",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Control ID to validate, such as CC6.1, A.9.1.1, or AC-2."
+    },
+    {
+      "name": "framework",
+      "label": "Framework",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Optional framework override. Defaults to auto-detect.",
+      "placeholder": "SOC2"
+    }
+  ],
+  "remove": [
+    "controlIDRequiredEGCC61A911AC2)",
+    "frameworkOptionalDefaultsToAutoDetect)"
+  ],
+  "submitLabel": "Run Validate Control"
+}

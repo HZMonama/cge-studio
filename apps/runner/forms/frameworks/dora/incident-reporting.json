@@ -1,0 +1,40 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "incidentSeverity"
+  ],
+  "fields": [
+    {
+      "name": "incidentSeverity",
+      "label": "Incident Severity",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required DORA incident classification.",
+      "options": [
+        { "label": "Major", "value": "major" },
+        { "label": "Non-Major", "value": "non-major" },
+        { "label": "Cyber Threat", "value": "cyber-threat" }
+      ]
+    },
+    {
+      "name": "reportingStage",
+      "label": "Reporting Stage",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional incident reporting stage.",
+      "options": [
+        { "label": "Initial", "value": "initial" },
+        { "label": "Intermediate", "value": "intermediate" },
+        { "label": "Final", "value": "final" },
+        { "label": "Update", "value": "update" }
+      ]
+    }
+  ],
+  "remove": [
+    "incidentSeverityRequiredMajorNonMajorCyberThreat",
+    "reportingStageOptionalInitialIntermediateFinalUpdate"
+  ],
+  "submitLabel": "Run Incident Reporting Guidance"
+}

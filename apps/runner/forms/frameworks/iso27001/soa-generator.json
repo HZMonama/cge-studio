@@ -1,0 +1,56 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "scope",
+      "label": "Scope",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional SOA scope profile.",
+      "defaultValue": "full",
+      "options": [
+        { "label": "Full", "value": "full" },
+        { "label": "Cloud Only", "value": "cloud-only" },
+        { "label": "Hybrid", "value": "hybrid" },
+        { "label": "On-Premise", "value": "on-premise" }
+      ]
+    },
+    {
+      "name": "format",
+      "label": "Format",
+      "type": "select",
+      "required": false,
+      "flag": "--format",
+      "description": "Output document format.",
+      "options": [
+        { "label": "DOCX", "value": "docx" },
+        { "label": "XLSX", "value": "xlsx" },
+        { "label": "Markdown", "value": "markdown" }
+      ]
+    },
+    {
+      "name": "includeEvidence",
+      "label": "Include evidence references",
+      "type": "boolean",
+      "required": false,
+      "flag": "--include-evidence",
+      "description": "Include evidence references in the generated SOA.",
+      "defaultValue": false
+    },
+    {
+      "name": "showGapsOnly",
+      "label": "Show gaps only",
+      "type": "boolean",
+      "required": false,
+      "flag": "--show-gaps-only",
+      "description": "Only show controls that are not fully implemented.",
+      "defaultValue": false
+    }
+  ],
+  "remove": [
+    "scopeOptionalCloudOnlyHybridOnPremiseOrFullDefaultFull",
+    "optionsOptionalFormatDocxXlsxMarkdownIncludeEvidenceShowGapsOnly"
+  ],
+  "submitLabel": "Run SOA Generator"
+}

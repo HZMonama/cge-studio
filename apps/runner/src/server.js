@@ -252,6 +252,8 @@ const server = createServer(async (request, response) => {
         const run = await createCommandRun({
           workspace,
           prompt: body.prompt,
+          redactedPrompt:
+            typeof body.redactedPrompt === "string" ? body.redactedPrompt : null,
           toolkitAvailable,
           toolkitPath,
         });
@@ -344,6 +346,30 @@ const server = createServer(async (request, response) => {
 
         return json(response, 200, artifact);
       }
+
+      if (
+        request.method === "GET" &&
+        pathSegments.length === 3 &&
+        pathSegments[2] === "findings"
+      ) {
+        return json(response, 200, await readWorkspaceFindings(workspace));
+      }
+
+      if (
+        request.method === "GET" &&
+        pathSegments.length === 4 &&
+        pathSegments[2] === "findings"
+      ) {
+        const findingId = decodeURIComponent(pathSegments[3]);
+        const findings = await readWorkspaceFindings(workspace);
+        const finding = findings.find((f) => f.id === findingId);
+
+        if (!finding) {
+          return json(response, 404, { error: "not_found" });
+        }
+
+        return json(response, 200, finding);
+      }
     }
 
     if (request.method === "GET" && url.pathname === "/runs") {
@@ -373,6 +399,8 @@ const server = createServer(async (request, response) => {
       const run = await createCommandRun({
         workspace,
         prompt: body.prompt,
+        redactedPrompt:
+          typeof body.redactedPrompt === "string" ? body.redactedPrompt : null,
         toolkitAvailable,
         toolkitPath,
       });
@@ -995,6 +1023,11 @@ async function createCommandRun(input) {
   if (!parsed) {
     throw new Error("invalid_command_prompt");
   }
+  const persistedPrompt =
+    typeof input.redactedPrompt === "string" && input.redactedPrompt.trim()
+      ? input.redactedPrompt.trim()
+      : redactPromptSecrets(input.prompt);
+  const persistedParsed = parsePrompt(persistedPrompt) ?? parsed;
 
   const now = new Date().toISOString();
   const runId = `run-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -1014,7 +1047,8 @@ async function createCommandRun(input) {
   });
   const commandPreview = buildCommandPreview({
     execution,
-    prompt: input.prompt,
+    prompt: persistedPrompt,
+    argsOverride: persistedParsed.argumentTokens,
   });
 
   const run = {
@@ -1028,7 +1062,7 @@ async function createCommandRun(input) {
       execution.kind === "script" || execution.kind === "workflow"
         ? null
         : now,
-    prompt: input.prompt,
+    prompt: persistedPrompt,
     commandPath: parsed.commandPath,
     pluginId: parsed.pluginId,
     commandId: parsed.commandId,
@@ -1044,7 +1078,7 @@ async function createCommandRun(input) {
 
   await persistRunFiles({
     commandPreview,
-    prompt: input.prompt,
+    prompt: persistedPrompt,
     run,
     runDirectory,
   });
@@ -1054,7 +1088,7 @@ async function createCommandRun(input) {
     data: {
       commandPath: parsed.commandPath,
       executionMode: run.executionMode,
-      prompt: input.prompt,
+      prompt: persistedPrompt,
     },
   });
 
@@ -1081,6 +1115,7 @@ async function createCommandRun(input) {
   void executeCommandRun({
     execution,
     prompt: input.prompt,
+    persistedParsed,
     run,
     runDirectory,
     workspace: input.workspace,
@@ -1267,7 +1302,10 @@ async function executeCommandRun(input) {
     type: "tool.started",
     data: {
       command: execution.runtime,
-      args: [execution.scriptPath, ...execution.args],
+      args: [
+        execution.scriptPath,
+        ...(input.persistedParsed?.argumentTokens ?? execution.args),
+      ],
       cwd: execution.cwd,
     },
   });
@@ -1473,7 +1511,7 @@ function buildGapAssessmentCommand(input) {
 
 function buildCommandPreview(input) {
   if (input.execution?.kind === "script") {
-    const args = [input.execution.scriptPath, ...input.execution.args]
+    const args = [input.execution.scriptPath, ...(input.argsOverride ?? input.execution.args)]
       .map((value) => JSON.stringify(value))
       .join(" ");
 
@@ -1547,6 +1585,42 @@ function tokenizePrompt(prompt) {
   }
 
   return tokens;
+}
+
+function redactPromptSecrets(prompt) {
+  const tokens = tokenizePrompt(prompt);
+
+  return tokens
+    .map((token) => {
+      if (!token.startsWith("--")) {
+        return quotePromptToken(token);
+      }
+
+      const separatorIndex = token.indexOf("=");
+      if (separatorIndex === -1) {
+        return quotePromptToken(token);
+      }
+
+      const flag = token.slice(0, separatorIndex);
+      const value = token.slice(separatorIndex + 1);
+
+      if (!isSensitiveFlag(flag)) {
+        return `${flag}=${quotePromptToken(value)}`;
+      }
+
+      return `${flag}=[REDACTED]`;
+    })
+    .join(" ");
+}
+
+function isSensitiveFlag(flag) {
+  return /(token|secret|password|passphrase|api[-_]?key|access[-_]?key)/i.test(
+    flag,
+  );
+}
+
+function quotePromptToken(value) {
+  return /\s/u.test(value) ? JSON.stringify(value) : value;
 }
 
 function artifactExtension(outputType) {
@@ -1817,6 +1891,109 @@ function coerceArray(value) {
   }
 
   return value.filter((item) => typeof item === "string");
+}
+
+const FINDING_SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
+
+async function readWorkspaceFindings(workspace) {
+  const connectorEntries = Object.entries(
+    workspace.folders.findingsRawConnectors ?? {},
+  );
+
+  const groups = await Promise.all(
+    connectorEntries.map(async ([connectorId, connectorDir]) => {
+      try {
+        const files = await fs.readdir(connectorDir);
+        const docGroups = await Promise.all(
+          files
+            .filter((file) => file.endsWith(".json"))
+            .map(async (file) => {
+              const filePath = path.join(connectorDir, file);
+              try {
+                const content = await fs.readFile(filePath, "utf8");
+                const doc = JSON.parse(content);
+                return normalizeFindingDocument(doc, filePath, connectorId);
+              } catch {
+                return [];
+              }
+            }),
+        );
+        return docGroups.flat();
+      } catch {
+        return [];
+      }
+    }),
+  );
+
+  return groups.flat().sort((left, right) => {
+    const sl = FINDING_SEVERITY_ORDER[left.severity] ?? 5;
+    const sr = FINDING_SEVERITY_ORDER[right.severity] ?? 5;
+    if (sl !== sr) return sl - sr;
+    const tl = left.assessedAt ?? left.collectedAt ?? "";
+    const tr = right.assessedAt ?? right.collectedAt ?? "";
+    return tr.localeCompare(tl);
+  });
+}
+
+function normalizeFindingDocument(doc, filePath, fallbackSource) {
+  if (!doc || !Array.isArray(doc.evaluations)) {
+    return [];
+  }
+
+  const resource = doc.resource ?? {};
+  const source = doc.source ?? fallbackSource;
+
+  return doc.evaluations
+    .filter((ev) => ev.status === "fail" || ev.status === "inconclusive")
+    .map((ev) => ({
+      id: deriveFindingId(
+        source,
+        doc.run_id,
+        resource.id,
+        ev.control_framework,
+        ev.control_id,
+      ),
+      title: deriveFindingTitle(ev.message, resource.id, ev.control_id),
+      severity: ev.severity ?? "info",
+      status: ev.status,
+      source,
+      resourceType: resource.type ?? null,
+      resourceId: resource.id ?? null,
+      resourceRegion: resource.region ?? null,
+      accountId: resource.account_id ?? null,
+      controlFramework: ev.control_framework ?? null,
+      controlId: ev.control_id ?? null,
+      message: ev.message ?? null,
+      collectedAt: doc.collected_at ?? null,
+      assessedAt: ev.assessed_at ?? null,
+      hasRemediation: Boolean(ev.remediation),
+      resource,
+      remediation: ev.remediation ?? null,
+      evidenceRefs: ev.evidence_refs ?? [],
+      rawAttributes: doc.raw_attributes ?? null,
+      metadata: doc.metadata ?? null,
+      narrativeFindings: doc.findings ?? [],
+      documentPath: filePath,
+    }));
+}
+
+function deriveFindingId(source, runId, resourceId, controlFramework, controlId) {
+  return [source, runId, resourceId, controlFramework, controlId]
+    .map((p) => String(p ?? "unknown").replace(/[^a-z0-9._-]/gi, "_"))
+    .join(":");
+}
+
+function deriveFindingTitle(message, resourceId, controlId) {
+  if (message) {
+    const first = message.split(/[.\n]/)[0].trim();
+    return first.length > 80 ? `${first.slice(0, 77)}…` : first;
+  }
+
+  if (resourceId && controlId) {
+    return `${resourceId} / ${controlId}`;
+  }
+
+  return resourceId ?? controlId ?? "Finding";
 }
 
 function setCorsHeaders(response) {

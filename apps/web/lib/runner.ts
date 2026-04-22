@@ -367,14 +367,18 @@ export async function fetchRuns(workspaceId: string, signal?: AbortSignal): Prom
   }
 }
 
-export async function createRun(workspaceId: string, prompt: string): Promise<RunnerRun | null> {
+export async function createRun(
+  workspaceId: string,
+  prompt: string,
+  redactedPrompt?: string,
+): Promise<RunnerRun | null> {
   try {
     const response = await fetch(`${RUNNER_BASE_URL}/workspaces/${workspaceId}/runs`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ prompt, workspaceId }),
+      body: JSON.stringify({ prompt, redactedPrompt, workspaceId }),
     })
 
     if (!response.ok) {
@@ -447,6 +451,93 @@ export async function respondToRunPrompt(
     }
 
     return (await response.json()) as RunnerRun
+  } catch {
+    return null
+  }
+}
+
+export interface RunnerFindingSummary {
+  id: string
+  title: string
+  severity: "critical" | "high" | "medium" | "low" | "info"
+  status: "fail" | "inconclusive"
+  source: string
+  resourceType: string | null
+  resourceId: string | null
+  resourceRegion: string | null
+  accountId: string | null
+  controlFramework: string | null
+  controlId: string | null
+  message: string | null
+  collectedAt: string | null
+  assessedAt: string | null
+  hasRemediation: boolean
+}
+
+export interface RunnerFindingResource {
+  type: string
+  id: string
+  arn?: string | null
+  uri?: string | null
+  region?: string | null
+  account_id?: string | null
+  tags?: Record<string, string>
+}
+
+export interface RunnerFindingRemediation {
+  summary?: string
+  ref?: string
+  effort_hours?: number
+  automation?: "auto_fixable" | "semi_automated" | "manual" | "design_change"
+}
+
+export interface RunnerNarrativeFinding {
+  id: string
+  title: string
+  severity: string
+  description?: string
+  related_control_ids?: string[]
+  related_resource_ids?: string[]
+}
+
+export interface RunnerFindingDetail extends RunnerFindingSummary {
+  resource: RunnerFindingResource
+  remediation: RunnerFindingRemediation | null
+  evidenceRefs: string[]
+  rawAttributes: Record<string, unknown> | null
+  metadata: Record<string, unknown> | null
+  narrativeFindings: RunnerNarrativeFinding[]
+  documentPath: string
+}
+
+export async function fetchFindings(
+  workspaceId: string,
+  signal?: AbortSignal,
+): Promise<RunnerFindingSummary[]> {
+  try {
+    const response = await fetch(`${RUNNER_BASE_URL}/workspaces/${workspaceId}/findings`, {
+      cache: "no-store",
+      signal,
+    })
+    if (!response.ok) return []
+    return (await response.json()) as RunnerFindingSummary[]
+  } catch {
+    return []
+  }
+}
+
+export async function fetchFindingDetail(
+  workspaceId: string,
+  findingId: string,
+  signal?: AbortSignal,
+): Promise<RunnerFindingDetail | null> {
+  try {
+    const response = await fetch(
+      `${RUNNER_BASE_URL}/workspaces/${workspaceId}/findings/${encodeURIComponent(findingId)}`,
+      { cache: "no-store", signal },
+    )
+    if (!response.ok) return null
+    return (await response.json()) as RunnerFindingDetail
   } catch {
     return null
   }

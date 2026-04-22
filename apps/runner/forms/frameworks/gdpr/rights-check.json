@@ -1,0 +1,41 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "specificRight",
+      "label": "Specific Right",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional data subject right to assess.",
+      "options": [
+        { "label": "Access", "value": "access" },
+        { "label": "Rectification", "value": "rectification" },
+        { "label": "Erasure", "value": "erasure" },
+        { "label": "Restriction", "value": "restriction" },
+        { "label": "Portability", "value": "portability" },
+        { "label": "Object", "value": "object" },
+        { "label": "Automated Decisions", "value": "automated-decisions" },
+        { "label": "All", "value": "all" }
+      ]
+    },
+    {
+      "name": "checkDepth",
+      "label": "Check Depth",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional review depth for the rights check.",
+      "options": [
+        { "label": "Basic", "value": "basic" },
+        { "label": "Comprehensive", "value": "comprehensive" },
+        { "label": "Audit-Ready", "value": "audit-ready" }
+      ]
+    }
+  ],
+  "remove": [
+    "specificRightToCheckOptionalAccessRectificationErasureRestrictionPortabilityObjectAutomatedDecisionsAll",
+    "checkDepthOptionalBasicComprehensiveAuditReady"
+  ],
+  "submitLabel": "Run Rights Check"
+}

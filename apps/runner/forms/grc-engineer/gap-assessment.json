@@ -1,6 +1,9 @@
 {
   "mode": "inline",
   "extends": null,
+  "minimumConfiguration": [
+    "frameworks"
+  ],
   "compose": [
     "framework-selection",
     "connector-selection",
@@ -60,7 +63,11 @@
       "defaultValue": false
     }
   },
-  "remove": [],
+  "remove": [
+    "csv",
+    "fmt",
+    "path"
+  ],
   "order": [
     "frameworks",
     "sources",

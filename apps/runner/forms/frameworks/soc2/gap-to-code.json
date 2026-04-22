@@ -1,0 +1,69 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "gapFile",
+    "cloudProvider"
+  ],
+  "fields": [
+    {
+      "name": "gapFile",
+      "label": "Gap Analysis File",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Required JSON gap analysis file, usually produced by `/soc2:assess`.",
+      "placeholder": "./gaps.json"
+    },
+    {
+      "name": "cloudProvider",
+      "label": "Cloud Provider",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required target provider for generated remediation code.",
+      "options": [
+        { "label": "AWS", "value": "aws" },
+        { "label": "Azure", "value": "azure" },
+        { "label": "GCP", "value": "gcp" },
+        { "label": "Kubernetes", "value": "kubernetes" },
+        { "label": "Multi-Cloud", "value": "multi-cloud" }
+      ]
+    },
+    {
+      "name": "outputDir",
+      "label": "Output Directory",
+      "type": "text",
+      "required": false,
+      "flag": "--output-dir",
+      "description": "Optional directory for generated remediation code.",
+      "placeholder": "./remediation"
+    },
+    {
+      "name": "format",
+      "label": "Format",
+      "type": "select",
+      "required": false,
+      "flag": "--format",
+      "description": "Optional infrastructure format.",
+      "options": [
+        { "label": "Terraform", "value": "terraform" },
+        { "label": "CloudFormation", "value": "cloudformation" }
+      ]
+    },
+    {
+      "name": "apply",
+      "label": "Apply generated fixes",
+      "type": "boolean",
+      "required": false,
+      "flag": "--apply",
+      "description": "Apply generated fixes immediately instead of staying in dry-run mode.",
+      "defaultValue": false
+    }
+  ],
+  "remove": [
+    "gapAnalysisFileJsonOutputFromSoc2Assess",
+    "cloudProviderAwsAzureGcpKubernetesOrMultiCloud",
+    "optionsOptionalOutputDirPathFormatTerraformCloudformationApply"
+  ],
+  "submitLabel": "Run Gap-to-Code"
+}

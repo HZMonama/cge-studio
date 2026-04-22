@@ -8,8 +8,8 @@
   "fields": [],
   "overrides": {
     "output": {
-      "label": "Output Format",
-      "description": "Choose how connector results should be emitted.",
+      "label": "Output Mode",
+      "description": "Choose how connector results should be emitted: summary text, JSON, or no stdout output.",
       "defaultValue": "summary",
       "options": [
         { "label": "Summary", "value": "summary" },

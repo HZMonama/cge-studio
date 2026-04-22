@@ -1,0 +1,39 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "implementationGroup"
+  ],
+  "fields": [
+    {
+      "name": "implementationGroup",
+      "label": "Implementation Group",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required CIS Controls Implementation Group to assess.",
+      "options": [
+        { "label": "IG1", "value": "IG1" },
+        { "label": "IG2", "value": "IG2" },
+        { "label": "IG3", "value": "IG3" }
+      ]
+    },
+    {
+      "name": "assessmentScope",
+      "label": "Assessment Scope",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional CIS assessment scope.",
+      "options": [
+        { "label": "Full", "value": "full" },
+        { "label": "Gap Analysis", "value": "gap-analysis" },
+        { "label": "Specific Control", "value": "specific-control" }
+      ]
+    }
+  ],
+  "remove": [
+    "targetImplementationGroupRequiredIg1Ig2OrIg3",
+    "assessmentScopeOptionalFullGapAnalysisSpecificControl"
+  ],
+  "submitLabel": "Run CIS Assessment"
+}

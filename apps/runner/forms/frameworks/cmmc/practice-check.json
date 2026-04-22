@@ -1,0 +1,35 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "practiceId"
+  ],
+  "fields": [
+    {
+      "name": "practiceId",
+      "label": "Practice ID",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Required CMMC practice ID, such as `AC.L2-3.1.1` or `IA.L2-3.5.7`.",
+      "placeholder": "IA.L2-3.5.7"
+    },
+    {
+      "name": "checkType",
+      "label": "Check Type",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional validation focus for the practice.",
+      "options": [
+        { "label": "Implementation", "value": "implementation" },
+        { "label": "Evidence", "value": "evidence" },
+        { "label": "Gaps", "value": "gaps" }
+      ]
+    }
+  ],
+  "remove": [
+    "practiceIdRequiredE.gAcL2311IaL2357",
+    "checkTypeOptionalImplementationEvidenceGaps"
+  ],
+  "submitLabel": "Run Practice Check"
+}

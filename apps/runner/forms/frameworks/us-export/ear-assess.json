@@ -1,0 +1,25 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "itemType",
+      "label": "Item Type",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional EAR item type to assess.",
+      "defaultValue": "general",
+      "options": [
+        { "label": "General", "value": "general" },
+        { "label": "Encryption", "value": "encryption" },
+        { "label": "Technology", "value": "technology" },
+        { "label": "Commodities", "value": "commodities" },
+        { "label": "Software", "value": "software" }
+      ]
+    }
+  ],
+  "remove": [
+    "itemTypeOptionalEncryptionTechnologyCommoditiesSoftwareDefaultsToGeneral\""
+  ],
+  "submitLabel": "Run EAR Assessment"
+}

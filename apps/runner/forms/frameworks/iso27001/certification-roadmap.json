@@ -1,0 +1,54 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "targetDate",
+      "label": "Target Date",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Optional target certification date or duration.",
+      "defaultValue": "12-months",
+      "placeholder": "2025-12-31 or 12-months"
+    },
+    {
+      "name": "currentMaturity",
+      "label": "Current Maturity",
+      "type": "select",
+      "required": false,
+      "flag": "--current-maturity",
+      "description": "Current ISO program maturity level.",
+      "options": [
+        { "label": "Low", "value": "low" },
+        { "label": "Medium", "value": "medium" },
+        { "label": "High", "value": "high" }
+      ]
+    },
+    {
+      "name": "scope",
+      "label": "Scope",
+      "type": "select",
+      "required": false,
+      "flag": "--scope",
+      "description": "Target certification scope profile.",
+      "options": [
+        { "label": "Cloud Only", "value": "cloud-only" },
+        { "label": "Hybrid", "value": "hybrid" }
+      ]
+    },
+    {
+      "name": "fastTrack",
+      "label": "Fast-track roadmap",
+      "type": "boolean",
+      "required": false,
+      "flag": "--fast-track",
+      "description": "Generate the accelerated certification path.",
+      "defaultValue": false
+    }
+  ],
+  "remove": [
+    "targetCertificationDateOptional20251231Or12MonthsDefault12Months",
+    "optionsOptionalCurrentMaturityLowMediumHighScopeCloudOnlyHybridFastTrack"
+  ],
+  "submitLabel": "Run Certification Roadmap"
+}

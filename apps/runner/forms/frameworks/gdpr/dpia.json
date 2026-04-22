@@ -1,0 +1,35 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "processingActivityName"
+  ],
+  "fields": [
+    {
+      "name": "processingActivityName",
+      "label": "Processing Activity Name",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Required processing activity or system name for the DPIA.",
+      "placeholder": "Customer behavior profiling"
+    },
+    {
+      "name": "dpiaStage",
+      "label": "DPIA Stage",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional DPIA stage to focus on.",
+      "options": [
+        { "label": "Screening", "value": "screening" },
+        { "label": "Assessment", "value": "assessment" },
+        { "label": "Review", "value": "review" }
+      ]
+    }
+  ],
+  "remove": [
+    "processingActivityNameRequired",
+    "dpiaStageOptionalScreeningAssessmentReview"
+  ],
+  "submitLabel": "Run DPIA Guidance"
+}

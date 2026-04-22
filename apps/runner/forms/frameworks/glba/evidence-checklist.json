@@ -1,0 +1,56 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "ruleSection"
+  ],
+  "fields": [
+    {
+      "name": "ruleSection",
+      "label": "Rule Section Or Topic",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Required GLBA section or topic, such as `Safeguards Rule`, `Privacy Rule`, or `§314.4(b)`.",
+      "placeholder": "Safeguards Rule"
+    },
+    {
+      "name": "institutionType",
+      "label": "Institution Type",
+      "type": "select",
+      "required": false,
+      "flag": "--institution-type",
+      "description": "Type of financial institution used to tailor the checklist.",
+      "defaultValue": "bank",
+      "options": [
+        { "label": "Bank", "value": "bank" },
+        { "label": "Broker", "value": "broker" },
+        { "label": "Insurer", "value": "insurer" },
+        { "label": "Other", "value": "other" }
+      ]
+    },
+    {
+      "name": "export",
+      "label": "Export Format",
+      "type": "select",
+      "required": false,
+      "flag": "--export",
+      "description": "Choose the output format for the evidence checklist.",
+      "defaultValue": "markdown",
+      "options": [
+        { "label": "Markdown", "value": "markdown" },
+        { "label": "JSON", "value": "json" },
+        { "label": "CSV", "value": "csv" }
+      ]
+    }
+  ],
+  "remove": [
+    "bankBrokerInsurer",
+    "format"
+  ],
+  "order": [
+    "ruleSection",
+    "institutionType",
+    "export"
+  ],
+  "submitLabel": "Generate GLBA Evidence Checklist"
+}

@@ -1,0 +1,28 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "period",
+      "label": "Period",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Optional reporting week. Defaults to the current week.",
+      "placeholder": "2026-W16"
+    },
+    {
+      "name": "frameworks",
+      "label": "Frameworks",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Optional comma-separated framework aliases. Defaults to all frameworks with current runs.",
+      "placeholder": "soc2,fedramp-moderate"
+    }
+  ],
+  "remove": [
+    "periodOptionalDefaultsToCurrentWeekE.g2026W16",
+    "frameworksOptionalCommaSeparatedFrameworkAliasesAcceptedByGrcEngineerGapAssessmentDefaultsToAllWithCurrentRuns"
+  ],
+  "submitLabel": "Run Automation Coverage"
+}

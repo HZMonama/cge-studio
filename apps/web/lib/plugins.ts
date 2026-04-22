@@ -40,9 +40,24 @@ export interface CommandFormField {
   options?: CommandFormOption[];
 }
 
+export interface CommandFormReadinessCondition {
+  field: string;
+  hasValue?: boolean;
+  equals?: string | number | boolean;
+  in?: Array<string | number | boolean>;
+}
+
+export interface CommandFormReadinessRule {
+  when: CommandFormReadinessCondition;
+  requireAll?: string[];
+  requireOneOf?: string[];
+}
+
 export interface CommandFormSchema {
   mode: "inline";
   submitLabel?: string;
+  minimumConfiguration?: string[];
+  readinessRules?: CommandFormReadinessRule[];
   fields: CommandFormField[];
 }
 

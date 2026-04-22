@@ -1,0 +1,33 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "productTechnologyDescription"
+  ],
+  "fields": [
+    {
+      "name": "productTechnologyDescription",
+      "label": "Product Or Technology Description",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Required description of the product, technology, or service to triage.",
+      "placeholder": "Commercial encryption software with AES-256"
+    },
+    {
+      "name": "industry",
+      "label": "Industry",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional industry context.",
+      "options": [
+        { "label": "Defense", "value": "defense" },
+        { "label": "Commercial", "value": "commercial" },
+        { "label": "Technology", "value": "technology" },
+        { "label": "Aerospace", "value": "aerospace" }
+      ]
+    }
+  ],
+  "remove": [],
+  "submitLabel": "Run Export Jurisdiction Review"
+}

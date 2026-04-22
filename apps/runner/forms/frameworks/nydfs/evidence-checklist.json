@@ -1,0 +1,49 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "section"
+  ],
+  "fields": [
+    {
+      "name": "section",
+      "label": "Section Or Topic",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Required NYDFS section number or topic, such as `500.04`, `CISO`, or `Multi-Factor Authentication`.",
+      "placeholder": "500.04"
+    },
+    {
+      "name": "entityType",
+      "label": "Entity Type",
+      "type": "select",
+      "required": false,
+      "flag": "--entity-type",
+      "description": "Choose the NYDFS entity class for the checklist.",
+      "defaultValue": "class-a",
+      "options": [
+        { "label": "Class A", "value": "class-a" },
+        { "label": "Class B", "value": "class-b" }
+      ]
+    },
+    {
+      "name": "export",
+      "label": "Export Format",
+      "type": "select",
+      "required": false,
+      "flag": "--export",
+      "description": "Choose the output format for the evidence checklist.",
+      "defaultValue": "markdown",
+      "options": [
+        { "label": "Markdown", "value": "markdown" },
+        { "label": "JSON", "value": "json" },
+        { "label": "CSV", "value": "csv" }
+      ]
+    }
+  ],
+  "remove": [
+    "classAClassB",
+    "format"
+  ],
+  "submitLabel": "Generate NYDFS Evidence Checklist"
+}

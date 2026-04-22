@@ -1,0 +1,53 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "caiqVersion"
+  ],
+  "fields": [
+    {
+      "name": "caiqVersion",
+      "label": "CAIQ Version",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required CAIQ questionnaire version.",
+      "options": [
+        { "label": "v4.0", "value": "v4.0" },
+        { "label": "Lite", "value": "lite" }
+      ]
+    },
+    {
+      "name": "outputFormat",
+      "label": "Output Format",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional CAIQ export format.",
+      "options": [
+        { "label": "Markdown", "value": "markdown" },
+        { "label": "JSON", "value": "json" },
+        { "label": "Excel", "value": "excel" },
+        { "label": "CSV", "value": "csv" }
+      ]
+    },
+    {
+      "name": "responseMode",
+      "label": "Response Mode",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional response generation mode.",
+      "options": [
+        { "label": "Full", "value": "full" },
+        { "label": "Draft", "value": "draft" },
+        { "label": "Template", "value": "template" }
+      ]
+    }
+  ],
+  "remove": [
+    "caiqVersionRequiredV40Lite",
+    "outputFormatOptionalMarkdownJsonExcelCsv",
+    "responseModeOptionalFullDraftTemplate"
+  ],
+  "submitLabel": "Run CAIQ Generator"
+}

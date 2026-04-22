@@ -1,0 +1,37 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "scope",
+      "label": "Scope",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional export control scope to assess.",
+      "defaultValue": "both",
+      "options": [
+        { "label": "ITAR", "value": "itar" },
+        { "label": "EAR", "value": "ear" },
+        { "label": "Both", "value": "both" }
+      ]
+    },
+    {
+      "name": "assessmentDepth",
+      "label": "Assessment Depth",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional assessment depth.",
+      "defaultValue": "detailed",
+      "options": [
+        { "label": "Quick", "value": "quick" },
+        { "label": "Detailed", "value": "detailed" }
+      ]
+    }
+  ],
+  "remove": [
+    "scopeOptionalItarEarBothDefaultsToBoth\"",
+    "assessmentDepthOptionalQuickDetailedDefaultsToDetailed\""
+  ],
+  "submitLabel": "Run US Export Controls Assessment"
+}

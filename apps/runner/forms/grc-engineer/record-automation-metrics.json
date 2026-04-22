@@ -1,0 +1,109 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "framework"
+  ],
+  "readinessRules": [
+    {
+      "when": {
+        "field": "controlsTotal",
+        "hasValue": true
+      },
+      "requireAll": ["controlsAutomated"]
+    },
+    {
+      "when": {
+        "field": "controlsAutomated",
+        "hasValue": true
+      },
+      "requireOneOf": ["controlsTotal", "controlsManual"]
+    },
+    {
+      "when": {
+        "field": "controlsManual",
+        "hasValue": true
+      },
+      "requireAll": ["controlsAutomated"]
+    }
+  ],
+  "fields": [
+    {
+      "name": "framework",
+      "label": "Framework",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Framework alias or FedRAMP scope. The composer currently models the common single-framework path, not batch --config mode.",
+      "placeholder": "fedramp-moderate"
+    },
+    {
+      "name": "provider",
+      "label": "Provider",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Provider used in derived mode.",
+      "defaultValue": "aws",
+      "options": [
+        { "label": "AWS", "value": "aws" },
+        { "label": "Azure", "value": "azure" },
+        { "label": "GCP", "value": "gcp" },
+        { "label": "Kubernetes", "value": "kubernetes" }
+      ]
+    },
+    {
+      "name": "controlsTotal",
+      "label": "Controls Total",
+      "type": "number",
+      "required": false,
+      "flag": "--controls-total",
+      "description": "Total controls count for manual mode."
+    },
+    {
+      "name": "controlsAutomated",
+      "label": "Controls Automated",
+      "type": "number",
+      "required": false,
+      "flag": "--controls-automated",
+      "description": "Automated controls count for manual mode."
+    },
+    {
+      "name": "controlsManual",
+      "label": "Controls Manual",
+      "type": "number",
+      "required": false,
+      "flag": "--controls-manual",
+      "description": "Optional manual count override."
+    },
+    {
+      "name": "windowLabel",
+      "label": "Window Label",
+      "type": "text",
+      "required": false,
+      "flag": "--window-label",
+      "description": "Optional reporting period label such as 2026-W16."
+    },
+    {
+      "name": "recordedAt",
+      "label": "Recorded At",
+      "type": "text",
+      "required": false,
+      "flag": "--recorded-at",
+      "description": "Optional observation timestamp in ISO 8601 format."
+    },
+    {
+      "name": "dryRun",
+      "label": "Dry run",
+      "type": "boolean",
+      "required": false,
+      "flag": "--dry-run",
+      "description": "Print rows instead of writing files.",
+      "defaultValue": false
+    }
+  ],
+  "remove": [
+    "frameworkAliasOrFedRAMPScope",
+    "providerInDerivedModeOptionalDefaultsToAws)"
+  ],
+  "submitLabel": "Run Record Automation Metrics"
+}

@@ -1,0 +1,32 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "rocSectionOrRequirement",
+      "label": "ROC Section Or Requirement",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Optional ROC section or requirement number.",
+      "placeholder": "3 or executive summary"
+    },
+    {
+      "name": "topic",
+      "label": "Topic",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional ROC guidance topic.",
+      "options": [
+        { "label": "Testing", "value": "testing" },
+        { "label": "Evidence", "value": "evidence" },
+        { "label": "Findings", "value": "findings" }
+      ]
+    }
+  ],
+  "remove": [
+    "rocSectionOrRequirementNumberOptional",
+    "topicOptionalTestingEvidenceFindings"
+  ],
+  "submitLabel": "Run ROC Guidance"
+}

@@ -1,0 +1,33 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "vendor"
+  ],
+  "fields": [
+    {
+      "name": "vendor",
+      "label": "Vendor Name Or Assessment Data",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Vendor name or assessment data input."
+    },
+    {
+      "name": "scoringModel",
+      "label": "Scoring Model",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Risk scoring model.",
+      "options": [
+        { "label": "Standard", "value": "standard" },
+        { "label": "Financial", "value": "financial" },
+        { "label": "Healthcare", "value": "healthcare" }
+      ]
+    }
+  ],
+  "remove": [
+    "vendorNameOrAssessmentData"
+  ],
+  "submitLabel": "Run Score Risk"
+}

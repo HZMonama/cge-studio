@@ -1,0 +1,51 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "articleOrPrinciple"
+  ],
+  "fields": [
+    {
+      "name": "articleOrPrinciple",
+      "label": "Article Or Principle",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Required GDPR article or principle, such as `Article 32`, `Article 30`, or `Security`.",
+      "placeholder": "Article 32"
+    },
+    {
+      "name": "role",
+      "label": "Role",
+      "type": "select",
+      "required": false,
+      "flag": "--role",
+      "description": "Organization role used to tailor the checklist.",
+      "defaultValue": "controller",
+      "options": [
+        { "label": "Controller", "value": "controller" },
+        { "label": "Processor", "value": "processor" },
+        { "label": "Both", "value": "both" }
+      ]
+    },
+    {
+      "name": "export",
+      "label": "Export Format",
+      "type": "select",
+      "required": false,
+      "flag": "--export",
+      "description": "Choose the output format for the evidence checklist.",
+      "defaultValue": "markdown",
+      "options": [
+        { "label": "Markdown", "value": "markdown" },
+        { "label": "JSON", "value": "json" },
+        { "label": "CSV", "value": "csv" }
+      ]
+    }
+  ],
+  "remove": [
+    "articlePrinciple",
+    "controllerProcessor",
+    "format"
+  ],
+  "submitLabel": "Generate GDPR Evidence Checklist"
+}

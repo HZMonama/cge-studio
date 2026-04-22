@@ -1,0 +1,52 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "article"
+  ],
+  "fields": [
+    {
+      "name": "article",
+      "label": "Article Or Topic",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Required DORA article or topic, such as `Article 6`, `Article 9`, or `ICT Risk Management`.",
+      "placeholder": "Article 6"
+    },
+    {
+      "name": "entityType",
+      "label": "Entity Type",
+      "type": "select",
+      "required": false,
+      "flag": "--entity-type",
+      "description": "Financial entity type for tailoring the evidence checklist.",
+      "defaultValue": "credit",
+      "options": [
+        { "label": "Credit", "value": "credit" },
+        { "label": "Investment", "value": "investment" },
+        { "label": "Payment", "value": "payment" },
+        { "label": "Crypto", "value": "crypto" },
+        { "label": "Insurance", "value": "insurance" }
+      ]
+    },
+    {
+      "name": "export",
+      "label": "Export Format",
+      "type": "select",
+      "required": false,
+      "flag": "--export",
+      "description": "Choose the output format for the evidence checklist.",
+      "defaultValue": "markdown",
+      "options": [
+        { "label": "Markdown", "value": "markdown" },
+        { "label": "JSON", "value": "json" },
+        { "label": "CSV", "value": "csv" }
+      ]
+    }
+  ],
+  "remove": [
+    "creditInvestmentPayment",
+    "format"
+  ],
+  "submitLabel": "Generate DORA Evidence Checklist"
+}

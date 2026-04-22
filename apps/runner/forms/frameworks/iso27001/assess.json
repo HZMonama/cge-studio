@@ -1,0 +1,32 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "assessmentScope",
+      "label": "Assessment Scope",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional ISO 27001 assessment scope.",
+      "options": [
+        { "label": "ISMS", "value": "isms" },
+        { "label": "Annex A", "value": "annexa" },
+        { "label": "Specific Control", "value": "specific-control" }
+      ]
+    },
+    {
+      "name": "controlDomain",
+      "label": "Control Domain",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Optional control domain or identifier, typically used with Annex A assessments.",
+      "placeholder": "A.8"
+    }
+  ],
+  "remove": [
+    "assessmentScopeOptionalIsmsAnnexaSpecificControl",
+    "controlDomainOptionalForAnnexAAssessment"
+  ],
+  "submitLabel": "Run ISO 27001 Assessment"
+}

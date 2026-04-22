@@ -1,0 +1,38 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "organizationType",
+      "label": "Organization Type",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional organization type for scope selection guidance.",
+      "options": [
+        { "label": "Provider", "value": "provider" },
+        { "label": "Payer", "value": "payer" },
+        { "label": "Vendor", "value": "vendor" },
+        { "label": "Business Associate", "value": "business-associate" }
+      ]
+    },
+    {
+      "name": "primaryDriver",
+      "label": "Primary Driver",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional primary business or compliance driver.",
+      "options": [
+        { "label": "HIPAA", "value": "hipaa" },
+        { "label": "BAA Requirement", "value": "baa-requirement" },
+        { "label": "Vendor Requirement", "value": "vendor-requirement" },
+        { "label": "Competitive", "value": "competitive" }
+      ]
+    }
+  ],
+  "remove": [
+    "organizationTypeOptionalProviderPayerVendorBusinessAssociate",
+    "primaryDriverOptionalHipaaBaaRequirementVendorRequirementCompetitive"
+  ],
+  "submitLabel": "Run Scope Selection"
+}

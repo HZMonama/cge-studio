@@ -1,0 +1,35 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "implementationGroup"
+  ],
+  "fields": [
+    {
+      "name": "implementationGroup",
+      "label": "Implementation Group",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required CIS Implementation Group to list safeguards for.",
+      "options": [
+        { "label": "IG1", "value": "IG1" },
+        { "label": "IG2", "value": "IG2" },
+        { "label": "IG3", "value": "IG3" }
+      ]
+    },
+    {
+      "name": "controlFilter",
+      "label": "Control Filter",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Optional control number `1-18` or `all`.",
+      "placeholder": "all"
+    }
+  ],
+  "remove": [
+    "implementationGroupRequiredIg1Ig2OrIg3",
+    "controlFilterOptionalControlNumber118OrAll"
+  ],
+  "submitLabel": "Run Safeguard List"
+}

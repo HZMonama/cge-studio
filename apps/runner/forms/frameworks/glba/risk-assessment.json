@@ -1,0 +1,41 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "assessmentPhase"
+  ],
+  "fields": [
+    {
+      "name": "assessmentPhase",
+      "label": "Assessment Phase",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required GLBA risk assessment phase.",
+      "options": [
+        { "label": "Planning", "value": "planning" },
+        { "label": "Execution", "value": "execution" },
+        { "label": "Reporting", "value": "reporting" },
+        { "label": "All", "value": "all" }
+      ]
+    },
+    {
+      "name": "methodology",
+      "label": "Methodology",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional risk assessment methodology.",
+      "options": [
+        { "label": "NIST", "value": "nist" },
+        { "label": "ISO", "value": "iso" },
+        { "label": "Qualitative", "value": "qualitative" },
+        { "label": "Quantitative", "value": "quantitative" }
+      ]
+    }
+  ],
+  "remove": [
+    "assessmentPhaseRequiredPlanningExecutionReportingAll",
+    "methodologyOptionalNistIsoQualitativeQuantitative"
+  ],
+  "submitLabel": "Run Risk Assessment Guidance"
+}

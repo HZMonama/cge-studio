@@ -2,6 +2,8 @@ import {
   type Command,
   type CommandFormField,
   type CommandFormOption,
+  type CommandFormReadinessCondition,
+  type CommandFormReadinessRule,
   type CommandFormSchema,
 } from "@/lib/plugins";
 
@@ -14,6 +16,10 @@ export type CommandFormValue =
   | undefined;
 
 export type CommandFormValues = Record<string, CommandFormValue>;
+
+export interface BuildPromptOptions {
+  redactSecrets?: boolean;
+}
 
 export function createInitialFormValues(
   command: Command | null | undefined,
@@ -34,6 +40,7 @@ export function buildPromptFromCommandForm(
   commandPath: string,
   schema: CommandFormSchema | null | undefined,
   values: CommandFormValues,
+  options?: BuildPromptOptions,
 ): string {
   const normalizedPath = commandPath.trim();
 
@@ -54,7 +61,7 @@ export function buildPromptFromCommandForm(
       continue;
     }
 
-    const serialized = serializeFieldValue(field, value);
+    const serialized = serializeFieldValue(field, value, options);
     if (!serialized) {
       continue;
     }
@@ -83,8 +90,17 @@ export function isCommandFormValid(
     return true;
   }
 
-  return schema.fields.every((field) => {
-    if (!field.required) {
+  const minimumConfiguration =
+    Array.isArray(schema.minimumConfiguration) &&
+    schema.minimumConfiguration.length > 0
+      ? new Set(schema.minimumConfiguration)
+      : null;
+
+  const baseValid = schema.fields.every((field) => {
+    const isRequired =
+      minimumConfiguration?.has(field.name) ?? Boolean(field.required);
+
+    if (!isRequired) {
       return true;
     }
 
@@ -106,6 +122,14 @@ export function isCommandFormValid(
 
     return typeof value === "string" && value.trim().length > 0;
   });
+
+  if (!baseValid) {
+    return false;
+  }
+
+  return getActiveReadinessRules(schema, values).every((rule) =>
+    isReadinessRuleSatisfied(rule, values),
+  );
 }
 
 export function getCommandFormOptions(
@@ -161,7 +185,16 @@ function getDefaultFieldValue(field: CommandFormField): CommandFormValue {
 function serializeFieldValue(
   field: CommandFormField,
   value: CommandFormValue,
+  options?: BuildPromptOptions,
 ): string | null {
+  if (field.type === "secret" && options?.redactSecrets) {
+    if (typeof value !== "string") {
+      return null;
+    }
+
+    return value.trim().length > 0 ? "[REDACTED]" : null;
+  }
+
   if (field.type === "multiselect") {
     if (!Array.isArray(value) || value.length === 0) {
       return null;
@@ -195,4 +228,76 @@ function serializeFieldValue(
 
 function quoteIfNeeded(value: string): string {
   return /\s/.test(value) ? JSON.stringify(value) : value;
+}
+
+function getActiveReadinessRules(
+  schema: CommandFormSchema,
+  values: CommandFormValues,
+): CommandFormReadinessRule[] {
+  return Array.isArray(schema.readinessRules)
+    ? schema.readinessRules.filter((rule) =>
+        isReadinessConditionSatisfied(rule.when, values),
+      )
+    : [];
+}
+
+function isReadinessConditionSatisfied(
+  condition: CommandFormReadinessCondition,
+  values: CommandFormValues,
+): boolean {
+  const value = values[condition.field];
+
+  if (condition.hasValue !== undefined) {
+    return condition.hasValue ? hasMeaningfulValue(value) : !hasMeaningfulValue(value);
+  }
+
+  if (condition.equals !== undefined) {
+    return value === condition.equals;
+  }
+
+  if (Array.isArray(condition.in) && condition.in.length > 0) {
+    return condition.in.includes(value as string | number | boolean);
+  }
+
+  return false;
+}
+
+function isReadinessRuleSatisfied(
+  rule: CommandFormReadinessRule,
+  values: CommandFormValues,
+): boolean {
+  const requireAllSatisfied = (rule.requireAll ?? []).every((fieldName) =>
+    hasMeaningfulValue(values[fieldName]),
+  );
+
+  if (!requireAllSatisfied) {
+    return false;
+  }
+
+  const requireOneOf = rule.requireOneOf ?? [];
+  if (requireOneOf.length === 0) {
+    return true;
+  }
+
+  return requireOneOf.some((fieldName) => hasMeaningfulValue(values[fieldName]));
+}
+
+function hasMeaningfulValue(value: CommandFormValue): boolean {
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+
+  if (typeof value === "string") {
+    return value.trim().length > 0;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value);
+  }
+
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  return false;
 }

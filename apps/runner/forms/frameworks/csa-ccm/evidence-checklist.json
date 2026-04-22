@@ -1,0 +1,51 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "controlId"
+  ],
+  "fields": [
+    {
+      "name": "controlId",
+      "label": "Control ID Or Domain",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Required CSA CCM control id like `IAM-02`, `DSP-04`, `IVS-01`, or a domain name.",
+      "placeholder": "IAM-02"
+    },
+    {
+      "name": "cloudProvider",
+      "label": "Cloud Provider",
+      "type": "select",
+      "required": false,
+      "flag": "--cloud-provider",
+      "description": "Target cloud platform for evidence guidance.",
+      "defaultValue": "aws",
+      "options": [
+        { "label": "AWS", "value": "aws" },
+        { "label": "Azure", "value": "azure" },
+        { "label": "GCP", "value": "gcp" },
+        { "label": "Multi", "value": "multi" }
+      ]
+    },
+    {
+      "name": "export",
+      "label": "Export Format",
+      "type": "select",
+      "required": false,
+      "flag": "--export",
+      "description": "Choose the output format for the evidence checklist.",
+      "defaultValue": "markdown",
+      "options": [
+        { "label": "Markdown", "value": "markdown" },
+        { "label": "JSON", "value": "json" },
+        { "label": "CSV", "value": "csv" }
+      ]
+    }
+  ],
+  "remove": [
+    "awsAzureGcp",
+    "format"
+  ],
+  "submitLabel": "Generate CCM Evidence Checklist"
+}

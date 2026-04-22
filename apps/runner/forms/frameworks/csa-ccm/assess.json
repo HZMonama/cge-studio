@@ -1,0 +1,40 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "assessmentScope"
+  ],
+  "fields": [
+    {
+      "name": "assessmentScope",
+      "label": "Assessment Scope",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required CSA CCM assessment scope.",
+      "options": [
+        { "label": "Full", "value": "full" },
+        { "label": "Domain Specific", "value": "domain-specific" },
+        { "label": "Service Model", "value": "service-model" }
+      ]
+    },
+    {
+      "name": "cloudServiceModel",
+      "label": "Cloud Service Model",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional cloud service model context.",
+      "options": [
+        { "label": "IaaS", "value": "IaaS" },
+        { "label": "PaaS", "value": "PaaS" },
+        { "label": "SaaS", "value": "SaaS" },
+        { "label": "Hybrid", "value": "hybrid" }
+      ]
+    }
+  ],
+  "remove": [
+    "assessmentScopeRequiredFullDomainSpecificServiceModel",
+    "cloudServiceModelOptionalIaaSPaaSSaaSHybrid"
+  ],
+  "submitLabel": "Run CSA CCM Assessment"
+}

@@ -1,0 +1,57 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "domain"
+  ],
+  "fields": [
+    {
+      "name": "domain",
+      "label": "Control Domain",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required Annex A control domain to analyze.",
+      "options": [
+        { "label": "A.5 Organizational", "value": "A.5" },
+        { "label": "A.6 People", "value": "A.6" },
+        { "label": "A.7 Physical", "value": "A.7" },
+        { "label": "A.8 Technological", "value": "A.8" }
+      ]
+    },
+    {
+      "name": "environment",
+      "label": "Environment",
+      "type": "select",
+      "required": false,
+      "flag": "--environment",
+      "description": "Optional environment profile for implementation guidance.",
+      "options": [
+        { "label": "Cloud", "value": "cloud" },
+        { "label": "Hybrid", "value": "hybrid" }
+      ]
+    },
+    {
+      "name": "showGaps",
+      "label": "Show gaps only",
+      "type": "boolean",
+      "required": false,
+      "flag": "--show-gaps",
+      "description": "Focus the output on controls not yet implemented.",
+      "defaultValue": false
+    },
+    {
+      "name": "certificationFocus",
+      "label": "Certification focus",
+      "type": "boolean",
+      "required": false,
+      "flag": "--certification-focus",
+      "description": "Bias the deep dive toward certification audit readiness.",
+      "defaultValue": false
+    }
+  ],
+  "remove": [
+    "controlDomainA5OrganizationalA6PeopleA7PhysicalA8Technological",
+    "optionsOptionalEnvironmentCloudHybridShowGapsCertificationFocus"
+  ],
+  "submitLabel": "Run Annex A Deep Dive"
+}

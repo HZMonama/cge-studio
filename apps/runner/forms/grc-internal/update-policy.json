@@ -1,0 +1,34 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "policyPath"
+  ],
+  "fields": [
+    {
+      "name": "policyPath",
+      "label": "Policy Path Or Name",
+      "type": "path",
+      "required": true,
+      "position": "argument",
+      "description": "Policy file path or policy name."
+    },
+    {
+      "name": "action",
+      "label": "Action",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Policy lifecycle action.",
+      "options": [
+        { "label": "Review", "value": "review" },
+        { "label": "Update", "value": "update" },
+        { "label": "Version", "value": "version" },
+        { "label": "Approve", "value": "approve" }
+      ]
+    }
+  ],
+  "remove": [
+    "policyFilePathOrName"
+  ],
+  "submitLabel": "Run Update Policy"
+}

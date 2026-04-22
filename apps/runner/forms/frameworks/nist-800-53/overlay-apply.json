@@ -1,0 +1,67 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "overlayType",
+    "baseline"
+  ],
+  "fields": [
+    {
+      "name": "overlayType",
+      "label": "Overlay Type",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required overlay to apply to the base NIST baseline.",
+      "options": [
+        { "label": "FedRAMP", "value": "fedramp" },
+        { "label": "DoD", "value": "dod" },
+        { "label": "Privacy", "value": "privacy" },
+        { "label": "CMMC", "value": "cmmc" },
+        { "label": "CJIS", "value": "cjis" },
+        { "label": "HIPAA", "value": "hipaa" },
+        { "label": "IRS 1075", "value": "irs-1075" }
+      ]
+    },
+    {
+      "name": "baseline",
+      "label": "Base Baseline",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required base baseline to apply the overlay to.",
+      "options": [
+        { "label": "Low", "value": "low" },
+        { "label": "Moderate", "value": "moderate" },
+        { "label": "High", "value": "high" }
+      ]
+    },
+    {
+      "name": "output",
+      "label": "Output Mode",
+      "type": "select",
+      "required": false,
+      "flag": "--output",
+      "description": "How the overlay output should be emitted.",
+      "options": [
+        { "label": "Table", "value": "table" },
+        { "label": "SSP Text", "value": "ssp-text" },
+        { "label": "YAML", "value": "yaml" }
+      ]
+    },
+    {
+      "name": "showOnlyChanges",
+      "label": "Show only changes",
+      "type": "boolean",
+      "required": false,
+      "flag": "--show-only-changes",
+      "description": "Only display requirements added or changed by the overlay.",
+      "defaultValue": false
+    }
+  ],
+  "remove": [
+    "overlayTypeFedrampDodPrivacyCmmcCjisHipaaIrs1075",
+    "baseBaselineLowModerateHigh",
+    "optionsOptionalOutputTableSspTextYamlShowOnlyChanges"
+  ],
+  "submitLabel": "Run Overlay Application"
+}

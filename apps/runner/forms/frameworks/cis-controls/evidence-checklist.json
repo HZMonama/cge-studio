@@ -1,7 +1,5 @@
 {
   "mode": "inline",
-  "extends": "framework-evidence-checklist",
-  "compose": [],
   "fields": [
     {
       "name": "safeguardId",
@@ -42,27 +40,14 @@
       "defaultValue": "markdown"
     }
   ],
-  "overrides": {
-    "reportDir": {
-      "label": "Output Directory",
-      "description": "Optional directory where the generated CIS evidence checklist should be written.",
-      "placeholder": "./cis-evidence-checklist"
-    },
-    "quiet": {
-      "label": "Quiet output",
-      "description": "Suppress progress output while generating the evidence checklist.",
-      "defaultValue": false
-    }
-  },
   "remove": [
-    "output"
+    "123",
+    "format"
   ],
   "order": [
     "safeguardId",
     "igLevel",
-    "export",
-    "reportDir",
-    "quiet"
+    "export"
   ],
   "submitLabel": "Generate CIS Evidence Checklist"
 }

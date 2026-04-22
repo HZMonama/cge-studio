@@ -1,0 +1,38 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "impactLevel"
+  ],
+  "fields": [
+    {
+      "name": "impactLevel",
+      "label": "Impact Level",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required FedRAMP Rev 5 impact level to assess.",
+      "options": [
+        { "label": "Low", "value": "low" },
+        { "label": "Moderate", "value": "moderate" },
+        { "label": "High", "value": "high" }
+      ]
+    },
+    {
+      "name": "authorizationPath",
+      "label": "Authorization Path",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional FedRAMP authorization path.",
+      "options": [
+        { "label": "Agency", "value": "agency" },
+        { "label": "JAB", "value": "jab" }
+      ]
+    }
+  ],
+  "remove": [
+    "impactLevelRequiredLowModerateHigh",
+    "authorizationPathOptionalAgencyJab"
+  ],
+  "submitLabel": "Run FedRAMP Assessment"
+}

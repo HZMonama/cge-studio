@@ -1,0 +1,46 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "controlId"
+  ],
+  "fields": [
+    {
+      "name": "controlId",
+      "label": "Control ID Or Name",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Control ID or control name to test."
+    },
+    {
+      "name": "cloudProvider",
+      "label": "Cloud Provider",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional cloud provider override.",
+      "defaultValue": "auto-detect",
+      "options": [
+        { "label": "Auto-detect", "value": "auto-detect" },
+        { "label": "AWS", "value": "aws" },
+        { "label": "Azure", "value": "azure" },
+        { "label": "GCP", "value": "gcp" },
+        { "label": "Kubernetes", "value": "kubernetes" }
+      ]
+    },
+    {
+      "name": "option",
+      "label": "Option",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Optional raw option such as --verbose, --fix-failures, or --output=json."
+    }
+  ],
+  "remove": [
+    "controlIDOrNameEGAccessControlAccountManagementAC2EncryptionAtRest)",
+    "cloudProviderOptionalAwsAzureGcpKubernetesDefaultAutoDetect)",
+    "optionsOptionalVerboseFixFailuresOutputJson`"
+  ],
+  "submitLabel": "Run Test Control"
+}

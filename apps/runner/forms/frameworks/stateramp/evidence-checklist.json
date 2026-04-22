@@ -1,0 +1,49 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "controlFamily"
+  ],
+  "fields": [
+    {
+      "name": "controlFamily",
+      "label": "Control Family Or Control",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Required NIST 800-53 control family or specific StateRAMP control, such as `AC`, `AU`, or `AC-2`.",
+      "placeholder": "AC"
+    },
+    {
+      "name": "baseline",
+      "label": "Baseline",
+      "type": "select",
+      "required": false,
+      "flag": "--baseline",
+      "description": "Choose the StateRAMP baseline for the checklist.",
+      "defaultValue": "moderate",
+      "options": [
+        { "label": "Moderate", "value": "moderate" },
+        { "label": "High", "value": "high" }
+      ]
+    },
+    {
+      "name": "export",
+      "label": "Export Format",
+      "type": "select",
+      "required": false,
+      "flag": "--export",
+      "description": "Choose the output format for the evidence checklist.",
+      "defaultValue": "markdown",
+      "options": [
+        { "label": "Markdown", "value": "markdown" },
+        { "label": "JSON", "value": "json" },
+        { "label": "CSV", "value": "csv" }
+      ]
+    }
+  ],
+  "remove": [
+    "moderateHigh",
+    "format"
+  ],
+  "submitLabel": "Generate StateRAMP Evidence Checklist"
+}

@@ -1,0 +1,55 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "packageType",
+      "label": "Package Type",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional documentation package scope.",
+      "defaultValue": "full",
+      "options": [
+        { "label": "Full", "value": "full" },
+        { "label": "Mandatory Only", "value": "mandatory-only" },
+        { "label": "Policies Only", "value": "policies-only" }
+      ]
+    },
+    {
+      "name": "format",
+      "label": "Format",
+      "type": "select",
+      "required": false,
+      "flag": "--format",
+      "description": "Output document format.",
+      "options": [
+        { "label": "DOCX", "value": "docx" },
+        { "label": "Markdown", "value": "markdown" },
+        { "label": "PDF", "value": "pdf" }
+      ]
+    },
+    {
+      "name": "organization",
+      "label": "Organization",
+      "type": "text",
+      "required": false,
+      "flag": "--organization",
+      "description": "Optional organization name to inject into the generated pack.",
+      "placeholder": "Acme Corp"
+    },
+    {
+      "name": "scope",
+      "label": "ISMS Scope",
+      "type": "text",
+      "required": false,
+      "flag": "--scope",
+      "description": "Optional ISMS scope description to inject into the generated pack.",
+      "placeholder": "AWS cloud platform"
+    }
+  ],
+  "remove": [
+    "packageTypeOptionalMandatoryOnlyFullPoliciesOnlyDefaultFull",
+    "optionsOptionalFormatDocxMarkdownPdfOrganizationNameScopeCloudInfrastructure"
+  ],
+  "submitLabel": "Run ISMS Documentation Pack"
+}

@@ -1,0 +1,32 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "sspSectionOrTopic",
+      "label": "SSP Section Or Topic",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Optional SSP section or topic to focus guidance on.",
+      "placeholder": "control implementation"
+    },
+    {
+      "name": "impactLevel",
+      "label": "Impact Level",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional FedRAMP impact level context.",
+      "options": [
+        { "label": "Low", "value": "low" },
+        { "label": "Moderate", "value": "moderate" },
+        { "label": "High", "value": "high" }
+      ]
+    }
+  ],
+  "remove": [
+    "SspSectionOrTopicOptional",
+    "impactLevelOptionalLowModerateHigh"
+  ],
+  "submitLabel": "Run SSP Guidance"
+}

@@ -1,0 +1,44 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "focusArea"
+  ],
+  "fields": [
+    {
+      "name": "focusArea",
+      "label": "Focus Area",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required Safeguards Rule focus area.",
+      "options": [
+        { "label": "All", "value": "all" },
+        { "label": "Risk Assessment", "value": "risk-assessment" },
+        { "label": "Encryption", "value": "encryption" },
+        { "label": "MFA", "value": "mfa" },
+        { "label": "Training", "value": "training" },
+        { "label": "Incident Response", "value": "incident-response" },
+        { "label": "Vendor Management", "value": "vendor-management" },
+        { "label": "Board Reporting", "value": "board-reporting" }
+      ]
+    },
+    {
+      "name": "institutionSize",
+      "label": "Institution Size",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional institution size for proportional guidance.",
+      "options": [
+        { "label": "Small", "value": "small" },
+        { "label": "Medium", "value": "medium" },
+        { "label": "Large", "value": "large" }
+      ]
+    }
+  ],
+  "remove": [
+    "focusAreaRequiredAllRiskAssessmentEncryptionMfaTrainingIncidentResponseVendorManagementBoardReporting",
+    "institutionSizeOptionalSmallMediumLarge"
+  ],
+  "submitLabel": "Run Safeguards Guidance"
+}

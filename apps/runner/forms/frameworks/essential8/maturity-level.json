@@ -1,0 +1,37 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "organizationType",
+      "label": "Organization Type",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional organization profile for maturity targeting.",
+      "options": [
+        { "label": "Government", "value": "government" },
+        { "label": "Critical Infrastructure", "value": "critical-infrastructure" },
+        { "label": "Business", "value": "business" },
+        { "label": "Small Business", "value": "small-business" }
+      ]
+    },
+    {
+      "name": "riskProfile",
+      "label": "Risk Profile",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional organizational risk profile.",
+      "options": [
+        { "label": "High", "value": "high" },
+        { "label": "Medium", "value": "medium" },
+        { "label": "Low", "value": "low" }
+      ]
+    }
+  ],
+  "remove": [
+    "organizationTypeOptionalGovernmentCriticalInfrastructureBusinessSmallBusiness",
+    "riskProfileOptionalHighMediumLow"
+  ],
+  "submitLabel": "Run Maturity Level Selection"
+}

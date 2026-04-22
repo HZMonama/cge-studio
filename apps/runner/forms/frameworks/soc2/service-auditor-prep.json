@@ -1,0 +1,61 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "period",
+      "label": "Audit Period",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Optional audit period such as `2024`, `2024-Q1-Q4`, or `2024-01-01:2024-12-31`.",
+      "placeholder": "2024"
+    },
+    {
+      "name": "type",
+      "label": "Audit Type",
+      "type": "select",
+      "required": false,
+      "flag": "--type",
+      "description": "Optional SOC 2 audit type.",
+      "options": [
+        { "label": "Type I", "value": "type1" },
+        { "label": "Type II", "value": "type2" }
+      ]
+    },
+    {
+      "name": "outputDir",
+      "label": "Output Directory",
+      "type": "text",
+      "required": false,
+      "flag": "--output-dir",
+      "description": "Optional secure output directory for the evidence package.",
+      "placeholder": "/mnt/secure-drive/soc2-audit"
+    },
+    {
+      "name": "controls",
+      "label": "Controls",
+      "type": "text",
+      "required": false,
+      "flag": "--controls",
+      "description": "Optional comma-separated control families to include.",
+      "placeholder": "CC6,CC7,CC8"
+    },
+    {
+      "name": "format",
+      "label": "Archive Format",
+      "type": "select",
+      "required": false,
+      "flag": "--format",
+      "description": "Optional package archive format.",
+      "options": [
+        { "label": "ZIP", "value": "zip" },
+        { "label": "TAR", "value": "tar" }
+      ]
+    }
+  ],
+  "remove": [
+    "auditPeriodOptional20242024Q1Q4Or2024010120241231DefaultCurrentYear",
+    "optionsOptionalTypetype1Type2OutputDirPathControlsCC6CC7FormatZipTar"
+  ],
+  "submitLabel": "Run Service Auditor Prep"
+}

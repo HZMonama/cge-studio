@@ -1,0 +1,22 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "control"
+  ],
+  "fields": [
+    {
+      "name": "control",
+      "label": "Control Name Or ID",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Control name or identifier to unify across frameworks.",
+      "placeholder": "AC-2"
+    }
+  ],
+  "remove": [
+    "controlNameOrId",
+    "controlNameOrIDEGAccessControlAccountManagementAC2CC61Encryption)"
+  ],
+  "submitLabel": "Run Map Controls Unified"
+}

@@ -1,0 +1,29 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "certificationYear",
+      "label": "Certification Year",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Optional certification year to prepare for.",
+      "placeholder": "2025"
+    },
+    {
+      "name": "preparationStage",
+      "label": "Preparation Stage",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional certification preparation stage.",
+      "options": [
+        { "label": "Pre-Assessment", "value": "pre-assessment" },
+        { "label": "Board Preparation", "value": "board-preparation" },
+        { "label": "Submission Ready", "value": "submission-ready" }
+      ]
+    }
+  ],
+  "remove": [],
+  "submitLabel": "Run NYDFS Certification Guidance"
+}

@@ -1,0 +1,43 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "action"
+  ],
+  "readinessRules": [
+    {
+      "when": {
+        "field": "action",
+        "in": ["add", "update"]
+      },
+      "requireAll": ["riskIdOrDescription"]
+    }
+  ],
+  "fields": [
+    {
+      "name": "action",
+      "label": "Action",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Risk register action.",
+      "options": [
+        { "label": "Add", "value": "add" },
+        { "label": "Update", "value": "update" },
+        { "label": "Assess", "value": "assess" },
+        { "label": "Report", "value": "report" }
+      ]
+    },
+    {
+      "name": "riskIdOrDescription",
+      "label": "Risk ID Or Description",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Required by the CLI for add/update flows."
+    }
+  ],
+  "remove": [
+    "riskIDOrDescriptionRequiredForAddUpdate)"
+  ],
+  "submitLabel": "Run Manage Risk"
+}

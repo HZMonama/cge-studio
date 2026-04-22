@@ -1,0 +1,29 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "evidencePath"
+  ],
+  "fields": [
+    {
+      "name": "evidencePath",
+      "label": "Evidence Path",
+      "type": "path",
+      "required": true,
+      "position": "argument",
+      "description": "Evidence file or directory to review."
+    },
+    {
+      "name": "controlOrFramework",
+      "label": "Control Or Framework",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Optional control identifier or framework context."
+    }
+  ],
+  "remove": [
+    "evidenceFileOrDirectoryPath",
+    "controlIDOrFramework"
+  ],
+  "submitLabel": "Run Review Evidence"
+}

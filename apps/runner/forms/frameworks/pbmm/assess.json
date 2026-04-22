@@ -1,0 +1,38 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "classificationLevel",
+      "label": "Classification Level",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional PBMM classification level to assess.",
+      "defaultValue": "protected-b",
+      "options": [
+        { "label": "Protected A", "value": "protected-a" },
+        { "label": "Protected B", "value": "protected-b" },
+        { "label": "Protected C", "value": "protected-c" }
+      ]
+    },
+    {
+      "name": "assessmentType",
+      "label": "Assessment Type",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional PBMM assessment type.",
+      "defaultValue": "readiness",
+      "options": [
+        { "label": "Readiness", "value": "readiness" },
+        { "label": "Gap Analysis", "value": "gap-analysis" },
+        { "label": "Certification", "value": "certification" }
+      ]
+    }
+  ],
+  "remove": [
+    "classificationLevelOptionalProtectedAProtectedBProtectedCDefaultsToProtectedB\"",
+    "assessmentTypeOptionalReadinessGapAnalysisCertificationDefaultsToReadiness\""
+  ],
+  "submitLabel": "Run PBMM Assessment"
+}

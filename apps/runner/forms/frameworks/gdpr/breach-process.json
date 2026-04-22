@@ -1,0 +1,38 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "breachSeverity",
+      "label": "Breach Severity",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional breach severity filter.",
+      "options": [
+        { "label": "Low", "value": "low" },
+        { "label": "Moderate", "value": "moderate" },
+        { "label": "High", "value": "high" },
+        { "label": "Critical", "value": "critical" }
+      ]
+    },
+    {
+      "name": "processPhase",
+      "label": "Process Phase",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional breach process phase to focus on.",
+      "options": [
+        { "label": "Detection", "value": "detection" },
+        { "label": "Assessment", "value": "assessment" },
+        { "label": "Notification", "value": "notification" },
+        { "label": "Documentation", "value": "documentation" }
+      ]
+    }
+  ],
+  "remove": [
+    "breachSeverityOptionalLowModerateHighCritical",
+    "processPhaseOptionalDetectionAssessmentNotificationDocumentation"
+  ],
+  "submitLabel": "Run Breach Process Guidance"
+}

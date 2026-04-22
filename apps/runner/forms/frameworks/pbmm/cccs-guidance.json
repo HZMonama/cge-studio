@@ -1,0 +1,23 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "topic",
+      "label": "Topic",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional CCCS guidance topic.",
+      "defaultValue": "process",
+      "options": [
+        { "label": "Process", "value": "process" },
+        { "label": "Providers", "value": "providers" },
+        { "label": "Requirements", "value": "requirements" }
+      ]
+    }
+  ],
+  "remove": [
+    "topicOptionalProcessProvidersRequirementsDefaultsToProcess\""
+  ],
+  "submitLabel": "Run CCCS Guidance"
+}

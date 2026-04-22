@@ -1,0 +1,68 @@
+{
+  "mode": "inline",
+  "extends": "connector-collect",
+  "compose": [],
+  "fields": [
+    {
+      "name": "services",
+      "label": "Services",
+      "type": "multiselect",
+      "required": false,
+      "flag": "--services",
+      "description": "Limit collection to the Okta service areas the current script actually evaluates.",
+      "placeholder": "Select Okta services",
+      "options": [
+        { "label": "Policies", "value": "policies" },
+        { "label": "Users", "value": "users" },
+        { "label": "Factors", "value": "factors" }
+      ]
+    },
+    {
+      "name": "includeDeactivated",
+      "label": "Include deactivated users",
+      "type": "boolean",
+      "required": false,
+      "flag": "--include-deactivated",
+      "description": "Pass through the CLI flag to include deactivated users in the scan.",
+      "defaultValue": false
+    },
+    {
+      "name": "inactiveThresholdDays",
+      "label": "Inactive Threshold (Days)",
+      "type": "number",
+      "required": false,
+      "flag": "--inactive-threshold-days",
+      "description": "Flag users inactive beyond this many days.",
+      "defaultValue": 90,
+      "placeholder": "90"
+    }
+  ],
+  "overrides": {
+    "output": {
+      "label": "Output Mode",
+      "description": "Choose how Okta collection results should be emitted: summary text, JSON, or no stdout output.",
+      "defaultValue": "summary",
+      "options": [
+        { "label": "Summary", "value": "summary" },
+        { "label": "JSON", "value": "json" },
+        { "label": "Silent", "value": "silent" }
+      ]
+    },
+    "quiet": {
+      "label": "Quiet output",
+      "description": "Suppress progress output to stderr.",
+      "defaultValue": false
+    }
+  },
+  "remove": [
+    "refresh"
+  ],
+  "order": [
+    "services",
+    "includeDeactivated",
+    "inactiveThresholdDays",
+    "output",
+    "quiet"
+  ],
+  "submitLabel": "Run Okta Collect"
+}

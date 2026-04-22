@@ -1,0 +1,34 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "questionnairePath"
+  ],
+  "fields": [
+    {
+      "name": "questionnairePath",
+      "label": "Questionnaire Path",
+      "type": "path",
+      "required": true,
+      "position": "argument",
+      "description": "Completed questionnaire file to analyze."
+    },
+    {
+      "name": "questionnaireType",
+      "label": "Questionnaire Type",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Questionnaire format.",
+      "options": [
+        { "label": "SIG", "value": "SIG" },
+        { "label": "CAIQ", "value": "CAIQ" },
+        { "label": "VSAQ", "value": "VSAQ" },
+        { "label": "Custom", "value": "custom" }
+      ]
+    }
+  ],
+  "remove": [
+    "questionnaireFilePath"
+  ],
+  "submitLabel": "Run Analyze Questionnaire"
+}

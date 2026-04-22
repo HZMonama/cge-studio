@@ -1,0 +1,23 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "assessmentType",
+      "label": "Assessment Type",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional ITAR assessment type.",
+      "defaultValue": "readiness",
+      "options": [
+        { "label": "Readiness", "value": "readiness" },
+        { "label": "Remediation", "value": "remediation" },
+        { "label": "Certification", "value": "certification" }
+      ]
+    }
+  ],
+  "remove": [
+    "assessmentTypeOptionalReadinessRemediationCertificationDefaultsToReadiness\""
+  ],
+  "submitLabel": "Run ITAR Assessment"
+}

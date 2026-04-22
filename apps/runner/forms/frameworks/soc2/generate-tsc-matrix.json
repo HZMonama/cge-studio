@@ -1,0 +1,42 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "criteria",
+      "label": "Criteria",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional Trust Service Criteria scope.",
+      "defaultValue": "security",
+      "options": [
+        { "label": "Security", "value": "security" },
+        { "label": "Availability", "value": "availability" },
+        { "label": "Confidentiality", "value": "confidentiality" },
+        { "label": "Processing Integrity", "value": "processing-integrity" },
+        { "label": "Privacy", "value": "privacy" },
+        { "label": "All", "value": "all" }
+      ]
+    },
+    {
+      "name": "outputFormat",
+      "label": "Output Format",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional matrix output format.",
+      "defaultValue": "table",
+      "options": [
+        { "label": "Table", "value": "table" },
+        { "label": "JSON", "value": "json" },
+        { "label": "CSV", "value": "csv" },
+        { "label": "Markdown", "value": "markdown" }
+      ]
+    }
+  ],
+  "remove": [
+    "criteriaOptionalSecurityAvailabilityConfidentialityProcessingIntegrityPrivacyOrAllDefaultSecurity",
+    "outputFormatOptionalTableJsonCsvMarkdownDefaultTable"
+  ],
+  "submitLabel": "Run TSC Matrix"
+}

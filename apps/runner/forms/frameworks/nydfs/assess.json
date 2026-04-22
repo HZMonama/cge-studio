@@ -1,0 +1,36 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "entityType"
+  ],
+  "fields": [
+    {
+      "name": "entityType",
+      "label": "Entity Type",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required NYDFS entity classification.",
+      "options": [
+        { "label": "Covered Entity", "value": "covered-entity" },
+        { "label": "Limited Exemption", "value": "limited-exemption" },
+        { "label": "Full Scope", "value": "full-scope" }
+      ]
+    },
+    {
+      "name": "assessmentScope",
+      "label": "Assessment Scope",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional NYDFS assessment scope.",
+      "options": [
+        { "label": "Full", "value": "full" },
+        { "label": "Gap Analysis", "value": "gap-analysis" },
+        { "label": "Annual Certification", "value": "annual-certification" }
+      ]
+    }
+  ],
+  "remove": [],
+  "submitLabel": "Run NYDFS Assessment"
+}

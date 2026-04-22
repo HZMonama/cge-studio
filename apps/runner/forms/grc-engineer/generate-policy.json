@@ -1,0 +1,38 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "requirementDescription"
+  ],
+  "fields": [
+    {
+      "name": "requirementDescription",
+      "label": "Requirement Description",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Natural-language requirement to convert into policy-as-code.",
+      "placeholder": "Ensure no S3 buckets are public"
+    },
+    {
+      "name": "outputFormat",
+      "label": "Output Format",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Policy language or target output format.",
+      "defaultValue": "rego",
+      "options": [
+        { "label": "Rego", "value": "rego" },
+        { "label": "Sentinel", "value": "sentinel" },
+        { "label": "AWS Config", "value": "aws-config" },
+        { "label": "Terraform", "value": "terraform" },
+        { "label": "Checkov", "value": "checkov" }
+      ]
+    }
+  ],
+  "remove": [
+    "requirementDescriptionRequiredInQuotes)",
+    "outputFormatOptionalDefaultsToRego)"
+  ],
+  "submitLabel": "Run Generate Policy"
+}

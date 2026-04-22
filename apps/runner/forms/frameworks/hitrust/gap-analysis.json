@@ -1,0 +1,38 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "assessmentTypeTarget"
+  ],
+  "fields": [
+    {
+      "name": "assessmentTypeTarget",
+      "label": "Assessment Type Target",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required HITRUST assessment target for the gap analysis.",
+      "options": [
+        { "label": "i1", "value": "i1" },
+        { "label": "r2", "value": "r2" }
+      ]
+    },
+    {
+      "name": "analysisDepth",
+      "label": "Analysis Depth",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional depth for the gap analysis output.",
+      "options": [
+        { "label": "High-Level", "value": "high-level" },
+        { "label": "Detailed", "value": "detailed" },
+        { "label": "By Domain", "value": "by-domain" }
+      ]
+    }
+  ],
+  "remove": [
+    "assessmentTypeTargetRequiredI1R2",
+    "analysisDepthOptionalHighLevelDetailedByDomain"
+  ],
+  "submitLabel": "Run HITRUST Gap Analysis"
+}

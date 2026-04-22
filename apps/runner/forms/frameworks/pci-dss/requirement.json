@@ -1,0 +1,35 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "requirementNumber"
+  ],
+  "fields": [
+    {
+      "name": "requirementNumber",
+      "label": "Requirement Number",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Required PCI DSS requirement number such as `1-12` or `3.4.2`.",
+      "placeholder": "3 or 8.4.2"
+    },
+    {
+      "name": "focusArea",
+      "label": "Focus Area",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional requirement focus area.",
+      "options": [
+        { "label": "Controls", "value": "controls" },
+        { "label": "Testing", "value": "testing" },
+        { "label": "Evidence", "value": "evidence" }
+      ]
+    }
+  ],
+  "remove": [
+    "requirementNumberRequired1_12OrSpecificLike3_4_2",
+    "focusAreaOptionalControlsTestingEvidence"
+  ],
+  "submitLabel": "Run Requirement Guidance"
+}

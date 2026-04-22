@@ -1,0 +1,29 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "assessmentScope",
+      "label": "Assessment Scope",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional VDR capability area to assess.",
+      "options": [
+        { "label": "Scanning", "value": "scanning" },
+        { "label": "Response", "value": "response" },
+        { "label": "Reporting", "value": "reporting" }
+      ]
+    },
+    {
+      "name": "evidencePath",
+      "label": "Evidence Path",
+      "type": "path",
+      "required": false,
+      "position": "argument",
+      "description": "Optional vulnerability evidence directory or file to review.",
+      "placeholder": "./vuln-data"
+    }
+  ],
+  "remove": [],
+  "submitLabel": "Run VDR Assessment"
+}

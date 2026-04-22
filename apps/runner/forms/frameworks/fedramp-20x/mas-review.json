@@ -1,0 +1,32 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "systemBoundaryDescriptionOrFile"
+  ],
+  "fields": [
+    {
+      "name": "systemBoundaryDescriptionOrFile",
+      "label": "System Boundary Description Or File",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Required system boundary description or a path to the boundary document.",
+      "placeholder": "./system-boundary.md"
+    },
+    {
+      "name": "serviceModel",
+      "label": "Service Model",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional service model for the MAS review.",
+      "options": [
+        { "label": "SaaS", "value": "saas" },
+        { "label": "PaaS", "value": "paas" },
+        { "label": "IaaS", "value": "iaas" }
+      ]
+    }
+  ],
+  "remove": [],
+  "submitLabel": "Run MAS Review"
+}

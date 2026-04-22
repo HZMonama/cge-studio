@@ -1,0 +1,39 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "framework",
+      "label": "Framework",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional export control framework for the residency check.",
+      "defaultValue": "both",
+      "options": [
+        { "label": "ITAR", "value": "itar" },
+        { "label": "EAR", "value": "ear" },
+        { "label": "Both", "value": "both" }
+      ]
+    },
+    {
+      "name": "cloudProvider",
+      "label": "Cloud Provider",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional cloud provider to evaluate.",
+      "defaultValue": "all",
+      "options": [
+        { "label": "All Providers", "value": "all" },
+        { "label": "AWS", "value": "aws" },
+        { "label": "Azure", "value": "azure" },
+        { "label": "GCP", "value": "gcp" }
+      ]
+    }
+  ],
+  "remove": [
+    "frameworkOptionalItarEarBothDefaultsToBoth\"",
+    "cloudProviderOptionalAwsAzureGcpAllDefaultsToAll\""
+  ],
+  "submitLabel": "Run Export Data Residency Check"
+}

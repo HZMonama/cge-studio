@@ -1,0 +1,33 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "period",
+      "label": "Period",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Optional reporting week. Defaults to the current week.",
+      "placeholder": "2026-W16"
+    },
+    {
+      "name": "audience",
+      "label": "Audience",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Leadership audience for the weekly brief.",
+      "defaultValue": "ciso",
+      "options": [
+        { "label": "CISO", "value": "ciso" },
+        { "label": "CIO", "value": "cio" },
+        { "label": "CEO Weekly", "value": "ceo-weekly" }
+      ]
+    }
+  ],
+  "remove": [
+    "periodOptionalDefaultsToCurrentWeekE.g2026W16",
+    "audienceOptionalCisoCioCeoWeeklyDefaultsToCiso"
+  ],
+  "submitLabel": "Run Exec Summary"
+}

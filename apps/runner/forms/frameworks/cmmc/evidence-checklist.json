@@ -1,0 +1,51 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "practiceId"
+  ],
+  "fields": [
+    {
+      "name": "practiceId",
+      "label": "Practice ID Or Domain",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Required CMMC practice like `AC.L2-3.1.1`, `AU.L2-3.3.1`, or a domain name.",
+      "placeholder": "AC.L2-3.1.1"
+    },
+    {
+      "name": "level",
+      "label": "CMMC Level",
+      "type": "select",
+      "required": false,
+      "flag": "--level",
+      "description": "Filter the checklist to a specific CMMC level.",
+      "defaultValue": "",
+      "options": [
+        { "label": "All applicable", "value": "" },
+        { "label": "Level 1", "value": "1" },
+        { "label": "Level 2", "value": "2" },
+        { "label": "Level 3", "value": "3" }
+      ]
+    },
+    {
+      "name": "export",
+      "label": "Export Format",
+      "type": "select",
+      "required": false,
+      "flag": "--export",
+      "description": "Choose the output format for the evidence checklist.",
+      "defaultValue": "markdown",
+      "options": [
+        { "label": "Markdown", "value": "markdown" },
+        { "label": "JSON", "value": "json" },
+        { "label": "CSV", "value": "csv" }
+      ]
+    }
+  ],
+  "remove": [
+    "123",
+    "format"
+  ],
+  "submitLabel": "Generate CMMC Evidence Checklist"
+}

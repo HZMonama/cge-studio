@@ -6,16 +6,12 @@
     {
       "name": "scope",
       "label": "Repository Scope",
-      "type": "select",
+      "type": "text",
       "required": false,
       "flag": "--scope",
-      "description": "Choose which repositories to scan.",
+      "description": "Repository scope in the CLI format: `@me`, `org:<name>`, or `repo:<owner>/<name>`.",
       "defaultValue": "@me",
-      "options": [
-        { "label": "My repositories", "value": "@me" },
-        { "label": "Organization repositories", "value": "org:acme" },
-        { "label": "Single repository", "value": "repo:owner/repo" }
-      ]
+      "placeholder": "@me | org:acme | repo:owner/repo"
     },
     {
       "name": "limit",
@@ -35,12 +31,30 @@
       "description": "Parallel API calls to make during collection.",
       "defaultValue": 4,
       "placeholder": "4"
+    },
+    {
+      "name": "includeArchived",
+      "label": "Include archived repositories",
+      "type": "boolean",
+      "required": false,
+      "flag": "--include-archived",
+      "description": "Include archived repositories in the scan.",
+      "defaultValue": false
+    },
+    {
+      "name": "includeForks",
+      "label": "Include forks",
+      "type": "boolean",
+      "required": false,
+      "flag": "--include-forks",
+      "description": "Include forked repositories in the scan.",
+      "defaultValue": false
     }
   ],
   "overrides": {
     "output": {
-      "label": "Output Format",
-      "description": "Choose how GitHub collection results should be emitted.",
+      "label": "Output Mode",
+      "description": "Choose how GitHub collection results should be emitted: summary text, JSON, or no stdout output.",
       "defaultValue": "summary",
       "options": [
         { "label": "Summary", "value": "summary" },
@@ -64,6 +78,8 @@
     "scope",
     "limit",
     "concurrency",
+    "includeArchived",
+    "includeForks",
     "output",
     "refresh",
     "quiet"

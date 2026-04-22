@@ -1,0 +1,54 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "currentMaturityLevel",
+    "targetMaturityLevel"
+  ],
+  "fields": [
+    {
+      "name": "currentMaturityLevel",
+      "label": "Current Maturity Level",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required current Essential Eight maturity level.",
+      "options": [
+        { "label": "Level 0", "value": "0" },
+        { "label": "Level 1", "value": "1" },
+        { "label": "Level 2", "value": "2" }
+      ]
+    },
+    {
+      "name": "targetMaturityLevel",
+      "label": "Target Maturity Level",
+      "type": "select",
+      "required": true,
+      "position": "argument",
+      "description": "Required target Essential Eight maturity level.",
+      "options": [
+        { "label": "Level 1", "value": "1" },
+        { "label": "Level 2", "value": "2" },
+        { "label": "Level 3", "value": "3" }
+      ]
+    },
+    {
+      "name": "timeline",
+      "label": "Timeline",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional implementation pace.",
+      "options": [
+        { "label": "Aggressive", "value": "aggressive" },
+        { "label": "Standard", "value": "standard" },
+        { "label": "Conservative", "value": "conservative" }
+      ]
+    }
+  ],
+  "remove": [
+    "currentMaturityLevelRequired0_1Or2",
+    "targetMaturityLevelRequired1_2Or3",
+    "timelineOptionalAggressiveStandardConservative"
+  ],
+  "submitLabel": "Run Maturity Roadmap"
+}

@@ -1,0 +1,31 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "riskDescription"
+  ],
+  "fields": [
+    {
+      "name": "riskDescription",
+      "label": "Risk Description",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Unstructured risk description to transform into a Jira ticket."
+    },
+    {
+      "name": "jiraProjectKey",
+      "label": "Jira Project Key",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Optional Jira project key.",
+      "defaultValue": "SEC",
+      "placeholder": "SEC"
+    }
+  ],
+  "remove": [
+    "riskDescriptionRequiredInQuotes)",
+    "jiraProjectKeyOptionalDefaultsToSEC)"
+  ],
+  "submitLabel": "Run Transform Risk"
+}

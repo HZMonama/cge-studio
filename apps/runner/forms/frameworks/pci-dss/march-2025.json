@@ -1,0 +1,18 @@
+{
+  "mode": "inline",
+  "fields": [
+    {
+      "name": "requirementOrCategory",
+      "label": "Requirement Or Category",
+      "type": "text",
+      "required": false,
+      "position": "argument",
+      "description": "Optional requirement number or category filter.",
+      "placeholder": "8 or payment page"
+    }
+  ],
+  "remove": [
+    "requirementNumberOrCategoryOptional"
+  ],
+  "submitLabel": "Run March 2025 Review"
+}

@@ -1,0 +1,60 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "controlIdOrFamily"
+  ],
+  "fields": [
+    {
+      "name": "controlIdOrFamily",
+      "label": "Control ID Or Family",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Required control identifier like `AC-2` or family like `AC`.",
+      "placeholder": "AC-2"
+    },
+    {
+      "name": "template",
+      "label": "Template",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Optional SSP template profile.",
+      "defaultValue": "fedramp",
+      "options": [
+        { "label": "FedRAMP", "value": "fedramp" },
+        { "label": "NIST", "value": "nist" },
+        { "label": "DoD", "value": "dod" },
+        { "label": "Custom", "value": "custom" }
+      ]
+    },
+    {
+      "name": "format",
+      "label": "Format",
+      "type": "select",
+      "required": false,
+      "flag": "--format",
+      "description": "Optional output document format.",
+      "options": [
+        { "label": "DOCX", "value": "docx" },
+        { "label": "Markdown", "value": "markdown" },
+        { "label": "YAML", "value": "yaml" }
+      ]
+    },
+    {
+      "name": "includeEvidence",
+      "label": "Include evidence references",
+      "type": "boolean",
+      "required": false,
+      "flag": "--include-evidence",
+      "description": "Add evidence references to the generated SSP section.",
+      "defaultValue": false
+    }
+  ],
+  "remove": [
+    "controlIdE.gAc2Au2OrFamilyE.gAcAu",
+    "templateOptionalFedrampNistDodCustomDefaultFedramp",
+    "optionsOptionalFormatDocxMarkdownYamlIncludeEvidence"
+  ],
+  "submitLabel": "Run SSP Section Generator"
+}

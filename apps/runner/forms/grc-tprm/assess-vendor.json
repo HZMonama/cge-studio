@@ -1,0 +1,33 @@
+{
+  "mode": "inline",
+  "minimumConfiguration": [
+    "vendor"
+  ],
+  "fields": [
+    {
+      "name": "vendor",
+      "label": "Vendor Name Or Assessment File",
+      "type": "text",
+      "required": true,
+      "position": "argument",
+      "description": "Vendor name or existing assessment artifact."
+    },
+    {
+      "name": "assessmentType",
+      "label": "Assessment Type",
+      "type": "select",
+      "required": false,
+      "position": "argument",
+      "description": "Vendor assessment type.",
+      "options": [
+        { "label": "Initial", "value": "initial" },
+        { "label": "Annual", "value": "annual" },
+        { "label": "Incident", "value": "incident" }
+      ]
+    }
+  ],
+  "remove": [
+    "vendorNameOrAssessmentFile"
+  ],
+  "submitLabel": "Run Assess Vendor"
+}

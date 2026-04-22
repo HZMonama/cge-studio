@@ -16,7 +16,7 @@ import {
 
 import { cn } from "@/lib/utils"
 import { getPluginCategory, type Persona, type Plugin, type PluginCategory } from "@/lib/plugins"
-import { type RunnerArtifactSummary } from "@/lib/runner"
+import { type RunnerArtifactSummary, type RunnerFindingSummary } from "@/lib/runner"
 import { usePluginPanel } from "@/stores/plugin-panel-store"
 
 import Grainient from "@/components/Grainient"
@@ -66,6 +66,30 @@ const BRAND_ICONS: Partial<Record<string, string>> = {
   "gcp-inspector":    "/google_cloud.svg",
 }
 
+const FRAMEWORK_FLAG_CODES: Partial<Record<string, string>> = {
+  "cis-controls": "us",
+  "cmmc": "us",
+  "csa-ccm": "un",
+  "dora": "eu",
+  "essential8": "au",
+  "fedramp-20x": "us",
+  "fedramp-rev5": "us",
+  "gdpr": "eu",
+  "glba": "us",
+  "hitrust": "us",
+  "irap": "au",
+  "ismap": "jp",
+  "iso27001": "un",
+  "nist-800-53": "us",
+  "nydfs": "us",
+  "pbmm": "ca",
+  "pci-dss": "un",
+  "singapore-pdpa": "sg",
+  "soc2": "us",
+  "stateramp": "us",
+  "us-export": "us",
+}
+
 const EMPTY_STATE_COPY: Record<Exclude<SidebarSection, "chat">, { title: string; description: string }> = {
   dashboards: {
     title: "No dashboards yet",
@@ -110,6 +134,25 @@ function SidebarPhosphorIcon({
   )
 }
 
+function SidebarFlagIcon({
+  code,
+  className,
+}: {
+  code: string
+  className?: string
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "fib h-3 w-4 shrink-0 overflow-hidden rounded-[2px] border border-sidebar-foreground/10 bg-center bg-no-repeat shadow-sm",
+        `fi-${code}`,
+        className
+      )}
+    />
+  )
+}
+
 function pluginIcon(plugin: Plugin): React.ElementType {
   if (plugin.id === "grc-engineer")     return WrenchIcon
   if (plugin.id === "grc-auditor")      return MagnifyingGlassIcon
@@ -123,6 +166,7 @@ function pluginIcon(plugin: Plugin): React.ElementType {
 
 function PluginItem({ plugin }: { plugin: Plugin }) {
   const brandSrc = BRAND_ICONS[plugin.id]
+  const flagCode = plugin.type === "framework" ? FRAMEWORK_FLAG_CODES[plugin.id] : null
   const Icon = pluginIcon(plugin)
   const { selectedPlugin, setSelectedPlugin } = usePluginPanel()
   const isSelected = selectedPlugin?.id === plugin.id
@@ -138,6 +182,8 @@ function PluginItem({ plugin }: { plugin: Plugin }) {
       >
         {brandSrc
           ? <img src={brandSrc} alt="" className="size-4 shrink-0 object-contain" />
+          : flagCode
+            ? <SidebarFlagIcon code={flagCode} />
           : (
             <SidebarPhosphorIcon
               Icon={Icon}
@@ -147,6 +193,79 @@ function PluginItem({ plugin }: { plugin: Plugin }) {
           )
         }
         <span className="truncate">{plugin.label}</span>
+      </button>
+    </SidebarMenuItem>
+  )
+}
+
+const SEVERITY_DOT: Record<string, string> = {
+  critical: "bg-red-500",
+  high: "bg-orange-400",
+  medium: "bg-amber-400",
+  low: "bg-sky-400",
+  info: "bg-zinc-400",
+}
+
+const SEVERITY_LABEL_COLOR: Record<string, string> = {
+  critical: "text-red-400",
+  high: "text-orange-400",
+  medium: "text-amber-400",
+  low: "text-sky-400",
+  info: "text-zinc-400",
+}
+
+function FindingItem({
+  finding,
+  isSelected,
+  onSelect,
+}: {
+  finding: RunnerFindingSummary
+  isSelected: boolean
+  onSelect: (findingId: string) => void
+}) {
+  const subline = [
+    finding.source,
+    finding.controlFramework && finding.controlId
+      ? `${finding.controlFramework}/${finding.controlId}`
+      : (finding.controlId ?? null),
+    finding.resourceType,
+  ]
+    .filter(Boolean)
+    .join(" · ")
+
+  const tertiary = [finding.resourceRegion, finding.accountId]
+    .filter(Boolean)
+    .join(" / ")
+
+  return (
+    <SidebarMenuItem>
+      <button
+        onClick={() => onSelect(finding.id)}
+        className={cn(
+          "group/finding-item flex h-auto w-full items-start gap-2.5 overflow-hidden px-4 py-3 text-left text-xs outline-none transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2",
+          isSelected && "bg-sidebar-accent text-sidebar-accent-foreground",
+        )}
+      >
+        <span
+          className={cn(
+            "mt-1.5 size-2 shrink-0 rounded-full",
+            SEVERITY_DOT[finding.severity] ?? "bg-zinc-400",
+          )}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline gap-2">
+            <p className="truncate font-medium leading-snug">{finding.title}</p>
+            <span className={cn("shrink-0 text-[10px] font-semibold uppercase", SEVERITY_LABEL_COLOR[finding.severity])}>
+              {finding.severity}
+            </span>
+          </div>
+          <p className="mt-0.5 truncate text-[10px] uppercase tracking-[0.12em] text-sidebar-foreground/45">
+            {subline}
+          </p>
+          {tertiary && (
+            <p className="mt-0.5 truncate text-[10px] text-sidebar-foreground/35">{tertiary}</p>
+          )}
+        </div>
       </button>
     </SidebarMenuItem>
   )
@@ -190,18 +309,24 @@ export function AppSidebar({
   activeSection = "chat",
   artifacts = [],
   className,
+  findings = [],
   focusSearchToken,
   onSelectArtifact,
+  onSelectFinding,
   plugins,
   selectedArtifactId,
+  selectedFindingId,
   ...props
 }: React.ComponentProps<"aside"> & {
   activeSection?: SidebarSection
   artifacts?: RunnerArtifactSummary[]
+  findings?: RunnerFindingSummary[]
   focusSearchToken?: number
   onSelectArtifact?: (artifactId: string) => void
+  onSelectFinding?: (findingId: string) => void
   plugins: Plugin[]
   selectedArtifactId?: string | null
+  selectedFindingId?: string | null
 }) {
   const [query, setQuery] = React.useState("")
   const [activePersona, setActivePersona] = React.useState<Persona | null>(null)
@@ -248,6 +373,19 @@ export function AppSidebar({
     return artifact.title.toLowerCase().includes(normalizedQuery)
       || artifact.commandPath.toLowerCase().includes(normalizedQuery)
       || artifact.id.toLowerCase().includes(normalizedQuery)
+  })
+
+  const visibleFindings = findings.filter((finding) => {
+    const normalizedQuery = query.trim().toLowerCase()
+    if (!normalizedQuery) return true
+    return (
+      finding.title.toLowerCase().includes(normalizedQuery) ||
+      (finding.message ?? "").toLowerCase().includes(normalizedQuery) ||
+      (finding.resourceId ?? "").toLowerCase().includes(normalizedQuery) ||
+      (finding.controlId ?? "").toLowerCase().includes(normalizedQuery) ||
+      (finding.controlFramework ?? "").toLowerCase().includes(normalizedQuery) ||
+      finding.source.toLowerCase().includes(normalizedQuery)
+    )
   })
 
   return (
@@ -398,6 +536,26 @@ export function AppSidebar({
                 {visible.length === 0 && (
                   <li className="px-4 py-4 text-center text-xs text-sidebar-foreground/40">
                     No plugins match
+                  </li>
+                )}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ) : activeSection === "findings" ? (
+          <SidebarGroup className="p-0">
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {visibleFindings.map((finding) => (
+                  <FindingItem
+                    key={finding.id}
+                    finding={finding}
+                    isSelected={selectedFindingId === finding.id}
+                    onSelect={(findingId) => onSelectFinding?.(findingId)}
+                  />
+                ))}
+                {visibleFindings.length === 0 && (
+                  <li className="px-4 py-4 text-center text-xs text-sidebar-foreground/40">
+                    {findings.length === 0 ? EMPTY_STATE_COPY.findings.description : "No findings match"}
                   </li>
                 )}
               </SidebarMenu>
