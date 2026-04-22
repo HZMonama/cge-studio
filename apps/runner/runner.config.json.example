@@ -1,4 +1,3 @@
 {
-  "toolkitPath": "../../cli/claude-grc-engineering",
-  "workspaceRoot": "/"
+  "toolkitPath": "../../cli/claude-grc-engineering"
 }

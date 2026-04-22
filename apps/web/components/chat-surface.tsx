@@ -20,7 +20,9 @@ import {
   type CommandFormField,
   type Plugin,
 } from "@/lib/plugins";
+import { type RunnerRun, type RunnerRunEvent } from "@/lib/runner";
 import { cn } from "@/lib/utils";
+import { RunnerTimeline } from "./runner-timeline";
 
 function commandScore(command: SlashCommand, query: string) {
   const normalizedQuery = query.trim().toLowerCase();
@@ -245,13 +247,18 @@ function InlineFormField({
 
 export function ChatSurface({
   commandFormValues,
+  events,
   focusToken,
+  loadingEvents,
   onClearSelectedCommand,
   onCommandFormChange,
+  onOpenArtifact,
   onSelectCommand,
   onOpenHistory,
+  onSubmitPrompt,
   onRun,
   runPending,
+  run,
   plugins,
   prompt,
   selectedCommand,
@@ -259,13 +266,18 @@ export function ChatSurface({
   setPrompt,
 }: {
   commandFormValues: CommandFormValues;
+  events: RunnerRunEvent[];
   focusToken: number;
+  loadingEvents: boolean;
   onClearSelectedCommand: () => void;
   onCommandFormChange: (values: CommandFormValues) => void;
+  onOpenArtifact: (artifactId: string) => void;
   onSelectCommand: (path: string) => void;
   onOpenHistory: () => void;
+  onSubmitPrompt: (promptId: string, answers: Record<string, string>) => Promise<void>;
   onRun: () => void;
   runPending: boolean;
+  run: RunnerRun | null;
   plugins: Plugin[];
   prompt: string;
   selectedCommand: Command | null;
@@ -388,7 +400,7 @@ export function ChatSurface({
 
   return (
     <div className="flex flex-1 flex-col bg-(--editor-bg)">
-      <div className="flex justify-end px-6 pt-6">
+      <div className="flex h-16 shrink-0 items-center justify-end px-6">
         <button
           onClick={onOpenHistory}
           className="group flex h-9 items-center gap-2 border border-border/70 bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent"
@@ -403,7 +415,13 @@ export function ChatSurface({
           History
         </button>
       </div>
-      <div className="flex-1" />
+      <RunnerTimeline
+        events={events}
+        loading={loadingEvents}
+        onSelectArtifact={onOpenArtifact}
+        onSubmitPrompt={onSubmitPrompt}
+        run={run}
+      />
       <div className="flex justify-center px-6 pb-2">
         <div className="w-full max-w-[80%]">
           <div className="border border-border/70 bg-background">

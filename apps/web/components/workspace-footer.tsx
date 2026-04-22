@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import {
   ArrowsClockwiseIcon,
   CaretUpDownIcon,
@@ -26,9 +27,7 @@ interface WorkspaceLike {
 }
 
 export function WorkspaceFooter({
-  activeArtifactCount,
   activeWorkspaceId,
-  activeWorkspaceRunCount,
   onAddWorkspace,
   onCloseWorkspace,
   onExportWorkspace,
@@ -38,9 +37,7 @@ export function WorkspaceFooter({
   workspaces,
   setActiveWorkspaceId,
 }: {
-  activeArtifactCount: number
   activeWorkspaceId: string | null
-  activeWorkspaceRunCount: number
   onAddWorkspace: () => void
   onCloseWorkspace: (id: string) => void
   onExportWorkspace: () => void
@@ -52,6 +49,8 @@ export function WorkspaceFooter({
 }) {
   const activeWorkspace =
     workspaces.find(workspace => workspace.id === activeWorkspaceId) ?? workspaces[0] ?? null
+  const [selectorPopoverOpen, setSelectorPopoverOpen] = useState(false)
+  const [selectorPopoverMode, setSelectorPopoverMode] = useState<"list" | "details">("list")
 
   return (
     <footer className="flex h-(--row-h) shrink-0 items-center justify-between border-t border-border/70 bg-background/90 px-2">
@@ -66,53 +65,68 @@ export function WorkspaceFooter({
           <ArrowsClockwiseIcon className={cn("size-3.5", refreshPending && "animate-spin")} />
         </button>
         <div className="flex h-full min-w-0 items-center border-r border-border/70 pr-2">
-          <Popover>
+          <Popover open={selectorPopoverOpen} onOpenChange={setSelectorPopoverOpen}>
             <PopoverTrigger
               disabled={!activeWorkspace}
+              onClick={() => {
+                setSelectorPopoverMode("list")
+                setSelectorPopoverOpen(true)
+              }}
+              onContextMenu={(event) => {
+                if (!activeWorkspace) {
+                  return
+                }
+
+                event.preventDefault()
+                setSelectorPopoverMode("details")
+                setSelectorPopoverOpen(true)
+              }}
               className="flex h-full min-w-0 items-center gap-2 px-2 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
             >
               <div className="min-w-0 text-left">
                 <p className="truncate text-xs text-foreground">{activeWorkspace?.title ?? "No workspace"}</p>
-                {activeWorkspace?.rootPath ? (
-                  <p className="truncate text-[10px] text-muted-foreground/70">
-                    {activeWorkspace.rootPath}
-                  </p>
-                ) : null}
               </div>
               <CaretUpDownIcon className="size-3.5 shrink-0" />
             </PopoverTrigger>
             <PopoverPortal>
               <PopoverPositioner side="top" align="start" sideOffset={8}>
-                <PopoverContent className="w-80">
-                  <ul>
-                    {workspaces.map((workspace) => (
-                      <li key={workspace.id} className="border-b last:border-0">
-                        <button
-                          onClick={() => setActiveWorkspaceId(workspace.id)}
-                          className={cn(
-                            "flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs transition-colors hover:bg-accent",
-                            workspace.id === activeWorkspace?.id && "font-medium"
-                          )}
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate">{workspace.title}</p>
-                            <p className="truncate text-[10px] font-normal text-muted-foreground/70">
-                              {workspace.rootPath}
-                            </p>
-                          </div>
-                          {workspace.id === activeWorkspace?.id && <CheckIcon className="size-3.5 shrink-0" weight="bold" />}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                <PopoverContent className={cn(selectorPopoverMode === "list" ? "w-72" : "w-80")}>
+                  {selectorPopoverMode === "list" ? (
+                    <ul>
+                      {workspaces.map((workspace) => (
+                        <li key={workspace.id} className="border-b last:border-0">
+                          <button
+                            onClick={() => {
+                              setActiveWorkspaceId(workspace.id)
+                              setSelectorPopoverOpen(false)
+                            }}
+                            className={cn(
+                              "flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs transition-colors hover:bg-accent",
+                              workspace.id === activeWorkspace?.id && "font-medium"
+                            )}
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate">{workspace.title}</p>
+                            </div>
+                            {workspace.id === activeWorkspace?.id && <CheckIcon className="size-3.5 shrink-0" weight="bold" />}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="space-y-2 px-3 py-3">
+                      <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70">
+                        Workspace path
+                      </p>
+                      <p className="break-all text-xs text-foreground">
+                        {activeWorkspace?.rootPath}
+                      </p>
+                    </div>
+                  )}
                 </PopoverContent>
               </PopoverPositioner>
             </PopoverPortal>
           </Popover>
-        </div>
-        <div className="hidden min-w-0 items-center gap-3 px-3 text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 md:flex">
-          {activeWorkspace && <span>{activeWorkspaceRunCount} runs</span>}
-          {activeWorkspace && <span>{activeArtifactCount} artifacts</span>}
         </div>
       </div>
 

@@ -47,6 +47,15 @@ export interface RunnerConfigSnapshot {
   runnerConfigPath: string
 }
 
+export interface ConnectorSummary {
+  id: string
+  label: string
+  configured: boolean
+  findingsCached: number
+  configPath: string
+  cachePath: string
+}
+
 export interface RunnerArtifactSummary {
   id: string
   runId: string
@@ -64,6 +73,24 @@ export interface RunnerArtifactDetail extends RunnerArtifactSummary {
   content: string
 }
 
+export interface RunnerRunEvent {
+  id: string
+  type:
+    | "run.created"
+    | "run.started"
+    | "message"
+    | "prompt.required"
+    | "tool.started"
+    | "tool.stdout"
+    | "tool.stderr"
+    | "tool.completed"
+    | "artifact.created"
+    | "run.completed"
+    | "run.failed"
+  createdAt: string
+  data: Record<string, unknown>
+}
+
 export interface RunnerRun {
   id: string
   status: "planned" | "running" | "completed" | "failed"
@@ -73,6 +100,7 @@ export interface RunnerRun {
   commandPath?: string
   pluginId?: string
   commandId?: string
+  executionMode?: "script" | "workflow"
   outputDir: string
   commandPreview: string | null
   artifactCount?: number
@@ -143,7 +171,7 @@ export async function fetchRunnerConfig(signal?: AbortSignal): Promise<RunnerCon
 }
 
 export async function updateRunnerConfig(
-  input: Partial<Pick<RunnerConfigSnapshot, "toolkitPath" | "workspaceRoot">>,
+  input: Partial<Pick<RunnerConfigSnapshot, "toolkitPath">>,
 ): Promise<RunnerConfigSnapshot | null> {
   try {
     const response = await fetch(`${RUNNER_BASE_URL}/config`, {
@@ -161,6 +189,23 @@ export async function updateRunnerConfig(
     return (await response.json()) as RunnerConfigSnapshot
   } catch {
     return null
+  }
+}
+
+export async function fetchConnectors(signal?: AbortSignal): Promise<ConnectorSummary[]> {
+  try {
+    const response = await fetch(`${RUNNER_BASE_URL}/connectors`, {
+      cache: "no-store",
+      signal,
+    })
+
+    if (!response.ok) {
+      return []
+    }
+
+    return (await response.json()) as ConnectorSummary[]
+  } catch {
+    return []
   }
 }
 
@@ -183,7 +228,6 @@ export async function fetchWorkspaces(signal?: AbortSignal): Promise<RunnerWorks
 
 export async function createWorkspace(input: {
   title?: string
-  workspaceRoot?: string
 }): Promise<RunnerWorkspace | null> {
   try {
     const response = await fetch(`${RUNNER_BASE_URL}/workspaces`, {
@@ -322,6 +366,51 @@ export async function fetchArtifacts(
     return (await response.json()) as RunnerArtifactSummary[]
   } catch {
     return []
+  }
+}
+
+export async function fetchRunEvents(
+  workspaceId: string,
+  runId: string,
+  signal?: AbortSignal,
+): Promise<RunnerRunEvent[]> {
+  try {
+    const response = await fetch(`${RUNNER_BASE_URL}/workspaces/${workspaceId}/runs/${runId}/events`, {
+      cache: "no-store",
+      signal,
+    })
+
+    if (!response.ok) {
+      return []
+    }
+
+    return (await response.json()) as RunnerRunEvent[]
+  } catch {
+    return []
+  }
+}
+
+export async function respondToRunPrompt(
+  workspaceId: string,
+  runId: string,
+  answers: Record<string, string>,
+): Promise<RunnerRun | null> {
+  try {
+    const response = await fetch(`${RUNNER_BASE_URL}/workspaces/${workspaceId}/runs/${runId}/respond`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ answers }),
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    return (await response.json()) as RunnerRun
+  } catch {
+    return null
   }
 }
 

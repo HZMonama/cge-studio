@@ -49,6 +49,7 @@ export interface CommandFormSchema {
 export interface Command {
   id: string;
   description: string;
+  executionMode?: "script" | "workflow";
   output?: OutputType;
   form?: CommandFormSchema | null;
 }

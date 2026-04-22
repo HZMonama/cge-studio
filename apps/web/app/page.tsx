@@ -21,6 +21,17 @@ import { ConfigPanel } from "@/components/config-panel";
 import { PluginPanel } from "@/components/plugin-panel";
 import { RunnerHistoryPanel } from "@/components/runner-history-panel";
 import { SectionSurface } from "@/components/section-surface";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { WorkspaceFooter } from "@/components/workspace-footer";
 import {
   buildPromptFromCommandForm,
@@ -29,6 +40,7 @@ import {
 } from "@/lib/command-form";
 import { FALLBACK_PLUGINS, type Command, type Plugin } from "@/lib/plugins";
 import {
+  fetchConnectors,
   createRun,
   createWorkspace,
   deleteWorkspace,
@@ -38,20 +50,50 @@ import {
   fetchRunnerConfig,
   fetchPluginRegistry,
   fetchRunnerHealth,
+  fetchRunEvents,
   fetchRuns,
   fetchWorkspaces,
   refreshWorkspace,
   renameWorkspace,
+  respondToRunPrompt,
   updateRunnerConfig,
+  type ConnectorSummary,
   type RunnerConfigSnapshot,
   type RunnerArtifactDetail,
   type RunnerArtifactSummary,
+  type RunnerHealthSnapshot,
   type RunnerRun,
+  type RunnerRunEvent,
   type RunnerWorkspace,
 } from "@/lib/runner";
 import { usePluginPanel } from "@/stores/plugin-panel-store";
 
 type AppSection = "chat" | "dashboards" | "findings" | "program" | "artifacts";
+type AppModalState =
+  | { type: "closed" }
+  | {
+      type: "alert";
+      title: string;
+      description: string;
+      confirmLabel?: string;
+    }
+  | {
+      type: "confirm";
+      title: string;
+      description: string;
+      confirmLabel: string;
+      confirmVariant?: "default" | "outline";
+      onConfirm: () => Promise<void>;
+    }
+  | {
+      type: "prompt";
+      title: string;
+      description: string;
+      confirmLabel: string;
+      defaultValue: string;
+      placeholder?: string;
+      onConfirm: (value: string) => Promise<void>;
+    };
 
 const HEADER_SECTIONS: AppHeaderSection[] = [
   { id: "chat", label: "Runner", Icon: LightningIcon },
@@ -72,6 +114,9 @@ export default function Page() {
   const [activeSection, setActiveSection] = useState<AppSection>("chat");
   const [plugins, setPlugins] = useState<Plugin[]>(FALLBACK_PLUGINS);
   const [runs, setRuns] = useState<RunnerRun[]>([]);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [selectedRunEvents, setSelectedRunEvents] = useState<RunnerRunEvent[]>([]);
+  const [runEventsPending, setRunEventsPending] = useState(false);
   const [artifacts, setArtifacts] = useState<RunnerArtifactSummary[]>([]);
   const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(
     null,
@@ -94,9 +139,20 @@ export default function Page() {
   const [runnerConfig, setRunnerConfig] = useState<RunnerConfigSnapshot | null>(
     null,
   );
+  const [runnerHealth, setRunnerHealth] = useState<RunnerHealthSnapshot | null>(
+    null,
+  );
+  const [connectors, setConnectors] = useState<ConnectorSummary[]>([]);
   const [configSavePending, setConfigSavePending] = useState(false);
+  const [modalState, setModalState] = useState<AppModalState>({ type: "closed" });
+  const [modalInputValue, setModalInputValue] = useState("");
+  const [modalPending, setModalPending] = useState(false);
   const activeWorkspace =
     workspaces.find((workspace) => workspace.id === activeWorkspaceId) ??
+    null;
+  const selectedRun =
+    runs.find((run) => run.id === selectedRunId) ??
+    runs[0] ??
     null;
   const selectedCommand = selectedCommandPath
     ? findCommandByPath(plugins, selectedCommandPath)
@@ -143,12 +199,14 @@ export default function Page() {
       }
 
       try {
-        const [health, config, registry, nextWorkspaces] = await Promise.all([
-          fetchRunnerHealth(signal),
-          fetchRunnerConfig(signal),
-          fetchPluginRegistry(signal),
-          fetchWorkspaces(signal),
-        ]);
+        const [health, config, registry, nextWorkspaces, nextConnectors] =
+          await Promise.all([
+            fetchRunnerHealth(signal),
+            fetchRunnerConfig(signal),
+            fetchPluginRegistry(signal),
+            fetchWorkspaces(signal),
+            fetchConnectors(signal),
+          ]);
 
         if (signal?.aborted) {
           return;
@@ -161,7 +219,9 @@ export default function Page() {
           setSyncStatus(health ? "fallback" : "offline");
         }
 
+        setRunnerHealth(health);
         setRunnerConfig(config);
+        setConnectors(nextConnectors);
         setWorkspaces(nextWorkspaces);
         setActiveWorkspaceId((current) => {
           const nextActiveWorkspaceId =
@@ -218,6 +278,8 @@ export default function Page() {
   useEffect(() => {
     if (!activeWorkspaceId) {
       setRuns([]);
+      setSelectedRunId(null);
+      setSelectedRunEvents([]);
       setArtifacts([]);
       setSelectedArtifactId(null);
       setSelectedArtifact(null);
@@ -235,6 +297,11 @@ export default function Page() {
       }
 
       setRuns(nextRuns);
+      setSelectedRunId((current) =>
+        current && nextRuns.some((run) => run.id === current)
+          ? current
+          : (nextRuns[0]?.id ?? null),
+      );
       setArtifacts(nextArtifacts);
       setSelectedArtifact(null);
       setSelectedArtifactId((current) =>
@@ -246,6 +313,45 @@ export default function Page() {
 
     return () => controller.abort();
   }, [activeWorkspaceId]);
+
+  useEffect(() => {
+    if (!activeWorkspaceId || !selectedRunId) {
+      setSelectedRunEvents([]);
+      setRunEventsPending(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setRunEventsPending(true);
+
+    fetchRunEvents(activeWorkspaceId, selectedRunId, controller.signal).then(
+      (events) => {
+        if (!controller.signal.aborted) {
+          setSelectedRunEvents(events);
+          setRunEventsPending(false);
+        }
+      },
+    );
+
+    return () => controller.abort();
+  }, [activeWorkspaceId, selectedRunId]);
+
+  useEffect(() => {
+    if (!activeWorkspaceId || !runs.some((run) => run.status === "running")) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void refreshRunnerData(activeWorkspaceId);
+      if (selectedRunId) {
+        void fetchRunEvents(activeWorkspaceId, selectedRunId).then(
+          (events) => setSelectedRunEvents(events),
+        );
+      }
+    }, 2000);
+
+    return () => window.clearInterval(intervalId);
+  }, [activeWorkspaceId, runs, selectedRunId]);
 
   useEffect(() => {
     if (!activeWorkspaceId || !selectedArtifactId) {
@@ -305,6 +411,74 @@ export default function Page() {
     setComposerFocusToken((prev) => prev + 1);
   }
 
+  function openAlert(title: string, description: string) {
+    setModalState({
+      type: "alert",
+      title,
+      description,
+    });
+  }
+
+  function openPrompt(input: Extract<AppModalState, { type: "prompt" }>) {
+    setModalInputValue(input.defaultValue);
+    setModalState(input);
+  }
+
+  function openConfirm(input: Extract<AppModalState, { type: "confirm" }>) {
+    setModalState(input);
+  }
+
+  function closeModal() {
+    if (modalPending) {
+      return;
+    }
+
+    setModalState({ type: "closed" });
+    setModalInputValue("");
+  }
+
+  async function handleModalConfirm() {
+    if (modalState.type === "closed") {
+      return;
+    }
+
+    if (modalState.type === "alert") {
+      closeModal();
+      return;
+    }
+
+    setModalPending(true);
+
+    try {
+      if (modalState.type === "prompt") {
+        const value = modalInputValue.trim();
+        if (!value) {
+          throw new Error("A value is required.");
+        }
+
+        await modalState.onConfirm(value);
+      }
+
+      if (modalState.type === "confirm") {
+        await modalState.onConfirm();
+      }
+
+      setModalState({ type: "closed" });
+      setModalInputValue("");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Something went wrong.";
+      setModalState({
+        type: "alert",
+        title: "Action failed",
+        description: message,
+      });
+      setModalInputValue("");
+    } finally {
+      setModalPending(false);
+    }
+  }
+
   async function refreshRunnerData(workspaceId: string | null = activeWorkspaceId) {
     if (!workspaceId) {
       setRuns([]);
@@ -320,6 +494,11 @@ export default function Page() {
     ]);
 
     setRuns(nextRuns);
+    setSelectedRunId((current) =>
+      current && nextRuns.some((run) => run.id === current)
+        ? current
+        : (nextRuns[0]?.id ?? null),
+    );
     setArtifacts(nextArtifacts);
     setSelectedArtifact(null);
     setSelectedArtifactId((current) =>
@@ -340,6 +519,9 @@ export default function Page() {
 
     try {
       run = await createRun(activeWorkspaceId, prompt);
+      setSelectedRunId(run?.id ?? null);
+      setSelectedRunEvents([]);
+      setActiveSection("chat");
       await refreshRunnerData(activeWorkspaceId);
     } finally {
       setRunPending(false);
@@ -347,31 +529,33 @@ export default function Page() {
 
     if (run?.artifacts?.[0]?.id) {
       setSelectedArtifactId(run.artifacts[0].id);
-      openHistory();
     }
   }
 
   async function addWorkspace() {
-    const title = window.prompt("Workspace name", "Untitled Workspace")?.trim();
-    if (!title) {
-      return;
-    }
+    openPrompt({
+      type: "prompt",
+      title: "Add workspace",
+      description: "Create a new workspace folder in the default workspace location.",
+      confirmLabel: "Create workspace",
+      defaultValue: "Untitled Workspace",
+      placeholder: "Workspace name",
+      onConfirm: async (title) => {
+        const workspace = await createWorkspace({
+          title,
+        });
 
-    const workspace = await createWorkspace({
-      title: title || undefined,
-      workspaceRoot: runnerConfig?.workspaceRoot,
+        if (!workspace) {
+          throw new Error("Workspace creation failed. Check the workspace location and try again.");
+        }
+
+        setWorkspaces((prev) => {
+          const withoutExisting = prev.filter((item) => item.id !== workspace.id);
+          return [workspace, ...withoutExisting];
+        });
+        setActiveWorkspaceId(workspace.id);
+      },
     });
-
-    if (!workspace) {
-      window.alert("Workspace creation failed. Check the configured workspace root and try again.");
-      return;
-    }
-
-    setWorkspaces((prev) => {
-      const withoutExisting = prev.filter((item) => item.id !== workspace.id);
-      return [workspace, ...withoutExisting];
-    });
-    setActiveWorkspaceId(workspace.id);
   }
 
   async function closeWorkspace(id: string) {
@@ -380,24 +564,25 @@ export default function Page() {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Remove workspace "${workspace.title}"? This deletes ${workspace.folders.dataRoot} but leaves the rest of ${workspace.rootPath} intact.`,
-    );
-    if (!confirmed) {
-      return;
-    }
+    openConfirm({
+      type: "confirm",
+      title: "Delete workspace",
+      description: `Remove "${workspace.title}"? This deletes ${workspace.folders.dataRoot} but leaves the rest of ${workspace.rootPath} intact.`,
+      confirmLabel: "Delete workspace",
+      confirmVariant: "outline",
+      onConfirm: async () => {
+        const deleted = await deleteWorkspace(id);
+        if (!deleted) {
+          throw new Error("Workspace deletion failed.");
+        }
 
-    const deleted = await deleteWorkspace(id);
-    if (!deleted) {
-      window.alert("Workspace deletion failed.");
-      return;
-    }
-
-    const nextWorkspaces = workspaces.filter((item) => item.id !== id);
-    setWorkspaces(nextWorkspaces);
-    setActiveWorkspaceId((current) =>
-      current === id ? (nextWorkspaces[0]?.id ?? null) : current,
-    );
+        const nextWorkspaces = workspaces.filter((item) => item.id !== id);
+        setWorkspaces(nextWorkspaces);
+        setActiveWorkspaceId((current) =>
+          current === id ? (nextWorkspaces[0]?.id ?? null) : current,
+        );
+      },
+    });
   }
 
   async function renameActiveWorkspace() {
@@ -405,21 +590,26 @@ export default function Page() {
       return;
     }
 
-    const nextTitle = window.prompt("Rename workspace", activeWorkspace.title);
-    const title = nextTitle?.trim();
-    if (!title) return;
+    openPrompt({
+      type: "prompt",
+      title: "Rename workspace",
+      description: "Update the workspace name shown throughout the app.",
+      confirmLabel: "Save name",
+      defaultValue: activeWorkspace.title,
+      placeholder: "Workspace name",
+      onConfirm: async (title) => {
+        const updated = await renameWorkspace(activeWorkspace.id, title);
+        if (!updated) {
+          throw new Error("Workspace rename failed.");
+        }
 
-    const updated = await renameWorkspace(activeWorkspace.id, title);
-    if (!updated) {
-      window.alert("Workspace rename failed.");
-      return;
-    }
-
-    setWorkspaces((prev) =>
-      prev.map((workspace) =>
-        workspace.id === updated.id ? updated : workspace,
-      ),
-    );
+        setWorkspaces((prev) =>
+          prev.map((workspace) =>
+            workspace.id === updated.id ? updated : workspace,
+          ),
+        );
+      },
+    });
   }
 
   async function exportActiveWorkspace() {
@@ -429,7 +619,7 @@ export default function Page() {
 
     const summary = await exportWorkspace(activeWorkspace.id);
     if (!summary) {
-      window.alert("Workspace export failed.");
+      openAlert("Export failed", "Workspace export failed.");
       return;
     }
 
@@ -454,7 +644,7 @@ export default function Page() {
     try {
       const refreshed = await refreshWorkspace(activeWorkspace.id)
       if (!refreshed) {
-        window.alert("Workspace refresh failed.")
+        openAlert("Refresh failed", "Workspace refresh failed.")
         return
       }
 
@@ -471,14 +661,13 @@ export default function Page() {
 
   async function saveRunnerConfiguration(input: {
     toolkitPath: string;
-    workspaceRoot: string;
   }) {
     setConfigSavePending(true);
 
     try {
       const nextConfig = await updateRunnerConfig(input);
       if (!nextConfig) {
-        window.alert("Configuration save failed.");
+        openAlert("Configuration save failed", "The runner configuration could not be saved.");
         return;
       }
 
@@ -525,15 +714,52 @@ export default function Page() {
         ) : activeSection === "chat" ? (
           <ChatSurface
             commandFormValues={commandFormValues}
+            events={selectedRunEvents}
             focusToken={composerFocusToken}
+            loadingEvents={runEventsPending}
             onClearSelectedCommand={clearSelectedCommand}
             onCommandFormChange={updateSelectedCommandForm}
+            onOpenArtifact={(artifactId) => {
+              setSelectedArtifactId(artifactId);
+              setActiveSection("artifacts");
+            }}
             onOpenHistory={openHistory}
+            onSubmitPrompt={async (_promptId, answers) => {
+              if (!activeWorkspaceId || !selectedRunId) {
+                return;
+              }
+
+              const updated = await respondToRunPrompt(
+                activeWorkspaceId,
+                selectedRunId,
+                answers,
+              );
+
+              if (!updated) {
+                openAlert(
+                  "Reply failed",
+                  "The workflow input could not be submitted.",
+                );
+                return;
+              }
+
+              await refreshRunnerData(activeWorkspaceId);
+              const nextEvents = await fetchRunEvents(
+                activeWorkspaceId,
+                selectedRunId,
+              );
+              setSelectedRunEvents(nextEvents);
+
+              if (updated.artifacts?.[0]?.id) {
+                setSelectedArtifactId(updated.artifacts[0].id);
+              }
+            }}
             onRun={runComposerCommand}
             onSelectCommand={insertComposerCommand}
             plugins={plugins}
             prompt={composerPrompt}
             runPending={runPending}
+            run={selectedRun}
             selectedCommand={selectedCommand}
             selectedCommandPath={selectedCommandPath}
             setPrompt={setComposerPrompt}
@@ -561,9 +787,7 @@ export default function Page() {
         )}
 
         <WorkspaceFooter
-          activeArtifactCount={artifacts.length}
           activeWorkspaceId={activeWorkspaceId}
-          activeWorkspaceRunCount={runs.length}
           onAddWorkspace={addWorkspace}
           onCloseWorkspace={closeWorkspace}
           onExportWorkspace={exportActiveWorkspace}
@@ -581,17 +805,70 @@ export default function Page() {
         }}
       />
       <RunnerHistoryPanel
+        onSelectRun={(runId) => {
+          setSelectedRunId(runId);
+          setActiveSection("chat");
+        }}
         onSelectArtifact={(artifactId) => {
           setSelectedArtifactId(artifactId);
           setActiveSection("artifacts");
         }}
         runs={runs}
+        selectedRunId={selectedRunId}
       />
       <ConfigPanel
         config={runnerConfig}
-        savePending={configSavePending}
+        connectors={connectors}
+        health={runnerHealth}
         onSave={saveRunnerConfiguration}
+        savePending={configSavePending}
       />
+      <Dialog open={modalState.type !== "closed"} onOpenChange={(open) => !open && closeModal()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{modalState.type === "closed" ? "" : modalState.title}</DialogTitle>
+            {modalState.type !== "closed" ? (
+              <DialogDescription>{modalState.description}</DialogDescription>
+            ) : null}
+          </DialogHeader>
+          {modalState.type === "prompt" ? (
+            <DialogBody>
+              <Input
+                autoFocus
+                value={modalInputValue}
+                onChange={(event) => setModalInputValue(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault()
+                    void handleModalConfirm()
+                  }
+                }}
+                placeholder={modalState.placeholder}
+              />
+            </DialogBody>
+          ) : null}
+          <DialogFooter>
+            {modalState.type === "alert" ? null : (
+              <Button variant="ghost" onClick={closeModal} disabled={modalPending}>
+                Cancel
+              </Button>
+            )}
+            <Button
+              variant={modalState.type === "confirm" ? modalState.confirmVariant ?? "default" : "default"}
+              onClick={() => void handleModalConfirm()}
+              disabled={modalPending}
+            >
+              {modalPending
+                ? "Working..."
+                : modalState.type === "closed"
+                  ? "Close"
+                  : modalState.type === "alert"
+                    ? modalState.confirmLabel ?? "Close"
+                    : modalState.confirmLabel}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

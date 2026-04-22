@@ -1,10 +1,15 @@
 import { createServer } from "node:http";
+import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { resolveCommandForm } from "./form-engine.js";
+import {
+  createWorkflowRuntime,
+  resolveWorkflowExecution,
+} from "./workflow-runner.js";
 import {
   ensureWorkspaceSystem,
   exportWorkspaceSummary,
@@ -55,7 +60,15 @@ const roots = {
   cacheRoot: path.join(os.homedir(), ".cache", "claude-grc"),
   appDataRoot: path.join(os.homedir(), ".local", "share", "cge-ui"),
 };
-const defaultWorkspaceRoot = path.parse(os.homedir()).root;
+const defaultWorkspaceRoot = path.join(os.homedir(), "Documents", "CGE Workspaces");
+const workflowRuntime = createWorkflowRuntime({
+  appendRunEvent,
+  createArtifactSummary,
+  findLatestJsonFile,
+  parsePrompt,
+  readRuns,
+  writeRun,
+});
 
 const server = createServer(async (request, response) => {
   try {
@@ -93,7 +106,7 @@ const server = createServer(async (request, response) => {
     if (request.method === "GET" && url.pathname === "/config") {
       return json(response, 200, {
         toolkitPath: runnerConfig.value.toolkitPath ?? "",
-        workspaceRoot: runnerConfig.value.workspaceRoot ?? defaultWorkspaceRoot,
+        workspaceRoot: getWorkspaceRoot(),
         runnerConfigPath: getWritableRunnerConfigPath(),
       });
     }
@@ -103,15 +116,11 @@ const server = createServer(async (request, response) => {
       const nextConfig = await writeRunnerConfig({
         toolkitPath:
           typeof body.toolkitPath === "string" ? body.toolkitPath : undefined,
-        workspaceRoot:
-          typeof body.workspaceRoot === "string"
-            ? body.workspaceRoot
-            : undefined,
       });
 
       return json(response, 200, {
         toolkitPath: nextConfig.toolkitPath ?? "",
-        workspaceRoot: nextConfig.workspaceRoot ?? defaultWorkspaceRoot,
+        workspaceRoot: getWorkspaceRoot(),
         runnerConfigPath: getWritableRunnerConfigPath(),
       });
     }
@@ -141,23 +150,18 @@ const server = createServer(async (request, response) => {
         response,
         200,
         await listWorkspaces(roots, {
-          workspaceRoot: runnerConfig.value.workspaceRoot ?? defaultWorkspaceRoot,
+          workspaceRoot: getWorkspaceRoot(),
         }),
       );
     }
 
     if (request.method === "POST" && url.pathname === "/workspaces") {
       const body = await readJsonBody(request);
-      const workspaceRoot =
-        typeof body.workspaceRoot === "string" && body.workspaceRoot.trim()
-          ? body.workspaceRoot
-          : runnerConfig.value.workspaceRoot ?? defaultWorkspaceRoot;
-
       const workspace = await createWorkspace({
         roots,
         title: typeof body.title === "string" ? body.title : null,
         rootPath: typeof body.rootPath === "string" ? body.rootPath : null,
-        workspaceRoot,
+        workspaceRoot: getWorkspaceRoot(),
       });
       return json(response, 201, workspace);
     }
@@ -272,6 +276,49 @@ const server = createServer(async (request, response) => {
 
       if (
         request.method === "GET" &&
+        pathSegments.length === 5 &&
+        pathSegments[2] === "runs" &&
+        pathSegments[4] === "events"
+      ) {
+        const runId = decodeURIComponent(pathSegments[3]);
+        const run = await readRun(workspace, runId);
+
+        if (!run) {
+          return json(response, 404, { error: "not_found" });
+        }
+
+        return json(response, 200, await readRunEvents(workspace, runId));
+      }
+
+      if (
+        request.method === "POST" &&
+        pathSegments.length === 5 &&
+        pathSegments[2] === "runs" &&
+        pathSegments[4] === "respond"
+      ) {
+        const runId = decodeURIComponent(pathSegments[3]);
+        const run = await readRun(workspace, runId);
+
+        if (!run) {
+          return json(response, 404, { error: "not_found" });
+        }
+
+        const body = await readJsonBody(request);
+        const answered = await respondToWorkflowRun({
+          response: body,
+          run,
+          workspace,
+        });
+
+        if (!answered) {
+          return json(response, 400, { error: "run_not_waiting_for_input" });
+        }
+
+        return json(response, 200, answered);
+      }
+
+      if (
+        request.method === "GET" &&
         pathSegments.length === 3 &&
         pathSegments[2] === "artifacts"
       ) {
@@ -334,7 +381,11 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === "GET" && url.pathname.startsWith("/runs/")) {
-      const runId = decodeURIComponent(url.pathname.slice("/runs/".length));
+      const runPath = url.pathname.slice("/runs/".length);
+      const separatorIndex = runPath.indexOf("/");
+      const runId = decodeURIComponent(
+        separatorIndex === -1 ? runPath : runPath.slice(0, separatorIndex),
+      );
       const workspace = await resolveWorkspaceFromRequest(roots, request, url);
       if (!workspace) {
         return json(response, 404, { error: "workspace_not_found" });
@@ -344,6 +395,13 @@ const server = createServer(async (request, response) => {
 
       if (!run) {
         return json(response, 404, { error: "not_found" });
+      }
+
+      if (
+        separatorIndex !== -1 &&
+        runPath.slice(separatorIndex + 1) === "events"
+      ) {
+        return json(response, 200, await readRunEvents(workspace, runId));
       }
 
       return json(response, 200, run);
@@ -482,13 +540,7 @@ async function writeRunnerConfig(input) {
     }
   }
 
-  if (input.workspaceRoot !== undefined) {
-    if (input.workspaceRoot.trim()) {
-      nextValue.workspaceRoot = input.workspaceRoot.trim();
-    } else {
-      delete nextValue.workspaceRoot;
-    }
-  }
+  delete nextValue.workspaceRoot;
 
   await fs.writeFile(
     getWritableRunnerConfigPath(),
@@ -508,6 +560,10 @@ function getToolkitPath(runnerConfig) {
   }
 
   return embeddedToolkitPath;
+}
+
+function getWorkspaceRoot() {
+  return defaultWorkspaceRoot;
 }
 
 async function discoverPlugins(toolkitPath) {
@@ -584,6 +640,7 @@ async function readPluginManifest(toolkitPath, pluginDir) {
             frontmatter.description ??
             extractFirstParagraph(contents) ??
             humanizeId(commandId),
+          executionMode: resolveExecutionMode(pluginId, commandId),
           output: inferOutputType(commandId, frontmatter.output),
           form,
         };
@@ -648,6 +705,21 @@ function inferPluginMetadata(pathSegments, pluginId) {
   }
 
   return { type: "tool", category: "tool", personas: allPersonas };
+}
+
+function resolveExecutionMode(pluginId, commandId) {
+  if (
+    (pluginId === "github-inspector" && commandId === "collect") ||
+    (pluginId === "grc-engineer" && commandId === "gap-assessment")
+  ) {
+    return "script";
+  }
+
+  if (pluginId === "grc-reporter" && commandId === "exec-summary") {
+    return "workflow";
+  }
+
+  return "workflow";
 }
 
 function parseFrontmatter(contents) {
@@ -787,6 +859,23 @@ async function readRun(workspace, runId) {
   }
 }
 
+async function readRunEvents(workspace, runId) {
+  try {
+    const contents = await fs.readFile(
+      path.join(workspace.folders.runs, runId, "events.jsonl"),
+      "utf8",
+    );
+
+    return contents
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
+  } catch {
+    return [];
+  }
+}
+
 async function readArtifacts(workspace) {
   const runs = await readRuns(workspace);
 
@@ -818,29 +907,31 @@ async function createCommandRun(input) {
     input.workspace.folders.artifactsGenerated,
     runId,
   );
-  const commandPreview = buildCommandPreview({
-    commandPath: parsed.commandPath,
+  const execution = resolveCommandExecution({
+    parsed,
     prompt: input.prompt,
     toolkitAvailable: input.toolkitAvailable,
     toolkitPath: input.toolkitPath,
-  });
-  const outputType = inferOutputType(parsed.commandId);
-  const artifact = await createRunArtifact({
-    commandPath: parsed.commandPath,
-    commandId: parsed.commandId,
-    outputType,
-    pluginId: parsed.pluginId,
-    prompt: input.prompt,
-    runArtifactsDir,
+    workspace: input.workspace,
     runId,
-    timestamp: now,
+    runArtifactsDir,
+  });
+  const commandPreview = buildCommandPreview({
+    execution,
+    prompt: input.prompt,
   });
 
   const run = {
     id: runId,
-    status: "completed",
+    status:
+      execution.kind === "script" || execution.kind === "workflow"
+        ? "running"
+        : "failed",
     createdAt: now,
-    completedAt: now,
+    completedAt:
+      execution.kind === "script" || execution.kind === "workflow"
+        ? null
+        : now,
     prompt: input.prompt,
     commandPath: parsed.commandPath,
     pluginId: parsed.pluginId,
@@ -850,8 +941,9 @@ async function createCommandRun(input) {
     runDirectory,
     outputDir: runArtifactsDir,
     commandPreview,
-    artifactCount: 1,
-    artifacts: [artifact],
+    executionMode: execution.kind === "script" ? "script" : "workflow",
+    artifactCount: 0,
+    artifacts: [],
   };
 
   await persistRunFiles({
@@ -859,6 +951,43 @@ async function createCommandRun(input) {
     prompt: input.prompt,
     run,
     runDirectory,
+  });
+
+  await appendRunEvent(runDirectory, {
+    type: "run.created",
+    data: {
+      commandPath: parsed.commandPath,
+      executionMode: run.executionMode,
+      prompt: input.prompt,
+    },
+  });
+
+  if (execution.kind !== "script") {
+    if (execution.kind === "workflow") {
+      void executeWorkflowRun({
+        execution,
+        run,
+        runDirectory,
+        workspace: input.workspace,
+      });
+      return run;
+    }
+
+    await appendRunEvent(runDirectory, {
+      type: "run.failed",
+      data: {
+        message: execution.reason,
+      },
+    });
+    return run;
+  }
+
+  void executeCommandRun({
+    execution,
+    prompt: input.prompt,
+    run,
+    runDirectory,
+    workspace: input.workspace,
   });
 
   return run;
@@ -907,11 +1036,7 @@ async function createPlannedRun(input) {
 
 async function persistRunFiles(input) {
   await fs.mkdir(input.runDirectory, { recursive: true });
-  await fs.writeFile(
-    path.join(input.runDirectory, "run.json"),
-    JSON.stringify(input.run, null, 2),
-    "utf8",
-  );
+  await writeRun(input.runDirectory, input.run);
   await fs.writeFile(
     path.join(input.runDirectory, "prompt.txt"),
     input.prompt ?? "",
@@ -924,39 +1049,315 @@ async function persistRunFiles(input) {
   );
   await fs.writeFile(path.join(input.runDirectory, "stdout.log"), "", "utf8");
   await fs.writeFile(path.join(input.runDirectory, "stderr.log"), "", "utf8");
+  await fs.writeFile(path.join(input.runDirectory, "events.jsonl"), "", "utf8");
 }
 
-async function createRunArtifact(input) {
-  await fs.mkdir(input.runArtifactsDir, { recursive: true });
-
-  const artifactId = `artifact-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const extension = artifactExtension(input.outputType);
-  const artifactPath = path.join(
-    input.runArtifactsDir,
-    `${artifactId}.${extension}`,
+async function writeRun(runDirectory, run) {
+  await fs.writeFile(
+    path.join(runDirectory, "run.json"),
+    JSON.stringify(run, null, 2),
+    "utf8",
   );
-  const content = artifactContent({
-    commandPath: input.commandPath,
-    outputType: input.outputType,
-    pluginId: input.pluginId,
-    prompt: input.prompt,
-    timestamp: input.timestamp,
-  });
+}
 
-  await fs.writeFile(artifactPath, content, "utf8");
+async function appendRunEvent(runDirectory, event) {
+  const record = {
+    id: `event-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: new Date().toISOString(),
+    ...event,
+  };
+
+  await fs.appendFile(
+    path.join(runDirectory, "events.jsonl"),
+    `${JSON.stringify(record)}\n`,
+    "utf8",
+  );
+
+  return record;
+}
+
+function resolveCommandExecution(input) {
+  if (!input.toolkitAvailable || !input.toolkitPath) {
+    return {
+      kind: "unsupported",
+      reason:
+        "The claude-grc-engineering toolkit is not configured. Update the runner configuration before running commands.",
+    };
+  }
+
+  if (input.parsed.commandPath === "/github-inspector:collect") {
+    return {
+      kind: "script",
+      cwd: input.toolkitPath,
+      runtime: process.execPath,
+      scriptPath: path.join(
+        input.toolkitPath,
+        "plugins",
+        "connectors",
+        "github-inspector",
+        "scripts",
+        "collect.js",
+      ),
+      args: input.parsed.argumentTokens,
+      commandPath: input.parsed.commandPath,
+      pluginId: input.parsed.pluginId,
+      commandId: input.parsed.commandId,
+      syncStrategy: "github-inspector-collect",
+    };
+  }
+
+  if (input.parsed.commandPath === "/grc-engineer:gap-assessment") {
+    const reportDir =
+      readOptionValue(input.parsed.argumentTokens, "--report-dir") ??
+      path.join(input.runArtifactsDir, "gap-assessment");
+
+    return {
+      kind: "script",
+      cwd: input.toolkitPath,
+      runtime: process.execPath,
+      scriptPath: path.join(
+        input.toolkitPath,
+        "plugins",
+        "grc-engineer",
+        "scripts",
+        "gap-assessment.js",
+      ),
+      args: ensureOption(
+        ensureOption(
+          input.parsed.argumentTokens,
+          "--cache-dir",
+          input.workspace.folders.findingsRaw,
+        ),
+        "--report-dir",
+        reportDir,
+      ),
+      commandPath: input.parsed.commandPath,
+      pluginId: input.parsed.pluginId,
+      commandId: input.parsed.commandId,
+      reportDir,
+      syncStrategy: "gap-assessment",
+    };
+  }
+
+  const workflowExecution = resolveWorkflowExecution(input.parsed);
+  if (workflowExecution) {
+    return workflowExecution;
+  }
 
   return {
-    id: artifactId,
-    runId: input.runId,
-    title: `${humanizeId(input.commandId)} Output`,
-    kind: input.outputType,
-    format: artifactFormat(input.outputType),
-    path: artifactPath,
-    createdAt: input.timestamp,
-    commandPath: input.commandPath,
-    pluginId: input.pluginId,
-    commandId: input.commandId,
+    kind: "unsupported",
+    reason:
+      "This milestone wires /github-inspector:collect, /grc-engineer:gap-assessment, and /grc-reporter:exec-summary.",
   };
+}
+
+async function executeCommandRun(input) {
+  const { execution, run, runDirectory, workspace } = input;
+  const stdoutLogPath = path.join(runDirectory, "stdout.log");
+  const stderrLogPath = path.join(runDirectory, "stderr.log");
+  const stdoutChunks = [];
+  const stderrChunks = [];
+  const streamWrites = [];
+  let finalized = false;
+
+  await appendRunEvent(runDirectory, {
+    type: "run.started",
+    data: {
+      commandPreview: run.commandPreview,
+      cwd: execution.cwd,
+    },
+  });
+  await appendRunEvent(runDirectory, {
+    type: "tool.started",
+    data: {
+      command: execution.runtime,
+      args: [execution.scriptPath, ...execution.args],
+      cwd: execution.cwd,
+    },
+  });
+
+  const child = spawn(
+    execution.runtime,
+    [execution.scriptPath, ...execution.args],
+    {
+      cwd: execution.cwd,
+      env: process.env,
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+
+  const forwardStreamChunk = (streamName, targetPath, chunks) => async (chunk) => {
+    const text = chunk.toString("utf8");
+    chunks.push(text);
+    await Promise.all([
+      fs.appendFile(targetPath, text, "utf8"),
+      appendRunEvent(runDirectory, {
+        type: streamName === "stdout" ? "tool.stdout" : "tool.stderr",
+        data: {
+          stream: streamName,
+          text,
+        },
+      }),
+    ]);
+  };
+
+  child.stdout.on("data", (chunk) => {
+    const write = forwardStreamChunk("stdout", stdoutLogPath, stdoutChunks)(chunk);
+    streamWrites.push(write);
+    void write.finally(() => {
+      const index = streamWrites.indexOf(write);
+      if (index >= 0) {
+        streamWrites.splice(index, 1);
+      }
+    });
+  });
+  child.stderr.on("data", (chunk) => {
+    const write = forwardStreamChunk("stderr", stderrLogPath, stderrChunks)(chunk);
+    streamWrites.push(write);
+    void write.finally(() => {
+      const index = streamWrites.indexOf(write);
+      if (index >= 0) {
+        streamWrites.splice(index, 1);
+      }
+    });
+  });
+
+  child.on("error", (error) => {
+    if (finalized) {
+      return;
+    }
+
+    finalized = true;
+    void Promise.allSettled(streamWrites).then(() =>
+      finalizeCommandRun({
+        errorMessage: error.message,
+        execution,
+        exitCode: null,
+        run,
+        runDirectory,
+        status: "failed",
+        stdoutText: stdoutChunks.join(""),
+        stderrText: stderrChunks.join(""),
+        workspace,
+      }),
+    );
+  });
+
+  child.on("close", (exitCode) => {
+    if (finalized) {
+      return;
+    }
+
+    finalized = true;
+    void Promise.allSettled(streamWrites).then(() =>
+      finalizeCommandRun({
+        execution,
+        exitCode,
+        run,
+        runDirectory,
+        status: classifyRunStatus(execution, exitCode),
+        stdoutText: stdoutChunks.join(""),
+        stderrText: stderrChunks.join(""),
+        workspace,
+      }),
+    );
+  });
+}
+
+async function executeWorkflowRun(input) {
+  return workflowRuntime.executeWorkflowRun(input);
+}
+
+async function finalizeCommandRun(input) {
+  const completionTime = new Date().toISOString();
+  const nextRun = {
+    ...input.run,
+    status: input.status,
+    completedAt: completionTime,
+  };
+
+  const artifacts =
+    input.status === "completed"
+      ? await collectRunArtifacts({
+          commandPath: input.run.commandPath,
+          commandId: input.run.commandId,
+          execution: input.execution,
+          runId: input.run.id,
+          stdoutText: input.stdoutText,
+          workspace: input.workspace,
+        })
+      : [];
+
+  nextRun.artifacts = artifacts;
+  nextRun.artifactCount = artifacts.length;
+
+  await appendRunEvent(input.runDirectory, {
+    type: "tool.completed",
+    data: {
+      exitCode: input.exitCode,
+      status: input.status,
+    },
+  });
+
+  for (const artifact of artifacts) {
+    await appendRunEvent(input.runDirectory, {
+      type: "artifact.created",
+      data: {
+        artifactId: artifact.id,
+        title: artifact.title,
+        kind: artifact.kind,
+        format: artifact.format,
+        path: artifact.path,
+      },
+    });
+  }
+
+  if (input.status === "completed") {
+    await appendRunEvent(input.runDirectory, {
+      type: "run.completed",
+      data: {
+        artifactCount: artifacts.length,
+        exitCode: input.exitCode,
+      },
+    });
+  } else {
+    await appendRunEvent(input.runDirectory, {
+      type: "run.failed",
+      data: {
+        exitCode: input.exitCode,
+        message:
+          input.errorMessage ??
+          summarizeFailure(input.stderrText) ??
+          "The command failed before producing tracked artifacts.",
+      },
+    });
+  }
+
+  await writeRun(input.runDirectory, nextRun);
+}
+
+async function respondToWorkflowRun(input) {
+  return workflowRuntime.respondToWorkflowRun(input);
+}
+
+function classifyRunStatus(execution, exitCode) {
+  if (execution.syncStrategy === "github-inspector-collect") {
+    return exitCode === 0 || exitCode === 4 ? "completed" : "failed";
+  }
+
+  return exitCode === 0 ? "completed" : "failed";
+}
+
+async function collectRunArtifacts(input) {
+  if (input.execution.syncStrategy === "github-inspector-collect") {
+    return collectGithubInspectorArtifacts(input);
+  }
+
+  if (input.execution.syncStrategy === "gap-assessment") {
+    return collectGapAssessmentArtifacts(input);
+  }
+
+  return [];
 }
 
 function buildGapAssessmentCommand(input) {
@@ -975,28 +1376,81 @@ function buildGapAssessmentCommand(input) {
 }
 
 function buildCommandPreview(input) {
-  if (input.toolkitAvailable && input.toolkitPath) {
-    return `cd ${JSON.stringify(input.toolkitPath)} && claude ${JSON.stringify(input.prompt)}`;
+  if (input.execution?.kind === "script") {
+    const args = [input.execution.scriptPath, ...input.execution.args]
+      .map((value) => JSON.stringify(value))
+      .join(" ");
+
+    return `cd ${JSON.stringify(input.execution.cwd)} && ${JSON.stringify(input.execution.runtime)} ${args}`;
   }
 
   return input.prompt;
 }
 
 function parsePrompt(prompt) {
-  const trimmed = prompt.trim();
-  const match = trimmed.match(
+  const tokens = tokenizePrompt(prompt);
+  const commandToken = tokens[0];
+  const match = commandToken?.match(
     /^\/(?<pluginId>[a-z0-9-]+):(?<commandId>[a-z0-9-]+)/i,
   );
 
-  if (!match?.groups) {
+  if (!match?.groups || !commandToken) {
     return null;
   }
 
   return {
-    commandPath: `/${match.groups.pluginId}:${match.groups.commandId}`,
+    commandPath: commandToken,
+    argumentTokens: tokens.slice(1),
     pluginId: match.groups.pluginId,
     commandId: match.groups.commandId,
   };
+}
+
+function tokenizePrompt(prompt) {
+  const tokens = [];
+  let current = "";
+  let quote = null;
+
+  for (let index = 0; index < prompt.length; index += 1) {
+    const char = prompt[index];
+
+    if (quote) {
+      if (char === "\\" && index + 1 < prompt.length) {
+        current += prompt[index + 1];
+        index += 1;
+        continue;
+      }
+
+      if (char === quote) {
+        quote = null;
+        continue;
+      }
+
+      current += char;
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+
+    if (/\s/u.test(char)) {
+      if (current.length > 0) {
+        tokens.push(current);
+        current = "";
+      }
+      continue;
+    }
+
+    current += char;
+  }
+
+  if (current.length > 0) {
+    tokens.push(current);
+  }
+
+  return tokens;
 }
 
 function artifactExtension(outputType) {
@@ -1023,45 +1477,184 @@ function artifactFormat(outputType) {
   return "markdown";
 }
 
-function artifactContent(input) {
-  if (input.outputType === "score") {
-    return JSON.stringify(
-      {
-        commandPath: input.commandPath,
-        createdAt: input.timestamp,
-        pluginId: input.pluginId,
-        prompt: input.prompt,
-        status: "recorded",
-      },
-      null,
-      2,
-    );
+async function collectGithubInspectorArtifacts(input) {
+  const connectorId = "github-inspector";
+  const cachePath =
+    parseCollectorCachePath(input.stdoutText) ??
+    (await findLatestJsonFile(
+      path.join(roots.cacheRoot, "findings", connectorId),
+    ));
+
+  if (!cachePath) {
+    return [];
   }
 
-  if (input.outputType === "code") {
-    return [
-      `# ${input.commandPath}`,
-      "",
-      "This file was generated by the Studio runner artifact index.",
-      "Real CLI execution is not wired yet; this is a tracked output placeholder.",
-      "",
-      `Prompt: ${input.prompt}`,
-      `Recorded: ${input.timestamp}`,
-    ].join("\n");
-  }
+  const destinationPath = path.join(
+    input.workspace.folders.findingsRawConnectors[connectorId],
+    path.basename(cachePath),
+  );
+  await fs.mkdir(path.dirname(destinationPath), { recursive: true });
+  await fs.copyFile(cachePath, destinationPath);
 
   return [
-    `# ${input.commandPath}`,
-    "",
-    `Recorded at ${input.timestamp}.`,
-    "",
-    "This artifact was created by the Studio runner so the output can be tracked in Artifacts and Runner history.",
-    "Real CLI execution is not wired yet; this file represents the saved output surface for this run.",
-    "",
-    "## Prompt",
-    "",
-    `\`${input.prompt}\``,
-  ].join("\n");
+    createArtifactSummary({
+      commandId: input.commandId,
+      commandPath: input.commandPath,
+      createdAt: new Date().toISOString(),
+      format: "json",
+      kind: "findings",
+      path: destinationPath,
+      pluginId: connectorId,
+      runId: input.runId,
+      title: "GitHub Findings Cache",
+    }),
+  ];
+}
+
+async function collectGapAssessmentArtifacts(input) {
+  const reportDir = input.execution.reportDir;
+  if (!(await pathExists(reportDir))) {
+    return [];
+  }
+
+  const entries = await fs.readdir(reportDir, { withFileTypes: true });
+  const files = entries
+    .filter((entry) => entry.isFile())
+    .map((entry) => path.join(reportDir, entry.name))
+    .sort((left, right) => left.localeCompare(right));
+
+  return files.map((filePath) =>
+    createArtifactSummary({
+      commandId: input.commandId,
+      commandPath: input.commandPath,
+      createdAt: new Date().toISOString(),
+      format: detectArtifactFormat(filePath),
+      kind: inferGapAssessmentArtifactKind(filePath),
+      path: filePath,
+      pluginId: input.execution.pluginId,
+      runId: input.runId,
+      title: humanizeArtifactTitle(filePath),
+    }),
+  );
+}
+
+function createArtifactSummary(input) {
+  return {
+    id: `artifact-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    runId: input.runId,
+    title: input.title,
+    kind: input.kind,
+    format: input.format,
+    path: input.path,
+    createdAt: input.createdAt,
+    commandPath: input.commandPath,
+    pluginId: input.pluginId,
+    commandId: input.commandId,
+  };
+}
+
+function detectArtifactFormat(filePath) {
+  const extension = path.extname(filePath).toLowerCase();
+  const baseName = path.basename(filePath).toLowerCase();
+
+  if (
+    extension === ".json" ||
+    extension === ".sarif" ||
+    baseName.endsWith(".oscal-ar")
+  ) {
+    return "json";
+  }
+
+  if (extension === ".txt" || extension === ".log") {
+    return "text";
+  }
+
+  return "markdown";
+}
+
+function inferGapAssessmentArtifactKind(filePath) {
+  const baseName = path.basename(filePath).toLowerCase();
+  if (baseName.includes("normalized")) {
+    return "score";
+  }
+
+  return "report";
+}
+
+function humanizeArtifactTitle(filePath) {
+  const baseName = path.basename(filePath).toLowerCase();
+  if (baseName === "findings.normalized.json") {
+    return "Normalized Findings";
+  }
+
+  if (baseName.startsWith("gap-report.")) {
+    return "Gap Assessment Report";
+  }
+
+  return humanizeId(path.basename(filePath, path.extname(filePath)));
+}
+
+function ensureOption(tokens, flag, value) {
+  const existing = readOptionValue(tokens, flag);
+  if (existing !== null) {
+    return tokens;
+  }
+
+  return [...tokens, `${flag}=${value}`];
+}
+
+function readOptionValue(tokens, flag) {
+  for (const token of tokens) {
+    if (token === flag) {
+      return "";
+    }
+
+    if (token.startsWith(`${flag}=`)) {
+      return token.slice(flag.length + 1);
+    }
+  }
+
+  return null;
+}
+
+function parseCollectorCachePath(stdoutText) {
+  try {
+    const parsed = JSON.parse(stdoutText);
+    return typeof parsed.cache_path === "string" ? parsed.cache_path : null;
+  } catch {
+    return null;
+  }
+}
+
+async function findLatestJsonFile(targetDirectory) {
+  try {
+    const entries = await fs.readdir(targetDirectory, { withFileTypes: true });
+    const files = await Promise.all(
+      entries
+        .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+        .map(async (entry) => {
+          const targetPath = path.join(targetDirectory, entry.name);
+          const stats = await fs.stat(targetPath);
+          return {
+            path: targetPath,
+            modifiedAt: stats.mtimeMs,
+          };
+        }),
+    );
+
+    return files.sort((left, right) => right.modifiedAt - left.modifiedAt)[0]?.path ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function summarizeFailure(stderrText) {
+  const lines = String(stderrText ?? "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  return lines[0] ?? null;
 }
 
 async function pathExists(targetPath) {

@@ -14,11 +14,15 @@ function statusTone(status: RunnerRun["status"]) {
 }
 
 export function RunnerHistoryPanel({
+  onSelectRun,
   onSelectArtifact,
   runs,
+  selectedRunId,
 }: {
+  onSelectRun: (runId: string) => void;
   onSelectArtifact: (artifactId: string) => void;
   runs: RunnerRun[];
+  selectedRunId: string | null;
 }) {
   const { closeHistory, historyOpen } = usePluginPanel();
 
@@ -52,14 +56,22 @@ export function RunnerHistoryPanel({
                 <li key={run.id} className="border-b last:border-0">
                   <div className="px-4 py-3">
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-xs font-medium text-sidebar-foreground">
+                      <button
+                        onClick={() => onSelectRun(run.id)}
+                        className={cn(
+                          "min-w-0 flex-1 text-left transition-colors hover:text-sidebar-foreground",
+                          selectedRunId === run.id
+                            ? "text-sidebar-foreground"
+                            : "text-sidebar-foreground/75",
+                        )}
+                      >
+                        <p className="truncate text-xs font-medium">
                           {run.commandPath ?? run.id}
                         </p>
                         <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-sidebar-foreground/40">
                           {new Date(run.createdAt).toLocaleString()}
                         </p>
-                      </div>
+                      </button>
                       <span
                         className={cn(
                           "shrink-0 px-1.5 py-0.5 text-[10px] font-medium capitalize",
