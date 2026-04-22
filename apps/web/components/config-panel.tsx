@@ -264,45 +264,49 @@ export function ConfigPanel({
               {connectors.map((connector) => (
                 <li
                   key={connector.id}
-                  className="space-y-2 border border-sidebar-border px-3 py-2"
+                  className="overflow-hidden border border-sidebar-border"
                 >
-                  <div className="flex items-start gap-2">
-                    <span className="mt-0.5 flex shrink-0 items-center gap-2 text-xs">
-                      {CONNECTOR_ICONS[connector.id] ? (
-                        <img
-                          src={CONNECTOR_ICONS[connector.id]}
-                          alt=""
-                          className="size-3.5 object-contain"
-                        />
-                      ) : (
-                        <CloudArrowUpIcon className="size-3.5" />
+                  <div className="space-y-2 px-3 py-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-start gap-2">
+                        <span className="mt-0.5 flex shrink-0 items-center gap-2 text-xs">
+                          {CONNECTOR_ICONS[connector.id] ? (
+                            <img
+                              src={CONNECTOR_ICONS[connector.id]}
+                              alt=""
+                              className="size-3.5 object-contain"
+                            />
+                          ) : (
+                            <CloudArrowUpIcon className="size-3.5" />
+                          )}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-xs">{connector.label}</p>
+                        </div>
+                      </div>
+
+                      {connector.findingsCached > 0 && (
+                        <DatabaseIcon className="mt-0.5 size-3.5 shrink-0 text-sidebar-foreground/45" />
                       )}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate text-xs">{connector.label}</p>
-                      <span
-                        className={cn(
-                          "mt-1 inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.12em]",
-                          connector.configured
-                            ? "text-emerald-400"
-                            : "text-rose-400",
-                        )}
-                      >
-                        {connector.configured ? "Configured" : "Not configured"}
-                      </span>
+                    </div>
+
+                    <div className="space-y-1 text-[10px] leading-4 text-sidebar-foreground/35">
+                      <p className="break-all">Config: {connector.configPath}</p>
+                      <p className="break-all">Cache: {connector.cachePath}</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between text-[10px] text-sidebar-foreground/45">
-                    <span className="inline-flex items-center gap-1">
-                      <DatabaseIcon className="size-3.5" />
-                      {connector.findingsCached} cached
+                  <div className="border-t border-sidebar-border px-3 py-2">
+                    <span
+                      className={cn(
+                        "text-[10px] uppercase tracking-[0.12em]",
+                        connector.configured
+                          ? "text-emerald-400"
+                          : "text-rose-400",
+                      )}
+                    >
+                      {connector.configured ? "Configured" : "Not configured"}
                     </span>
-                  </div>
-
-                  <div className="space-y-1 text-[10px] leading-4 text-sidebar-foreground/35">
-                    <p className="break-all">Config: {connector.configPath}</p>
-                    <p className="break-all">Cache: {connector.cachePath}</p>
                   </div>
                 </li>
               ))}

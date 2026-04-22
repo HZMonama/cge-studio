@@ -120,6 +120,7 @@ export default function Page() {
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [selectedRunEvents, setSelectedRunEvents] = useState<RunnerRunEvent[]>([]);
   const [runEventsPending, setRunEventsPending] = useState(false);
+  const [runnerSurfaceCleared, setRunnerSurfaceCleared] = useState(false);
   const [artifacts, setArtifacts] = useState<RunnerArtifactSummary[]>([]);
   const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(
     null,
@@ -156,9 +157,9 @@ export default function Page() {
     workspaces.find((workspace) => workspace.id === activeWorkspaceId) ??
     null;
   const selectedRun =
-    runs.find((run) => run.id === selectedRunId) ??
-    runs[0] ??
-    null;
+    runnerSurfaceCleared
+      ? null
+      : (runs.find((run) => run.id === selectedRunId) ?? null);
   const selectedCommand = selectedCommandPath
     ? findCommandByPath(plugins, selectedCommandPath)
     : null;
@@ -287,6 +288,7 @@ export default function Page() {
       setRuns([]);
       setSelectedRunId(null);
       setSelectedRunEvents([]);
+      setRunnerSurfaceCleared(false);
       setArtifacts([]);
       setSelectedArtifactId(null);
       setSelectedArtifact(null);
@@ -307,7 +309,7 @@ export default function Page() {
       setSelectedRunId((current) =>
         current && nextRuns.some((run) => run.id === current)
           ? current
-          : (nextRuns[0]?.id ?? null),
+          : (runnerSurfaceCleared ? null : (nextRuns[0]?.id ?? null)),
       );
       setArtifacts(nextArtifacts);
       setSelectedArtifact(null);
@@ -322,7 +324,7 @@ export default function Page() {
   }, [activeWorkspaceId]);
 
   useEffect(() => {
-    if (!activeWorkspaceId || !selectedRunId) {
+    if (!activeWorkspaceId || !selectedRunId || runnerSurfaceCleared) {
       setSelectedRunEvents([]);
       setRunEventsPending(false);
       return;
@@ -341,7 +343,7 @@ export default function Page() {
     );
 
     return () => controller.abort();
-  }, [activeWorkspaceId, selectedRunId]);
+  }, [activeWorkspaceId, runnerSurfaceCleared, selectedRunId]);
 
   useEffect(() => {
     if (!activeWorkspaceId || !runs.some((run) => run.status === "running")) {
@@ -504,7 +506,7 @@ export default function Page() {
     setSelectedRunId((current) =>
       current && nextRuns.some((run) => run.id === current)
         ? current
-        : (nextRuns[0]?.id ?? null),
+        : (runnerSurfaceCleared ? null : (nextRuns[0]?.id ?? null)),
     );
     setArtifacts(nextArtifacts);
     setSelectedArtifact(null);
@@ -526,6 +528,7 @@ export default function Page() {
 
     try {
       run = await createRun(activeWorkspaceId, prompt);
+      setRunnerSurfaceCleared(false);
       setSelectedRunId(run?.id ?? null);
       setSelectedRunEvents([]);
       setActiveSection("chat");
@@ -742,6 +745,15 @@ export default function Page() {
             events={selectedRunEvents}
             focusToken={composerFocusToken}
             loadingEvents={runEventsPending}
+            onClearRunner={() => {
+              setRunnerSurfaceCleared(true);
+              setSelectedRunId(null);
+              setSelectedRunEvents([]);
+              setSelectedArtifactId(null);
+              setSelectedArtifact(null);
+              clearSelectedCommand();
+              setComposerPrompt("");
+            }}
             onClearSelectedCommand={clearSelectedCommand}
             onCommandFormChange={updateSelectedCommandForm}
             onOpenArtifact={(artifactId) => {
@@ -831,6 +843,7 @@ export default function Page() {
       />
       <RunnerHistoryPanel
         onSelectRun={(runId) => {
+          setRunnerSurfaceCleared(false);
           setSelectedRunId(runId);
           setActiveSection("chat");
         }}

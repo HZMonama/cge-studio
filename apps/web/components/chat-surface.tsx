@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import {
+  CaretDownIcon,
+  CaretUpIcon,
   ClockCounterClockwiseIcon,
   LightningIcon,
   XIcon,
@@ -250,6 +252,7 @@ export function ChatSurface({
   events,
   focusToken,
   loadingEvents,
+  onClearRunner,
   onClearSelectedCommand,
   onCommandFormChange,
   onOpenArtifact,
@@ -269,6 +272,7 @@ export function ChatSurface({
   events: RunnerRunEvent[];
   focusToken: number;
   loadingEvents: boolean;
+  onClearRunner: () => void;
   onClearSelectedCommand: () => void;
   onCommandFormChange: (values: CommandFormValues) => void;
   onOpenArtifact: (artifactId: string) => void;
@@ -286,6 +290,7 @@ export function ChatSurface({
 }) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [activeCommandIndex, setActiveCommandIndex] = React.useState(0);
+  const [composerCollapsed, setComposerCollapsed] = React.useState(false);
   const slashCommands = React.useMemo<SlashCommand[]>(
     () =>
       plugins.flatMap((plugin) =>
@@ -369,6 +374,11 @@ export function ChatSurface({
     onSelectCommand(path);
   }
 
+  function handleRun() {
+    onRun();
+    setComposerCollapsed(true);
+  }
+
   function handleComposerKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
     if (commandQuery.length === 0 || filteredCommands.length === 0) {
       return;
@@ -402,7 +412,7 @@ export function ChatSurface({
     <div className="relative flex flex-1 flex-col overflow-hidden bg-(--editor-bg)">
       {/* Scroll view */}
       <div className="flex-1 overflow-y-auto [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin]">
-        <div className="pt-14 pb-40">
+        <div className="pt-[5vh] pb-40">
           <RunnerTimeline
             events={events}
             loading={loadingEvents}
@@ -414,48 +424,68 @@ export function ChatSurface({
       </div>
 
       {/* Floating run bar */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 flex h-14 items-center justify-between gap-4 border-b border-border/70 bg-background/88 px-4 backdrop-blur">
-        {run ? (
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="truncate font-mono text-xs text-foreground">
-              {run.commandPath ?? run.prompt ?? run.id}
+      <div className="pointer-events-none absolute inset-x-0 top-0 flex h-[5vh] min-h-10 items-center justify-between gap-4 border-b border-border/70 bg-background/88 px-4 backdrop-blur">
+        <div className="flex min-w-0 items-center gap-2">
+          {run ? (
+            <>
+              <span className="truncate font-mono text-xs text-foreground">
+                {run.commandPath ?? run.prompt ?? run.id}
+              </span>
+              <span
+                className={cn(
+                  "shrink-0 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em]",
+                  run.status === "completed" && "bg-emerald-500/10 text-emerald-400",
+                  run.status === "failed" && "bg-rose-500/10 text-rose-400",
+                  run.status === "running" && "bg-sky-500/10 text-sky-400",
+                  run.status === "planned" && "bg-muted text-muted-foreground",
+                )}
+              >
+                {run.status}
+              </span>
+            </>
+          ) : null}
+        </div>
+        <div className="pointer-events-auto flex shrink-0 items-center gap-2">
+          <button
+            onClick={onClearRunner}
+            className="group flex h-8 items-center gap-2 border border-border/70 bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+          >
+            <XIcon className="size-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />
+            Clear
+          </button>
+          <button
+            onClick={onOpenHistory}
+            className="group flex h-8 items-center gap-2 border border-border/70 bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+          >
+            <span className="relative flex size-3.5 shrink-0 items-center justify-center">
+              <ClockCounterClockwiseIcon className="size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0" />
+              <ClockCounterClockwiseIcon
+                weight="fill"
+                className="absolute inset-0 size-3.5 opacity-0 transition-opacity group-hover:opacity-100 group-active:opacity-100"
+              />
             </span>
-            <span
-              className={cn(
-                "shrink-0 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em]",
-                run.status === "completed" && "bg-emerald-500/10 text-emerald-400",
-                run.status === "failed" && "bg-rose-500/10 text-rose-400",
-                run.status === "running" && "bg-sky-500/10 text-sky-400",
-                run.status === "planned" && "bg-muted text-muted-foreground",
-              )}
-            >
-              {run.status}
-            </span>
-          </div>
-        ) : (
-          <div />
-        )}
-        <button
-          onClick={onOpenHistory}
-          className="pointer-events-auto group flex shrink-0 h-8 items-center gap-2 border border-border/70 bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent"
-        >
-          <span className="relative flex size-3.5 shrink-0 items-center justify-center">
-            <ClockCounterClockwiseIcon className="size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0" />
-            <ClockCounterClockwiseIcon
-              weight="fill"
-              className="absolute inset-0 size-3.5 opacity-0 transition-opacity group-hover:opacity-100 group-active:opacity-100"
-            />
-          </span>
-          History
-        </button>
+            History
+          </button>
+        </div>
       </div>
 
       {/* Floating composer */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-6 pb-6 pt-12 [background:linear-gradient(to_top,var(--editor-bg)_60%,transparent)]">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-6 pb-6">
         <div className="pointer-events-auto w-full max-w-[80%]">
           <div className="border border-border/70 bg-background">
             {inlineFormActive && selectedCommand ? (
               <div className="flex items-center border-b border-border/70">
+                <button
+                  onClick={() => setComposerCollapsed((v) => !v)}
+                  className="flex h-11 shrink-0 items-center justify-center border-r border-border/70 px-3 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  aria-label={composerCollapsed ? "Expand composer" : "Collapse composer"}
+                >
+                  {composerCollapsed ? (
+                    <CaretUpIcon className="size-3.5" />
+                  ) : (
+                    <CaretDownIcon className="size-3.5" />
+                  )}
+                </button>
                 <button
                   onClick={onClearSelectedCommand}
                   className="flex h-11 shrink-0 items-center justify-center border-r border-border/70 px-3 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
@@ -472,7 +502,7 @@ export function ChatSurface({
                   className="h-11 w-full bg-transparent px-4 font-mono text-sm text-emerald-400 outline-none placeholder:text-muted-foreground/60 disabled:cursor-not-allowed disabled:text-emerald-400"
                 />
                 <button
-                  onClick={onRun}
+                  onClick={handleRun}
                   disabled={!canRun || runPending}
                   className={cn(
                     "group flex h-11 shrink-0 items-center gap-2 border-l border-border/70 px-4 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:text-muted-foreground/60",
@@ -503,7 +533,7 @@ export function ChatSurface({
                   className="h-11 w-full bg-transparent px-4 text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
                 />
                 <button
-                  onClick={onRun}
+                  onClick={handleRun}
                   disabled={!canRun || runPending}
                   className={cn(
                     "group flex h-11 shrink-0 items-center gap-2 border-l border-border/70 px-4 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:text-muted-foreground/60",
@@ -522,7 +552,7 @@ export function ChatSurface({
               </div>
             )}
 
-            {inlineFormActive && selectedForm && selectedCommand && (
+            {!composerCollapsed && inlineFormActive && selectedForm && selectedCommand && (
               <div className="max-h-[60vh] space-y-4 overflow-y-auto px-4 py-4 [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin]">
                 {selectedForm.fields.length === 0 ? (
                   <div className="border border-border/60 bg-muted/30 px-4 py-3">
@@ -553,7 +583,7 @@ export function ChatSurface({
               </div>
             )}
 
-            {!inlineFormActive && commandQuery.length > 0 && (
+            {!composerCollapsed && !inlineFormActive && commandQuery.length > 0 && (
               <div className="border-t border-border/70">
                 {filteredCommands.length > 0 ? (
                   <ul>
@@ -605,4 +635,3 @@ export function ChatSurface({
     </div>
   );
 }
-
