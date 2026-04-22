@@ -50,6 +50,7 @@
 
 :root {
   --row-h: 5vh;
+  --app-sidebar-w: 20vw;
   --editor-bg: oklch(0.918 0.013 95.2);
 
   --background: oklch(0.977 0.013 95.31);

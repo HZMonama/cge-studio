@@ -29,9 +29,9 @@ export function ConfigPanel() {
   return (
     <div className={cn(
       "shrink-0 overflow-hidden transition-[width] duration-200",
-      configOpen ? "w-72" : "w-0"
+      configOpen ? "w-[var(--app-sidebar-w)]" : "w-0"
     )}>
-      <div className="flex h-full w-72 flex-col border-l bg-sidebar text-sidebar-foreground">
+      <div className="flex h-full w-[var(--app-sidebar-w)] min-w-[var(--app-sidebar-w)] basis-[var(--app-sidebar-w)] flex-col border-l bg-sidebar text-sidebar-foreground">
         <div className="flex h-[calc(var(--row-h)*2)] shrink-0 items-start justify-between border-b pl-4 pr-2 pt-3">
           <div className="flex flex-col gap-1">
             <span className="text-sm font-medium">Configuration</span>
@@ -54,9 +54,12 @@ export function ConfigPanel() {
           </Section>
 
           <Section title="Connectors">
-            <ul className="space-y-1">
+            <ul className="space-y-2">
               {CONNECTORS.map((c) => (
-                <li key={c.id} className="flex items-center justify-between">
+                <li
+                  key={c.id}
+                  className="flex items-center justify-between border border-sidebar-border px-3 py-2"
+                >
                   <span className="flex items-center gap-2 text-xs">
                     <img src={c.icon} alt="" className="size-3.5 object-contain" />
                     {c.label}

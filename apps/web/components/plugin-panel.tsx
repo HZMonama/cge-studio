@@ -1,5 +1,6 @@
 "use client"
 
+import { type Command } from "@/lib/plugins"
 import { XIcon } from "@phosphor-icons/react"
 
 import { cn } from "@/lib/utils"
@@ -13,15 +14,19 @@ const OUTPUT_COLORS: Record<string, string> = {
   score:    "bg-purple-500/10 text-purple-400",
 }
 
-export function PluginPanel() {
+export function PluginPanel({
+  onSelectCommand,
+}: {
+  onSelectCommand?: (pluginId: string, command: Command) => void
+}) {
   const { selectedPlugin, setSelectedPlugin } = usePluginPanel()
 
   return (
     <div className={cn(
       "shrink-0 overflow-hidden transition-[width] duration-200",
-      selectedPlugin ? "w-72" : "w-0"
+      selectedPlugin ? "w-[var(--app-sidebar-w)]" : "w-0"
     )}>
-      <div className="flex h-full w-72 flex-col border-l bg-sidebar text-sidebar-foreground">
+      <div className="flex h-full w-[var(--app-sidebar-w)] min-w-[var(--app-sidebar-w)] basis-[var(--app-sidebar-w)] flex-col border-l bg-sidebar text-sidebar-foreground">
         <div className="flex h-[calc(var(--row-h)*2)] shrink-0 items-start justify-between border-b pl-4 pr-2 pt-3">
           <div className="flex min-w-0 flex-col gap-1">
             <span className="truncate text-sm font-medium">{selectedPlugin?.label}</span>
@@ -42,7 +47,10 @@ export function PluginPanel() {
         <ul className="flex-1 overflow-y-auto [scrollbar-color:var(--sidebar-border)_transparent] [scrollbar-width:thin]">
           {selectedPlugin?.commands.map((cmd) => (
             <li key={cmd.id} className="border-b last:border-0">
-              <button className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+              <button
+                onClick={() => selectedPlugin && onSelectCommand?.(selectedPlugin.id, cmd)}
+                className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              >
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium">{cmd.id}</p>
                   <p className="mt-0.5 text-xs text-sidebar-foreground/60">{cmd.description}</p>

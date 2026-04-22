@@ -1,0 +1,3 @@
+[submodule "cli/claude-grc-engineering"]
+	path = cli/claude-grc-engineering
+	url = https://github.com/ethanolivertroy/claude-grc-engineering.git

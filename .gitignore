@@ -9,4 +9,5 @@ coverage
 apps/web/.next
 apps/web/node_modules
 apps/runner/node_modules
+apps/runner/runner.config.local.json
 packages/*/node_modules

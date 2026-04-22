@@ -1,5 +1,16 @@
 export type Persona = "engineer" | "auditor" | "internal" | "tprm"
 
+export type PluginCategory =
+  | "persona"
+  | "framework"
+  | "connector"
+  | "reporting"
+  | "dashboard"
+  | "transform"
+  | "program"
+  | "meeting"
+  | "tool"
+
 export type OutputType = "report" | "code" | "document" | "status" | "score"
 
 export interface Command {
@@ -12,8 +23,15 @@ export interface Plugin {
   id: string
   label: string
   type: "hub" | "framework" | "connector" | "tool"
+  category?: PluginCategory
   personas: Persona[]
   commands: Command[]
+}
+
+export function getPluginCategory(plugin: Plugin): PluginCategory {
+  if (plugin.category) return plugin.category
+  if (plugin.type === "hub") return "persona"
+  return plugin.type
 }
 
 const ALL: Persona[] = ["engineer", "auditor", "internal", "tprm"]
@@ -413,3 +431,5 @@ export const PLUGINS: Plugin[] = [
     ],
   },
 ]
+
+export const FALLBACK_PLUGINS = PLUGINS

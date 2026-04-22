@@ -16,8 +16,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "cge-ui",
-  description: "Local-first UI scaffold for claude-grc-engineering.",
+  title: "cge-studio",
+  description: "Local UI for claude-grc-engineering cli.",
 };
 
 export default function RootLayout({

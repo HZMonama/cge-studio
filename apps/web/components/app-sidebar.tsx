@@ -3,6 +3,7 @@
 import * as React from "react"
 import {
   CloudIcon,
+  CheckIcon,
   FileTextIcon,
   FunnelIcon,
   GearSixIcon,
@@ -14,7 +15,8 @@ import {
 } from "@phosphor-icons/react"
 
 import { cn } from "@/lib/utils"
-import { PLUGINS, type Persona, type Plugin } from "@/lib/plugins"
+import { getPluginCategory, type Persona, type Plugin, type PluginCategory } from "@/lib/plugins"
+import { type RunnerArtifactSummary } from "@/lib/runner"
 import { usePluginPanel } from "@/stores/plugin-panel-store"
 
 import Grainient from "@/components/Grainient"
@@ -36,6 +38,8 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
+type SidebarSection = "chat" | "dashboards" | "findings" | "program" | "artifacts"
+
 const PERSONAS: { id: Persona; label: string }[] = [
   { id: "engineer", label: "Engineer" },
   { id: "auditor",  label: "Auditor" },
@@ -43,11 +47,50 @@ const PERSONAS: { id: Persona; label: string }[] = [
   { id: "tprm",     label: "TPRM" },
 ]
 
+const CATEGORIES: { id: PluginCategory; label: string }[] = [
+  { id: "persona",   label: "Personas" },
+  { id: "framework", label: "Frameworks" },
+  { id: "connector", label: "Connectors" },
+  { id: "reporting", label: "Reporting" },
+  { id: "dashboard", label: "Dashboards" },
+  { id: "transform", label: "Transforms" },
+  { id: "program",   label: "Programs" },
+  { id: "meeting",   label: "Meetings" },
+  { id: "tool",      label: "Tools" },
+]
+
 const BRAND_ICONS: Partial<Record<string, string>> = {
   "github-inspector": "/github_dark.svg",
   "okta-inspector":   "/okta_dark.png",
   "aws-inspector":    "/aws_dark.svg",
   "gcp-inspector":    "/google_cloud.svg",
+}
+
+const EMPTY_STATE_COPY: Record<Exclude<SidebarSection, "chat">, { title: string; description: string }> = {
+  dashboards: {
+    title: "No dashboards yet",
+    description: "Dashboard navigation will appear here once dashboard entities are available.",
+  },
+  findings: {
+    title: "No findings yet",
+    description: "Structured findings and remediation-linked issue navigation will appear here.",
+  },
+  program: {
+    title: "No program records yet",
+    description: "Program navigation will live here for risks, policies, vendors, and related entities.",
+  },
+  artifacts: {
+    title: "No artifacts yet",
+    description: "Generated reports, exports, and saved outputs will be listed here.",
+  },
+}
+
+const SEARCH_PLACEHOLDERS: Record<SidebarSection, string> = {
+  chat: "Search plugins...",
+  dashboards: "Search dashboards...",
+  findings: "Search findings...",
+  program: "Search program records...",
+  artifacts: "Search artifacts...",
 }
 
 function SidebarPhosphorIcon({
@@ -109,40 +152,110 @@ function PluginItem({ plugin }: { plugin: Plugin }) {
   )
 }
 
-export function AppSidebar(props: React.ComponentProps<"aside">) {
+function ArtifactItem({
+  artifact,
+  isSelected,
+  onSelect,
+}: {
+  artifact: RunnerArtifactSummary
+  isSelected: boolean
+  onSelect: (artifactId: string) => void
+}) {
+  return (
+    <SidebarMenuItem>
+      <button
+        onClick={() => onSelect(artifact.id)}
+        className={cn(
+          "group/artifact-item flex h-auto w-full items-start gap-2 overflow-hidden px-4 py-3 text-left text-xs outline-none transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2",
+          isSelected && "bg-sidebar-accent text-sidebar-accent-foreground"
+        )}
+      >
+        <SidebarPhosphorIcon
+          Icon={FileTextIcon}
+          filled={isSelected}
+          className="mt-0.5 size-4 group-hover/artifact-item:[&>svg:first-child]:opacity-0 group-hover/artifact-item:[&>svg:last-child]:opacity-100"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium">{artifact.title}</p>
+          <p className="mt-1 truncate text-[10px] uppercase tracking-[0.14em] text-sidebar-foreground/45">
+            {artifact.commandPath}
+          </p>
+        </div>
+      </button>
+    </SidebarMenuItem>
+  )
+}
+
+export function AppSidebar({
+  activeSection = "chat",
+  artifacts = [],
+  className,
+  focusSearchToken,
+  onSelectArtifact,
+  plugins,
+  selectedArtifactId,
+  ...props
+}: React.ComponentProps<"aside"> & {
+  activeSection?: SidebarSection
+  artifacts?: RunnerArtifactSummary[]
+  focusSearchToken?: number
+  onSelectArtifact?: (artifactId: string) => void
+  plugins: Plugin[]
+  selectedArtifactId?: string | null
+}) {
   const [query, setQuery] = React.useState("")
   const [activePersona, setActivePersona] = React.useState<Persona | null>(null)
+  const [activeCategories, setActiveCategories] = React.useState<PluginCategory[]>([])
   const searchRef = React.useRef<HTMLInputElement>(null)
   const { openConfig, configOpen } = usePluginPanel()
 
+  const activePersonaLabel = PERSONAS.find(persona => persona.id === activePersona)?.label
+  const filterLabel = activeCategories.length > 0
+    ? activeCategories.length === 1
+      ? CATEGORIES.find(category => category.id === activeCategories[0])?.label ?? "Filter"
+      : `${activeCategories.length} categories`
+    : activePersonaLabel ?? "All"
+
+  function toggleCategory(category: PluginCategory) {
+    setActiveCategories((prev) => (
+      prev.includes(category)
+        ? prev.filter(id => id !== category)
+        : [...prev, category]
+    ))
+  }
+
   React.useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
-        return
-      }
-
-      if (event.key.toLowerCase() !== "s") {
-        return
-      }
-
-      event.preventDefault()
-      searchRef.current?.focus()
-      searchRef.current?.select()
+    if (focusSearchToken == null) {
+      return
     }
 
-    window.addEventListener("keydown", onKeyDown)
-    return () => window.removeEventListener("keydown", onKeyDown)
-  }, [])
+    searchRef.current?.focus()
+    searchRef.current?.select()
+  }, [focusSearchToken])
 
-  const visible = PLUGINS.filter((p) => {
+  const visible = plugins.filter((p) => {
     const matchesPersona = !activePersona || p.personas.includes(activePersona)
+    const matchesCategory = activeCategories.length === 0 || activeCategories.includes(getPluginCategory(p))
     const matchesQuery = !query || p.id.includes(query.toLowerCase())
-    return matchesPersona && matchesQuery
+    return matchesPersona && matchesCategory && matchesQuery
+  })
+  const visibleArtifacts = artifacts.filter((artifact) => {
+    const normalizedQuery = query.trim().toLowerCase()
+    if (!normalizedQuery) {
+      return true
+    }
+
+    return artifact.title.toLowerCase().includes(normalizedQuery)
+      || artifact.commandPath.toLowerCase().includes(normalizedQuery)
+      || artifact.id.toLowerCase().includes(normalizedQuery)
   })
 
   return (
     <aside
-      className="flex h-svh w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground"
+      className={cn(
+        "flex h-svh w-[var(--app-sidebar-w)] min-w-[var(--app-sidebar-w)] basis-[var(--app-sidebar-w)] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground",
+        className
+      )}
       {...props}
     >
       <SidebarHeader className="relative gap-0 overflow-hidden">
@@ -185,7 +298,7 @@ export function AppSidebar(props: React.ComponentProps<"aside">) {
             ref={searchRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search plugins..."
+            placeholder={SEARCH_PLACEHOLDERS[activeSection]}
             className="min-w-0 flex-1 bg-transparent px-2 text-xs text-sidebar-foreground placeholder:text-sidebar-foreground/40 focus:outline-none"
           />
           {!query.trim() && (
@@ -193,71 +306,135 @@ export function AppSidebar(props: React.ComponentProps<"aside">) {
               Alt + S
             </Kbd>
           )}
-          <Popover>
-            <PopoverTrigger
-              className={cn(
-                "group/filter-trigger flex h-full items-center gap-1 border-l border-sidebar-border px-2 text-xs transition-colors hover:text-sidebar-foreground",
-                activePersona ? "text-sidebar-foreground" : "text-sidebar-foreground/50"
-              )}
-            >
-              <SidebarPhosphorIcon
-                Icon={FunnelIcon}
-                filled={Boolean(activePersona)}
-                className="size-3.5 group-hover/filter-trigger:[&>svg:first-child]:opacity-0 group-hover/filter-trigger:[&>svg:last-child]:opacity-100"
-              />
-              <span>{activePersona ?? "All"}</span>
-            </PopoverTrigger>
-            <PopoverPortal>
-              <PopoverPositioner side="bottom" align="end" sideOffset={4}>
-                <PopoverContent className="w-36">
-                  <ul>
-                    <li className="border-b">
-                      <button
-                        onClick={() => setActivePersona(null)}
-                        className={cn(
-                          "w-full px-3 py-2 text-left text-xs transition-colors hover:bg-accent",
-                          !activePersona && "font-medium"
-                        )}
-                      >
-                        All
-                      </button>
-                    </li>
-                    {PERSONAS.map((p) => (
-                      <li key={p.id} className="border-b last:border-0">
+          {activeSection === "chat" && (
+            <Popover>
+              <PopoverTrigger
+                className={cn(
+                  "group/filter-trigger flex h-full items-center gap-1 border-l border-sidebar-border px-2 text-xs transition-colors hover:text-sidebar-foreground",
+                  activePersona ? "text-sidebar-foreground" : "text-sidebar-foreground/50"
+                )}
+              >
+                <SidebarPhosphorIcon
+                  Icon={FunnelIcon}
+                  filled={Boolean(activePersona || activeCategories.length > 0)}
+                  className="size-3.5 group-hover/filter-trigger:[&>svg:first-child]:opacity-0 group-hover/filter-trigger:[&>svg:last-child]:opacity-100"
+                />
+                <span>{filterLabel}</span>
+              </PopoverTrigger>
+              <PopoverPortal>
+                <PopoverPositioner side="bottom" align="end" sideOffset={4}>
+                  <PopoverContent className="w-52">
+                    <ul>
+                      <li className="border-b">
                         <button
-                          onClick={() => setActivePersona(p.id)}
+                          onClick={() => {
+                            setActivePersona(null)
+                            setActiveCategories([])
+                          }}
                           className={cn(
-                            "w-full px-3 py-2 text-left text-xs transition-colors hover:bg-accent",
-                            activePersona === p.id && "font-medium"
+                            "flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs transition-colors hover:bg-accent",
+                            !activePersona && activeCategories.length === 0 && "font-medium"
                           )}
                         >
-                          {p.label}
+                          <span>All</span>
+                          {!activePersona && activeCategories.length === 0 && <CheckIcon className="size-3.5" weight="bold" />}
                         </button>
                       </li>
-                    ))}
-                  </ul>
-                </PopoverContent>
-              </PopoverPositioner>
-            </PopoverPortal>
-          </Popover>
+                      <li className="border-b px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-sidebar-foreground/45">
+                        Categories
+                      </li>
+                      {CATEGORIES.map((category) => {
+                        const selected = activeCategories.includes(category.id)
+
+                        return (
+                          <li key={category.id} className="border-b last:border-0">
+                            <button
+                              onClick={() => toggleCategory(category.id)}
+                              className={cn(
+                                "flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs transition-colors hover:bg-accent",
+                                selected && "font-medium"
+                              )}
+                            >
+                              <span>{category.label}</span>
+                              {selected && <CheckIcon className="size-3.5" weight="bold" />}
+                            </button>
+                          </li>
+                        )
+                      })}
+                      <li className="border-b px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-sidebar-foreground/45">
+                        Persona
+                      </li>
+                      {PERSONAS.map((p) => (
+                        <li key={p.id} className="border-b last:border-0">
+                          <button
+                            onClick={() => setActivePersona(p.id)}
+                            className={cn(
+                              "flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs transition-colors hover:bg-accent",
+                              activePersona === p.id && "font-medium"
+                            )}
+                          >
+                            <span>{p.label}</span>
+                            {activePersona === p.id && <CheckIcon className="size-3.5" weight="bold" />}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </PopoverContent>
+                </PopoverPositioner>
+              </PopoverPortal>
+            </Popover>
+          )}
         </div>
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup className="p-0">
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {visible.map((plugin) => (
-                <PluginItem key={plugin.id} plugin={plugin} />
-              ))}
-              {visible.length === 0 && (
-                <li className="px-4 py-4 text-center text-xs text-sidebar-foreground/40">
-                  No plugins match
-                </li>
-              )}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {activeSection === "chat" ? (
+          <SidebarGroup className="p-0">
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {visible.map((plugin) => (
+                  <PluginItem key={plugin.id} plugin={plugin} />
+                ))}
+                {visible.length === 0 && (
+                  <li className="px-4 py-4 text-center text-xs text-sidebar-foreground/40">
+                    No plugins match
+                  </li>
+                )}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ) : activeSection === "artifacts" ? (
+          <SidebarGroup className="p-0">
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {visibleArtifacts.map((artifact) => (
+                  <ArtifactItem
+                    key={artifact.id}
+                    artifact={artifact}
+                    isSelected={selectedArtifactId === artifact.id}
+                    onSelect={(artifactId) => onSelectArtifact?.(artifactId)}
+                  />
+                ))}
+                {visibleArtifacts.length === 0 && (
+                  <li className="px-4 py-4 text-center text-xs text-sidebar-foreground/40">
+                    No artifacts match
+                  </li>
+                )}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ) : (
+          <div className="flex h-full items-center justify-center px-6 text-center">
+            <div className="max-w-44">
+              <p className="text-sm font-medium text-sidebar-foreground">
+                {EMPTY_STATE_COPY[activeSection].title}
+              </p>
+              <p className="mt-2 text-xs leading-5 text-sidebar-foreground/55">
+                {EMPTY_STATE_COPY[activeSection].description}
+              </p>
+            </div>
+          </div>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="p-0">
