@@ -567,49 +567,49 @@ export function ChatSurface({
       {/* Floating composer */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-6 pb-6">
         <div className="pointer-events-auto w-full max-w-[80%]">
-          <div className="border border-border/70 bg-background”>
-            <AnimatePresence initial={false} mode=”wait”>
+          <div className="border border-border/70 bg-background">
+            <AnimatePresence initial={false} mode="wait">
               {inlineFormActive && selectedCommand ? (
                 <motion.div
-                  key=”inline”
+                  key="inline"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.15 }}
                 >
-                  <div className={cn(“flex items-center border-b border-border/70”, composerToneClass)}>
+                  <div className={cn("flex items-center border-b border-border/70", composerToneClass)}>
                     <button
                       onClick={() => setComposerCollapsed((v) => !v)}
-                      className=”flex h-11 shrink-0 items-center justify-center border-r border-border/70 px-3 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground”
-                      aria-label={composerCollapsed ? “Expand composer” : “Collapse composer”}
+                      className="flex h-11 shrink-0 items-center justify-center border-r border-border/70 px-3 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                      aria-label={composerCollapsed ? "Expand composer" : "Collapse composer"}
                     >
                       <motion.span
                         animate={{ rotate: composerCollapsed ? 180 : 0 }}
                         transition={{ duration: 0.2 }}
-                        className=”flex items-center justify-center”
+                        className="flex items-center justify-center"
                       >
-                        <CaretDownIcon className=”size-3.5” />
+                        <CaretDownIcon className="size-3.5" />
                       </motion.span>
                     </button>
                     <button
                       onClick={onClearSelectedCommand}
-                      className=”flex h-11 shrink-0 items-center justify-center border-r border-border/70 px-3 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground”
-                      aria-label=”Clear selected command”
+                      className="flex h-11 shrink-0 items-center justify-center border-r border-border/70 px-3 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                      aria-label="Clear selected command"
                     >
-                      <XIcon className=”size-3.5” />
+                      <XIcon className="size-3.5" />
                     </button>
                     <input
                       ref={inputRef}
                       value={generatedPrompt}
                       readOnly
                       disabled
-                      placeholder=”Type / to choose a command”
-                      className=”h-11 w-full bg-transparent px-4 font-mono text-sm text-emerald-400 outline-none placeholder:text-muted-foreground/60 disabled:cursor-not-allowed disabled:text-emerald-400”
+                      placeholder="Type / to choose a command"
+                      className="h-11 w-full bg-transparent px-4 font-mono text-sm text-emerald-400 outline-none placeholder:text-muted-foreground/60 disabled:cursor-not-allowed disabled:text-emerald-400"
                     />
                     {selectedCommand.runnerSupport ? (
                       <span
                         className={cn(
-                          “mx-3 inline-flex h-6 shrink-0 items-center border px-2 text-[10px] font-medium uppercase tracking-[0.12em]”,
+                          "mx-3 inline-flex h-6 shrink-0 items-center border px-2 text-[10px] font-medium uppercase tracking-[0.12em]",
                           SUPPORT_TONES[selectedCommand.runnerSupport],
                         )}
                       >
@@ -620,34 +620,34 @@ export function ChatSurface({
                       onClick={handleRun}
                       disabled={!canRun || runPending}
                       className={cn(
-                        “group flex h-11 shrink-0 items-center gap-2 border-l border-border/70 px-4 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:text-muted-foreground/60”,
-                        runPending && “bg-accent”,
+                        "group flex h-11 shrink-0 items-center gap-2 border-l border-border/70 px-4 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:text-muted-foreground/60",
+                        runPending && "bg-accent",
                       )}
                     >
-                      <span className=”relative flex size-3.5 shrink-0 items-center justify-center”>
-                        <LightningIcon className=”size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0” />
+                      <span className="relative flex size-3.5 shrink-0 items-center justify-center">
+                        <LightningIcon className="size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0" />
                         <LightningIcon
-                          weight=”fill”
-                          className=”absolute inset-0 size-3.5 opacity-0 transition-opacity group-hover:opacity-100 group-active:opacity-100”
+                          weight="fill"
+                          className="absolute inset-0 size-3.5 opacity-0 transition-opacity group-hover:opacity-100 group-active:opacity-100"
                         />
                       </span>
-                      {runPending ? “Running” : “Run”}
+                      {runPending ? "Running" : "Run"}
                     </button>
                   </div>
                   {selectedCommand && !selectedCommandRunnable ? (
-                    <p className=”border-t border-border/60 px-4 py-2 text-xs text-amber-400”>
+                    <p className="border-t border-border/60 px-4 py-2 text-xs text-amber-400">
                       Runner execution is not implemented for this command yet.
                     </p>
                   ) : null}
                 </motion.div>
               ) : (
                 <motion.div
-                  key=”text”
+                  key="text"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.15 }}
-                  className={cn(“flex items-center”, composerToneClass)}
+                  className={cn("flex items-center", composerToneClass)}
                 >
                   <input
                     ref={inputRef}
@@ -657,32 +657,32 @@ export function ChatSurface({
                       setPrompt(event.target.value);
                     }}
                     onKeyDown={handleComposerKeyDown}
-                    placeholder=”Type / to choose a command”
-                    className=”h-11 w-full bg-transparent px-4 text-sm text-foreground outline-none placeholder:text-muted-foreground/60”
+                    placeholder="Type / to choose a command"
+                    className="h-11 w-full bg-transparent px-4 text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
                   />
                   <button
                     onClick={handleRun}
                     disabled={!canRun || runPending}
                     className={cn(
-                      “group flex h-11 shrink-0 items-center gap-2 border-l border-border/70 px-4 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:text-muted-foreground/60”,
-                      runPending && “bg-accent”,
+                      "group flex h-11 shrink-0 items-center gap-2 border-l border-border/70 px-4 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:text-muted-foreground/60",
+                      runPending && "bg-accent",
                     )}
                   >
-                    <span className=”relative flex size-3.5 shrink-0 items-center justify-center”>
-                      <LightningIcon className=”size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0” />
+                    <span className="relative flex size-3.5 shrink-0 items-center justify-center">
+                      <LightningIcon className="size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0" />
                       <LightningIcon
-                        weight=”fill”
-                        className=”absolute inset-0 size-3.5 opacity-0 transition-opacity group-hover:opacity-100 group-active:opacity-100”
+                        weight="fill"
+                        className="absolute inset-0 size-3.5 opacity-0 transition-opacity group-hover:opacity-100 group-active:opacity-100"
                       />
                     </span>
-                    {runPending ? “Running” : “Run”}
+                    {runPending ? "Running" : "Run"}
                   </button>
                 </motion.div>
               )}
             </AnimatePresence>
 
             {!inlineFormActive && typedCommand && !typedCommandRunnable ? (
-              <p className=”border-t border-border/60 px-4 py-2 text-xs text-amber-400”>
+              <p className="border-t border-border/60 px-4 py-2 text-xs text-amber-400">
                 Runner execution is not implemented for `{typedCommand.path}` yet.
               </p>
             ) : null}
@@ -690,22 +690,22 @@ export function ChatSurface({
             <AnimatePresence initial={false}>
               {!composerCollapsed && inlineFormActive && selectedForm && selectedCommand && (
                 <motion.div
-                  key=”form-body”
+                  key="form-body"
                   initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: “auto”, opacity: 1 }}
+                  animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
-                  style={{ overflow: “hidden” }}
+                  style={{ overflow: "hidden" }}
                 >
-                  <div className=”max-h-[60vh] space-y-4 overflow-y-auto px-4 py-4 [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin]”>
+                  <div className="max-h-[60vh] space-y-4 overflow-y-auto px-4 py-4 [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin]">
                     {selectedForm.fields.length === 0 ? (
-                      <div className=”border border-border/60 bg-muted/30 px-4 py-3”>
-                        <p className=”text-sm font-medium text-foreground”>
+                      <div className="border border-border/60 bg-muted/30 px-4 py-3">
+                        <p className="text-sm font-medium text-foreground">
                           No configuration required
                         </p>
-                        <p className=”mt-1 text-xs text-muted-foreground”>
+                        <p className="mt-1 text-xs text-muted-foreground">
                           This command does not need any additional inputs. Review
-                          the preview in the composer and press Run when you’re
+                          the preview in the composer and press Run when you're
                           ready.
                         </p>
                       </div>
@@ -732,38 +732,38 @@ export function ChatSurface({
             <AnimatePresence initial={false}>
               {!composerCollapsed && !inlineFormActive && commandQuery.length > 0 && (
                 <motion.div
-                  key=”search”
+                  key="search"
                   initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: “auto”, opacity: 1 }}
+                  animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-                  style={{ overflow: “hidden” }}
-                  className=”border-t border-border/70”
+                  style={{ overflow: "hidden" }}
+                  className="border-t border-border/70"
                 >
                   {filteredCommands.length > 0 ? (
                     <ul>
                       {filteredCommands.map((command, index) => (
                         <li
                           key={command.key}
-                          className=”border-b border-border/60 last:border-b-0”
+                          className="border-b border-border/60 last:border-b-0"
                         >
                           <button
                             onClick={() => applyCommand(command.path)}
                             onMouseEnter={() => setActiveCommandIndex(index)}
                             className={cn(
-                              “flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-accent”,
-                              index === activeCommandIndex && “bg-accent”,
+                              "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-accent",
+                              index === activeCommandIndex && "bg-accent",
                             )}
                           >
-                            <div className=”min-w-0 flex-1”>
-                              <span className=”text-xs font-medium text-foreground”>
+                            <div className="min-w-0 flex-1">
+                              <span className="text-xs font-medium text-foreground">
                                 {command.path}
                               </span>
-                              <div className=”mt-1 flex flex-wrap items-center gap-1.5”>
+                              <div className="mt-1 flex flex-wrap items-center gap-1.5">
                                 {command.runnerSupport ? (
                                   <span
                                     className={cn(
-                                      “inline-flex items-center border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em]”,
+                                      "inline-flex items-center border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em]",
                                       SUPPORT_TONES[command.runnerSupport],
                                     )}
                                   >
@@ -773,7 +773,7 @@ export function ChatSurface({
                                 {command.uiHint ? (
                                   <span
                                     className={cn(
-                                      “inline-flex items-center border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em]”,
+                                      "inline-flex items-center border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em]",
                                       UI_HINT_TONES[command.uiHint],
                                     )}
                                   >
@@ -781,11 +781,11 @@ export function ChatSurface({
                                   </span>
                                 ) : null}
                               </div>
-                              <p className=”mt-1 truncate text-xs text-muted-foreground”>
+                              <p className="mt-1 truncate text-xs text-muted-foreground">
                                 {command.description}
                               </p>
                             </div>
-                            <span className=”shrink-0 text-[10px] uppercase tracking-[0.14em] text-muted-foreground/60”>
+                            <span className="shrink-0 text-[10px] uppercase tracking-[0.14em] text-muted-foreground/60">
                               {command.pluginLabel}
                             </span>
                           </button>
@@ -793,8 +793,8 @@ export function ChatSurface({
                       ))}
                     </ul>
                   ) : (
-                    <div className=”px-4 py-3 text-xs text-muted-foreground”>
-                      No commands match “{commandQuery}”.
+                    <div className="px-4 py-3 text-xs text-muted-foreground">
+                      No commands match "{commandQuery}".
                     </div>
                   )}
                 </motion.div>

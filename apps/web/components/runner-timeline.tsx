@@ -28,18 +28,17 @@ function getTimelineItemId(item: TimelineItem) {
   return item.kind === "stream" ? `stream:${item.id}` : item.event.id;
 }
 
-function getActiveTimelineItemId(items: TimelineItem[], run: RunnerRun | null) {
-  if (!run || (run.status !== "planned" && run.status !== "running")) {
-    return null;
-  }
-
-  const latestItem = items[items.length - 1];
-  return latestItem ? getTimelineItemId(latestItem) : null;
-}
-
 function isCommandItem(item: TimelineItem) {
   if (item.kind === "stream") return true;
   return item.event.type.startsWith("run.") || item.event.type.startsWith("tool.");
+}
+
+function isArtifactTimelineItem(item: TimelineItem) {
+  return item.kind === "event" && item.event.type === "artifact.created";
+}
+
+function isCollapsibleTimelineItem(item: TimelineItem) {
+  return isCommandItem(item) || isArtifactTimelineItem(item);
 }
 
 function timelineItemLabel(item: TimelineItem) {
@@ -81,10 +80,6 @@ function defaultCollapsedForItem(item: TimelineItem) {
 function isDangerTimelineItem(item: TimelineItem) {
   return (item.kind === "stream" && item.stream === "stderr")
     || (item.kind === "event" && item.event.type === "run.failed");
-}
-
-function isQueuedTimelineItem(item: TimelineItem) {
-  return item.kind === "event" && item.event.type === "run.created";
 }
 
 function coerceString(value: unknown) {
@@ -181,14 +176,13 @@ function EventBody({
     const artifactId = coerceString(event.data.artifactId);
     return (
       <div>
-        <p className="text-sm font-medium text-foreground">Artifact created</p>
         <button
           onClick={() => artifactId && onSelectArtifact(artifactId)}
-          className="mt-2 flex w-full items-center gap-3 border border-border/60 px-3 py-2 text-left transition-colors hover:bg-accent"
+          className="flex w-full items-center gap-3 border border-primary/25 bg-primary/6 px-3 py-2 text-left transition-colors hover:bg-primary/10"
         >
-          <FileTextIcon className="size-4 shrink-0 text-muted-foreground" />
+          <FileTextIcon className="size-4 shrink-0 text-primary" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-foreground">
+            <p className="truncate text-sm font-medium text-primary">
               {coerceString(event.data.title)}
             </p>
             <p className="mt-1 truncate text-xs text-muted-foreground">
@@ -350,7 +344,6 @@ export function RunnerTimeline({
   }
 
   const items = toTimelineItems(events);
-  const activeItemId = getActiveTimelineItemId(items, run);
 
   return (
     <div>
@@ -371,96 +364,49 @@ export function RunnerTimeline({
         <div className="divide-y divide-border/60">
           {items.map((item) => {
             const itemId = getTimelineItemId(item);
-            const collapsible = isCommandItem(item);
+            const collapsible = isCollapsibleTimelineItem(item);
             const collapsed = collapsible
               ? (collapsedItems[itemId] ?? defaultCollapsedForItem(item))
               : false;
-            const active = itemId === activeItemId;
             const danger = isDangerTimelineItem(item);
-            const queued = active && isQueuedTimelineItem(item);
+            const artifactCreated = isArtifactTimelineItem(item);
             const headerClassName =
               cn(
                 "flex w-full items-center justify-between gap-3 text-xs uppercase tracking-[0.14em]",
                 danger ? "text-rose-400" : "text-muted-foreground",
               );
             const rowClassName = "px-6 py-4";
+            const iconContainerClassName = "relative inline-flex size-4 shrink-0 items-center justify-center overflow-hidden rounded-[0.2rem]";
+            const labelClassName = cn(
+              "truncate",
+              artifactCreated ? "text-primary" : null,
+            );
 
             const header = (
               <>
                 <span className="flex min-w-0 items-center gap-2">
                   {item.kind === "event" && item.event.type === "run.failed" ? (
-                    <span
-                      className={cn(
-                        "relative inline-flex size-4 shrink-0 items-center justify-center overflow-hidden rounded-[0.2rem]",
-                        queued
-                          ? "timeline-header-queued-icon-shiny"
-                          : active
-                              ? danger
-                                ? "timeline-header-active-icon-danger"
-                                : "timeline-header-active-icon"
-                              : null,
-                      )}
-                    >
+                    <span className={iconContainerClassName}>
                       <WarningCircleIcon className="size-4 shrink-0" />
                     </span>
+                  ) : artifactCreated ? (
+                    <span className={iconContainerClassName}>
+                      <FileTextIcon className="size-4 shrink-0 text-primary" />
+                    </span>
                   ) : isCommandItem(item) ? (
-                    <span
-                      className={cn(
-                        "relative inline-flex size-4 shrink-0 items-center justify-center overflow-hidden rounded-[0.2rem]",
-                        queued
-                          ? "timeline-header-queued-icon-shiny"
-                          : active
-                              ? danger
-                                ? "timeline-header-active-icon-danger"
-                                : "timeline-header-active-icon"
-                              : null,
-                      )}
-                    >
+                    <span className={iconContainerClassName}>
                       <CommandIcon className="size-4 shrink-0" />
                     </span>
                   ) : item.kind === "stream" ? (
-                    <span
-                      className={cn(
-                        "relative inline-flex size-4 shrink-0 items-center justify-center overflow-hidden rounded-[0.2rem]",
-                        queued
-                          ? "timeline-header-queued-icon-shiny"
-                          : active
-                              ? danger
-                                ? "timeline-header-active-icon-danger"
-                                : "timeline-header-active-icon"
-                              : null,
-                      )}
-                    >
+                    <span className={iconContainerClassName}>
                       <TerminalWindowIcon className="size-4 shrink-0" />
                     </span>
                   ) : (
-                    <span
-                      className={cn(
-                        "relative inline-flex size-4 shrink-0 items-center justify-center overflow-hidden rounded-[0.2rem]",
-                        queued
-                          ? "timeline-header-queued-icon-shiny"
-                          : active
-                              ? danger
-                                ? "timeline-header-active-icon-danger"
-                                : "timeline-header-active-icon"
-                              : null,
-                      )}
-                    >
+                    <span className={iconContainerClassName}>
                       <ClockCounterClockwiseIcon className="size-4 shrink-0" />
                     </span>
                   )}
-                  <span
-                    className={cn(
-                      "truncate",
-                      queued
-                        ? "timeline-header-queued-label-shiny"
-                        : active
-                            ? danger
-                              ? "timeline-header-active-label-danger"
-                              : "timeline-header-active-label"
-                            : null,
-                    )}
-                  >
+                  <span className={labelClassName}>
                     {timelineItemLabel(item)}
                   </span>
                 </span>

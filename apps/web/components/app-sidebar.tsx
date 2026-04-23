@@ -402,7 +402,7 @@ export function AppSidebar({
       )}
       {...props}
     >
-      <SidebarHeader className="relative gap-0 overflow-hidden">
+      <SidebarHeader className="relative shrink-0 gap-0 overflow-hidden">
         <div aria-hidden className="pointer-events-none absolute inset-0">
           <Grainient
             className="absolute inset-0 [&>canvas]:pointer-events-none"
@@ -427,7 +427,7 @@ export function AppSidebar({
           />
         </div>
 
-        <div className="relative z-10 flex h-(--row-h) items-center overflow-hidden px-4 text-lg font-semibold text-white">
+        <div className="relative z-10 flex h-(--row-h) min-h-(--row-h) max-h-(--row-h) shrink-0 items-center overflow-hidden px-4 text-lg font-semibold text-white">
           <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/20 via-black/10 to-transparent" />
 
           <div className="relative z-10 flex items-baseline gap-2 drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]">
@@ -441,7 +441,7 @@ export function AppSidebar({
           </div>
         </div>
 
-        <div className="group/search-row relative z-10 flex h-(--row-h) items-center border-y border-white/20 bg-sidebar/68 px-2 backdrop-blur-md">
+        <div className="group/search-row relative z-10 flex h-(--row-h) min-h-(--row-h) max-h-(--row-h) shrink-0 items-center overflow-hidden border-y border-white/20 bg-sidebar/68 px-2 backdrop-blur-md">
           <SidebarPhosphorIcon
             Icon={MagnifyingGlassIcon}
             className="size-3.5 text-sidebar-foreground/50 group-hover/search-row:[&>svg:first-child]:opacity-0 group-hover/search-row:[&>svg:last-child]:opacity-100 group-focus-within/search-row:[&>svg:first-child]:opacity-0 group-focus-within/search-row:[&>svg:last-child]:opacity-100"

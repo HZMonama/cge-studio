@@ -137,10 +137,7 @@ function getArtifactTabs(presentation: ArtifactPresentation): ArtifactTab[] {
   }
 
   if (presentation === "json") {
-    return [
-      { id: "structured", label: "Structured", Icon: TreeStructureIcon },
-      { id: "source", label: "Raw", Icon: BracketsCurlyIcon },
-    ]
+    return [{ id: "source", label: "Raw", Icon: BracketsCurlyIcon }]
   }
 
   return [{ id: "source", label: "Source", Icon: FileCodeIcon }]
@@ -149,7 +146,6 @@ function getArtifactTabs(presentation: ArtifactPresentation): ArtifactTab[] {
 function getDefaultTab(presentation: ArtifactPresentation): ArtifactTabId {
   if (presentation === "markdown") return "rendered"
   if (presentation === "sarif" || presentation === "oscal") return "overview"
-  if (presentation === "json") return "structured"
   return "source"
 }
 
@@ -260,25 +256,48 @@ function registerCustomMonacoLanguages(monaco: Monaco) {
 
 function getCssVarHex(varName: string): string {
   if (typeof window === "undefined") return "#000000"
+
   const el = document.createElement("div")
   el.style.backgroundColor = `var(${varName})`
   el.style.display = "none"
   document.body.appendChild(el)
   const computed = getComputedStyle(el).backgroundColor
   document.body.removeChild(el)
-  const match = computed.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/)
-  if (!match) return "#000000"
-  return `#${parseInt(match[1]).toString(16).padStart(2, "0")}${parseInt(match[2]).toString(16).padStart(2, "0")}${parseInt(match[3]).toString(16).padStart(2, "0")}`
+
+  const match = computed.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/)
+  if (match) {
+    const [, red, green, blue, alpha] = match
+    const alphaHex = alpha
+      ? Math.round(Number(alpha) * 255).toString(16).padStart(2, "0")
+      : ""
+
+    return `#${Number(red).toString(16).padStart(2, "0")}${Number(green).toString(16).padStart(2, "0")}${Number(blue).toString(16).padStart(2, "0")}${alphaHex}`
+  }
+
+  const canvas = document.createElement("canvas")
+  canvas.width = 1
+  canvas.height = 1
+  const context = canvas.getContext("2d", { willReadFrequently: true })
+
+  if (!context) return "#000000"
+
+  context.clearRect(0, 0, 1, 1)
+  context.fillStyle = computed
+  context.fillRect(0, 0, 1, 1)
+
+  const [red, green, blue, alpha] = context.getImageData(0, 0, 1, 1).data
+  const alphaHex = alpha < 255 ? alpha.toString(16).padStart(2, "0") : ""
+
+  return `#${red.toString(16).padStart(2, "0")}${green.toString(16).padStart(2, "0")}${blue.toString(16).padStart(2, "0")}${alphaHex}`
 }
 
-let appThemeDefined = false
-
 function defineAppTheme(monaco: Monaco) {
-  if (appThemeDefined) return
-  appThemeDefined = true
-  const bg = getCssVarHex("--background")
+  const root = document.documentElement
+  const isDark = root.classList.contains("dark")
+  const bg = getCssVarHex("--editor-bg")
+
   monaco.editor.defineTheme("app-dark", {
-    base: "vs-dark",
+    base: isDark ? "vs-dark" : "vs",
     inherit: true,
     rules: [],
     colors: {
@@ -287,6 +306,7 @@ function defineAppTheme(monaco: Monaco) {
       "minimap.background": bg,
     },
   })
+  monaco.editor.setTheme("app-dark")
 }
 
 function configureStructuredLanguageSupport(monaco: Monaco, artifact: RunnerArtifactDetail) {
@@ -690,7 +710,7 @@ export function ArtifactsSurface({
 
   if (loading) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-[var(--editor-bg)] p-8">
+      <div className="flex flex-1 items-center justify-center bg-(--editor-bg) p-8">
         <p className="text-sm text-muted-foreground">Loading artifact…</p>
       </div>
     )
@@ -698,7 +718,7 @@ export function ArtifactsSurface({
 
   if (!artifact) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-[var(--editor-bg)] p-8">
+      <div className="flex flex-1 items-center justify-center bg-(--editor-bg) p-8">
         <div className="max-w-md text-center">
           <h2 className="text-sm font-medium text-foreground">No artifact selected</h2>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -713,16 +733,18 @@ export function ArtifactsSurface({
   const supportsStructured = parsedContent !== null
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden bg-[var(--editor-bg)]">
+    <div className="flex flex-1 flex-col overflow-hidden bg-(--editor-bg)">
       <button
         className={cn(
-          "group border-b border-border/70 bg-background px-6 text-left transition-[min-height,padding] duration-200",
-          headerExpanded ? "py-4" : "min-h-[5vh] py-2.5",
+          "group border-b border-border/70 bg-background px-6 text-left transition-[height,padding] duration-200",
+          headerExpanded
+            ? "py-4"
+            : "h-(--row-h) min-h-(--row-h) max-h-(--row-h) overflow-hidden py-0",
         )}
         onClick={() => setHeaderExpanded((current) => !current)}
         type="button"
       >
-        <div className="flex items-start gap-4">
+        <div className={cn("flex gap-4", headerExpanded ? "items-start" : "h-full items-center")}>
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-3">
               <span className="relative size-4 shrink-0">

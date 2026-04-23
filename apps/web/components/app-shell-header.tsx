@@ -195,9 +195,9 @@ export function AppShellHeader({
   onRefreshSync: () => void;
 }) {
   return (
-    <header className="sticky top-0 z-20 flex h-(--row-h) shrink-0 items-end border-b border-border/70 bg-background/88 backdrop-blur">
+    <header className="sticky top-0 z-20 flex h-(--row-h) min-h-(--row-h) max-h-(--row-h) shrink-0 items-end overflow-hidden border-b border-border/70 bg-background/88 backdrop-blur">
       <div className="relative min-w-0 flex-1 self-stretch">
-        <div className="flex h-full items-end gap-1 overflow-x-auto overflow-y-hidden px-2 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex h-full min-h-0 items-end gap-1 overflow-x-auto overflow-y-hidden px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {sections.map((section) => (
             <button
               key={section.id}
