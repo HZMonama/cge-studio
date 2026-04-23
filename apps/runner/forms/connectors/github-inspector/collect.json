@@ -10,7 +10,6 @@
       "required": false,
       "flag": "--scope",
       "description": "Repository scope in the CLI format: `@me`, `org:<name>`, or `repo:<owner>/<name>`.",
-      "defaultValue": "@me",
       "placeholder": "@me | org:acme | repo:owner/repo"
     },
     {
@@ -29,7 +28,6 @@
       "required": false,
       "flag": "--concurrency",
       "description": "Parallel API calls to make during collection.",
-      "defaultValue": 4,
       "placeholder": "4"
     },
     {
@@ -64,13 +62,11 @@
     },
     "refresh": {
       "label": "Refresh cached findings",
-      "description": "Ignore cache and always re-query GitHub.",
-      "defaultValue": false
+      "description": "Ignore cache and always re-query GitHub."
     },
     "quiet": {
       "label": "Quiet output",
-      "description": "Suppress progress output to stderr.",
-      "defaultValue": false
+      "description": "Suppress progress output to stderr."
     }
   },
   "remove": [],

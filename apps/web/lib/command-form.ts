@@ -66,13 +66,26 @@ export function buildPromptFromCommandForm(
       continue;
     }
 
+    const serializedValues = Array.isArray(serialized)
+      ? serialized
+      : [serialized];
+
     if (field.position === "argument") {
-      argumentTokens.push(quoteIfNeeded(serialized));
+      argumentTokens.push(
+        ...serializedValues.map((serializedValue) =>
+          quoteIfNeeded(serializedValue),
+        ),
+      );
       continue;
     }
 
     if (field.flag) {
-      optionTokens.push(`${field.flag}=${quoteIfNeeded(serialized)}`);
+      optionTokens.push(
+        ...serializedValues.map(
+          (serializedValue) =>
+            `${field.flag}=${quoteIfNeeded(serializedValue)}`,
+        ),
+      );
     }
   }
 
@@ -186,7 +199,7 @@ function serializeFieldValue(
   field: CommandFormField,
   value: CommandFormValue,
   options?: BuildPromptOptions,
-): string | null {
+): string | string[] | null {
   if (field.type === "secret" && options?.redactSecrets) {
     if (typeof value !== "string") {
       return null;
@@ -203,6 +216,19 @@ function serializeFieldValue(
     const items = value.map((item) => String(item).trim()).filter(Boolean);
 
     return items.length > 0 ? items.join(",") : null;
+  }
+
+  if (field.type === "textarea" && field.repeatable) {
+    if (typeof value !== "string") {
+      return null;
+    }
+
+    const items = value
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    return items.length > 0 ? items : null;
   }
 
   if (field.type === "number") {
@@ -266,6 +292,22 @@ function isReadinessRuleSatisfied(
   rule: CommandFormReadinessRule,
   values: CommandFormValues,
 ): boolean {
+  const forbidAllSatisfied = (rule.forbidAll ?? []).every(
+    (fieldName) => !hasMeaningfulValue(values[fieldName]),
+  );
+
+  if (!forbidAllSatisfied) {
+    return false;
+  }
+
+  const forbidOneOf = rule.forbidOneOf ?? [];
+  if (
+    forbidOneOf.length > 0 &&
+    forbidOneOf.every((fieldName) => hasMeaningfulValue(values[fieldName]))
+  ) {
+    return false;
+  }
+
   const requireAllSatisfied = (rule.requireAll ?? []).every((fieldName) =>
     hasMeaningfulValue(values[fieldName]),
   );

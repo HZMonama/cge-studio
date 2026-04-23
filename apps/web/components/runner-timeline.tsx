@@ -1,7 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ClockCounterClockwiseIcon, FileTextIcon, TerminalWindowIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import {
+  CaretDownIcon,
+  ClockCounterClockwiseIcon,
+  CommandIcon,
+  FileTextIcon,
+  TerminalWindowIcon,
+  WarningCircleIcon,
+} from "@phosphor-icons/react";
 
 import { type RunnerRun, type RunnerRunEvent } from "@/lib/runner";
 import { cn } from "@/lib/utils";
@@ -16,6 +23,69 @@ function statusTone(status: RunnerRun["status"]) {
 type TimelineItem =
   | { kind: "event"; event: RunnerRunEvent }
   | { kind: "stream"; id: string; stream: "stdout" | "stderr"; createdAt: string; text: string };
+
+function getTimelineItemId(item: TimelineItem) {
+  return item.kind === "stream" ? `stream:${item.id}` : item.event.id;
+}
+
+function getActiveTimelineItemId(items: TimelineItem[], run: RunnerRun | null) {
+  if (!run || (run.status !== "planned" && run.status !== "running")) {
+    return null;
+  }
+
+  const latestItem = items[items.length - 1];
+  return latestItem ? getTimelineItemId(latestItem) : null;
+}
+
+function isCommandItem(item: TimelineItem) {
+  if (item.kind === "stream") return true;
+  return item.event.type.startsWith("run.") || item.event.type.startsWith("tool.");
+}
+
+function timelineItemLabel(item: TimelineItem) {
+  if (item.kind === "stream") return item.stream;
+
+  switch (item.event.type) {
+    case "run.created":
+      return "Run queued";
+    case "run.started":
+      return "Run started";
+    case "tool.started":
+      return "Tool started";
+    case "tool.completed":
+      return "Tool finished";
+    case "artifact.created":
+      return "Artifact created";
+    case "message":
+      return coerceString(item.event.data.role) === "user" ? "Input captured" : "Runner message";
+    case "prompt.required":
+      return coerceString(item.event.data.title) || "Additional input required";
+    case "run.completed":
+      return "Run completed";
+    case "run.failed":
+      return "Run failed";
+    default:
+      return item.event.type;
+  }
+}
+
+function defaultCollapsedForItem(item: TimelineItem) {
+  if (item.kind === "stream") return false;
+  if (item.event.type === "run.failed") return false;
+  if (item.event.type === "tool.completed" && Number(item.event.data.exitCode ?? 0) !== 0) {
+    return false;
+  }
+  return true;
+}
+
+function isDangerTimelineItem(item: TimelineItem) {
+  return (item.kind === "stream" && item.stream === "stderr")
+    || (item.kind === "event" && item.event.type === "run.failed");
+}
+
+function isQueuedTimelineItem(item: TimelineItem) {
+  return item.kind === "event" && item.event.type === "run.created";
+}
 
 function coerceString(value: unknown) {
   return typeof value === "string" ? value : "";
@@ -264,6 +334,8 @@ export function RunnerTimeline({
   onSelectArtifact: (artifactId: string) => void;
   run: RunnerRun | null;
 }) {
+  const [collapsedItems, setCollapsedItems] = useState<Record<string, boolean>>({});
+
   if (!run) {
     return (
       <div className="flex min-h-full items-center justify-center px-6 py-16">
@@ -278,6 +350,7 @@ export function RunnerTimeline({
   }
 
   const items = toTimelineItems(events);
+  const activeItemId = getActiveTimelineItemId(items, run);
 
   return (
     <div>
@@ -296,46 +369,186 @@ export function RunnerTimeline({
         </div>
       ) : (
         <div className="divide-y divide-border/60">
-          {items.map((item) =>
-            item.kind === "stream" ? (
-              <div key={item.id} className="px-6 py-4">
-                <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                  <TerminalWindowIcon className="size-3.5" />
-                  <span>{item.stream}</span>
-                  <span>{new Date(item.createdAt).toLocaleTimeString()}</span>
-                </div>
-                <pre
-                  className={cn(
-                    "mt-3 overflow-x-auto whitespace-pre-wrap break-words border px-3 py-2 text-xs leading-5",
-                    item.stream === "stderr"
-                      ? "border-rose-500/20 bg-rose-500/5 text-rose-200"
-                      : "border-border/60 bg-muted/20 text-foreground",
+          {items.map((item) => {
+            const itemId = getTimelineItemId(item);
+            const collapsible = isCommandItem(item);
+            const collapsed = collapsible
+              ? (collapsedItems[itemId] ?? defaultCollapsedForItem(item))
+              : false;
+            const active = itemId === activeItemId;
+            const danger = isDangerTimelineItem(item);
+            const queued = active && isQueuedTimelineItem(item);
+            const headerClassName =
+              cn(
+                "flex w-full items-center justify-between gap-3 text-xs uppercase tracking-[0.14em]",
+                danger ? "text-rose-400" : "text-muted-foreground",
+              );
+            const rowClassName = "px-6 py-4";
+
+            const header = (
+              <>
+                <span className="flex min-w-0 items-center gap-2">
+                  {item.kind === "event" && item.event.type === "run.failed" ? (
+                    <span
+                      className={cn(
+                        "relative inline-flex size-4 shrink-0 items-center justify-center overflow-hidden rounded-[0.2rem]",
+                        queued
+                          ? "timeline-header-queued-icon-shiny"
+                          : active
+                              ? danger
+                                ? "timeline-header-active-icon-danger"
+                                : "timeline-header-active-icon"
+                              : null,
+                      )}
+                    >
+                      <WarningCircleIcon className="size-4 shrink-0" />
+                    </span>
+                  ) : isCommandItem(item) ? (
+                    <span
+                      className={cn(
+                        "relative inline-flex size-4 shrink-0 items-center justify-center overflow-hidden rounded-[0.2rem]",
+                        queued
+                          ? "timeline-header-queued-icon-shiny"
+                          : active
+                              ? danger
+                                ? "timeline-header-active-icon-danger"
+                                : "timeline-header-active-icon"
+                              : null,
+                      )}
+                    >
+                      <CommandIcon className="size-4 shrink-0" />
+                    </span>
+                  ) : item.kind === "stream" ? (
+                    <span
+                      className={cn(
+                        "relative inline-flex size-4 shrink-0 items-center justify-center overflow-hidden rounded-[0.2rem]",
+                        queued
+                          ? "timeline-header-queued-icon-shiny"
+                          : active
+                              ? danger
+                                ? "timeline-header-active-icon-danger"
+                                : "timeline-header-active-icon"
+                              : null,
+                      )}
+                    >
+                      <TerminalWindowIcon className="size-4 shrink-0" />
+                    </span>
+                  ) : (
+                    <span
+                      className={cn(
+                        "relative inline-flex size-4 shrink-0 items-center justify-center overflow-hidden rounded-[0.2rem]",
+                        queued
+                          ? "timeline-header-queued-icon-shiny"
+                          : active
+                              ? danger
+                                ? "timeline-header-active-icon-danger"
+                                : "timeline-header-active-icon"
+                              : null,
+                      )}
+                    >
+                      <ClockCounterClockwiseIcon className="size-4 shrink-0" />
+                    </span>
                   )}
-                >
-                  {item.text}
-                </pre>
+                  <span
+                    className={cn(
+                      "truncate",
+                      queued
+                        ? "timeline-header-queued-label-shiny"
+                        : active
+                            ? danger
+                              ? "timeline-header-active-label-danger"
+                              : "timeline-header-active-label"
+                            : null,
+                    )}
+                  >
+                    {timelineItemLabel(item)}
+                  </span>
+                </span>
+                <span className="flex shrink-0 items-center gap-2">
+                  <span>
+                    {new Date(
+                      item.kind === "stream" ? item.createdAt : item.event.createdAt,
+                    ).toLocaleTimeString()}
+                  </span>
+                  {collapsible ? (
+                    <span className="flex size-4 items-center justify-center">
+                      <CaretDownIcon
+                        className={cn(
+                          "size-4 transition-all",
+                          collapsed
+                            ? "opacity-0 group-hover:opacity-100"
+                            : "rotate-180 opacity-70 group-hover:opacity-100",
+                        )}
+                      />
+                    </span>
+                  ) : null}
+                </span>
+              </>
+            );
+
+            return item.kind === "stream" ? (
+              <div key={itemId}>
+                {collapsible ? (
+                  <button
+                    type="button"
+                    aria-expanded={!collapsed}
+                    onClick={() =>
+                      setCollapsedItems((current) => ({
+                        ...current,
+                        [itemId]: !collapsed,
+                      }))
+                    }
+                    className={cn(rowClassName, headerClassName, "group text-left")}
+                  >
+                    {header}
+                  </button>
+                ) : (
+                  <div className={cn(rowClassName, headerClassName)}>{header}</div>
+                )}
+                {!collapsed ? (
+                  <pre
+                    className={cn(
+                      "mx-6 mb-4 overflow-x-auto whitespace-pre-wrap break-words border px-3 py-2 text-xs leading-5",
+                      item.stream === "stderr"
+                        ? "border-rose-500/20 bg-rose-500/5 text-rose-200"
+                        : "border-border/60 bg-muted/20 text-foreground",
+                    )}
+                  >
+                    {item.text}
+                  </pre>
+                ) : null}
               </div>
             ) : (
-              <div key={item.event.id} className="px-6 py-4">
-                <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                  {item.event.type === "run.failed" ? (
-                    <WarningCircleIcon className="size-3.5" />
-                  ) : (
-                    <ClockCounterClockwiseIcon className="size-3.5" />
-                  )}
-                  <span>{item.event.type}</span>
-                  <span>{new Date(item.event.createdAt).toLocaleTimeString()}</span>
-                </div>
-                <div className="mt-3">
-                  <EventBody
-                    event={item.event}
-                    onSelectArtifact={onSelectArtifact}
-                    onSubmitPrompt={onSubmitPrompt}
-                  />
-                </div>
+              <div key={itemId}>
+                {collapsible ? (
+                  <button
+                    type="button"
+                    aria-expanded={!collapsed}
+                    onClick={() =>
+                      setCollapsedItems((current) => ({
+                        ...current,
+                        [itemId]: !collapsed,
+                      }))
+                    }
+                    className={cn(rowClassName, headerClassName, "group text-left")}
+                  >
+                    {header}
+                  </button>
+                ) : (
+                  <div className={cn(rowClassName, headerClassName)}>{header}</div>
+                )}
+                {!collapsed ? (
+                  <div className="px-6 pb-4">
+                    <EventBody
+                      event={item.event}
+                      onSelectArtifact={onSelectArtifact}
+                      onSubmitPrompt={onSubmitPrompt}
+                    />
+                  </div>
+                ) : null}
               </div>
-            ),
-          )}
+            );
+          })}
         </div>
       )}
     </div>

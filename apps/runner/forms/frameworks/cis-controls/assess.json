@@ -32,8 +32,12 @@
     }
   ],
   "remove": [
-    "targetImplementationGroupRequiredIg1Ig2OrIg3",
-    "assessmentScopeOptionalFullGapAnalysisSpecificControl"
+    "targetImplementationGroup",
+    "targetImplementationGroupRequiredIg1Ig2OrIg3"
+  ],
+  "order": [
+    "implementationGroup",
+    "assessmentScope"
   ],
   "submitLabel": "Run CIS Assessment"
 }

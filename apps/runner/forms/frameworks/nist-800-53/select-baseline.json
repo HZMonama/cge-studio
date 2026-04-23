@@ -33,24 +33,11 @@
       ]
     }
   ],
-  "overrides": {
-    "reportDir": {
-      "label": "Output Directory",
-      "description": "Optional directory where the selected NIST baseline output should be written.",
-      "placeholder": "./nist-baseline-select"
-    },
-    "quiet": {
-      "label": "Quiet output",
-      "description": "Suppress progress output while selecting and tailoring the baseline.",
-      "defaultValue": false
-    }
-  },
+  "overrides": {},
   "remove": [],
   "order": [
     "impactLevel",
-    "systemType",
-    "reportDir",
-    "quiet"
+    "systemType"
   ],
   "submitLabel": "Select NIST Baseline"
 }

@@ -1,7 +1,5 @@
 {
   "mode": "inline",
-  "extends": "framework-assess",
-  "compose": [],
   "fields": [
     {
       "name": "assessmentScope",
@@ -31,34 +29,11 @@
       ]
     }
   ],
-  "overrides": {
-    "output": {
-      "label": "Output Format",
-      "description": "Choose the format for the generated SOC 2 readiness report.",
-      "defaultValue": "markdown",
-      "options": [
-        { "label": "Markdown", "value": "markdown" },
-        { "label": "JSON", "value": "json" }
-      ]
-    },
-    "reportDir": {
-      "label": "Report Directory",
-      "description": "Optional output directory for the SOC 2 assessment bundle.",
-      "placeholder": "./soc2-assessment"
-    },
-    "quiet": {
-      "label": "Quiet output",
-      "description": "Suppress progress output while the assessment runs.",
-      "defaultValue": false
-    }
-  },
+  "overrides": {},
   "remove": [],
   "order": [
     "assessmentScope",
-    "auditType",
-    "output",
-    "reportDir",
-    "quiet"
+    "auditType"
   ],
   "submitLabel": "Run SOC 2 Assessment"
 }

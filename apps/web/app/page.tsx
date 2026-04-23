@@ -18,6 +18,7 @@ import {
 import { ArtifactsSurface } from "@/components/artifacts-surface";
 import { ChatSurface } from "@/components/chat-surface";
 import { FindingsSurface } from "@/components/findings-surface";
+import { ProgramSurface } from "@/components/program-surface";
 import { ConfigPanel } from "@/components/config-panel";
 import { PluginPanel } from "@/components/plugin-panel";
 import { RunnerHistoryPanel } from "@/components/runner-history-panel";
@@ -51,6 +52,7 @@ import {
   fetchClaudeCodeStatus,
   fetchFindingDetail,
   fetchFindings,
+  fetchProgram,
   fetchRunnerConfig,
   fetchPluginRegistry,
   fetchRunnerHealth,
@@ -73,6 +75,7 @@ import {
   type RunnerRun,
   type RunnerRunEvent,
   type RunnerWorkspace,
+  type ProgramSummary,
 } from "@/lib/runner";
 import { usePluginPanel } from "@/stores/plugin-panel-store";
 
@@ -105,13 +108,14 @@ type AppModalState =
 
 const HEADER_SECTIONS: AppHeaderSection[] = [
   { id: "chat", label: "Runner", Icon: LightningIcon },
-  { id: "dashboards", label: "Dashboards", Icon: ChartBarIcon },
+  { id: "dashboards", label: "Dashboards", Icon: ChartBarIcon, disabled: true },
   { id: "findings", label: "Findings", Icon: MagnifyingGlassIcon },
   { id: "program", label: "Program", Icon: FolderNotchOpenIcon },
   { id: "artifacts", label: "Artifacts", Icon: FilesIcon },
 ];
 
 const ACTIVE_WORKSPACE_STORAGE_KEY = "cge.active-workspace-id";
+const ACTIVE_SECTION_STORAGE_KEY = "cge.active-section";
 
 export default function Page() {
   const { openHistory } = usePluginPanel();
@@ -136,6 +140,8 @@ export default function Page() {
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
   const [selectedFinding, setSelectedFinding] = useState<RunnerFindingDetail | null>(null);
   const [findingLoading, setFindingLoading] = useState(false);
+  const [program, setProgram] = useState<ProgramSummary | null>(null);
+  const [programLoading, setProgramLoading] = useState(false);
   const [runPending, setRunPending] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("fallback");
   const [syncPending, setSyncPending] = useState(true);
@@ -198,6 +204,11 @@ export default function Page() {
 
     if (storedWorkspaceId) {
       setActiveWorkspaceId(storedWorkspaceId);
+    }
+
+    const storedSection = window.localStorage.getItem(ACTIVE_SECTION_STORAGE_KEY);
+    if (storedSection) {
+      setActiveSection(storedSection as AppSection);
     }
   }, []);
 
@@ -293,6 +304,10 @@ export default function Page() {
   }, [activeWorkspaceId]);
 
   useEffect(() => {
+    window.localStorage.setItem(ACTIVE_SECTION_STORAGE_KEY, activeSection);
+  }, [activeSection]);
+
+  useEffect(() => {
     if (!activeWorkspaceId) {
       setRuns([]);
       setSelectedRunId(null);
@@ -304,6 +319,7 @@ export default function Page() {
       setFindings([]);
       setSelectedFindingId(null);
       setSelectedFinding(null);
+      setProgram(null);
       return;
     }
 
@@ -313,7 +329,8 @@ export default function Page() {
       fetchRuns(activeWorkspaceId, controller.signal),
       fetchArtifacts(activeWorkspaceId, controller.signal),
       fetchFindings(activeWorkspaceId, controller.signal),
-    ]).then(([nextRuns, nextArtifacts, nextFindings]) => {
+      fetchProgram(activeWorkspaceId, controller.signal),
+    ]).then(([nextRuns, nextArtifacts, nextFindings, nextProgram]) => {
       if (controller.signal.aborted) {
         return;
       }
@@ -337,6 +354,7 @@ export default function Page() {
           ? current
           : (nextFindings[0]?.id ?? null),
       );
+      setProgram(nextProgram);
     });
 
     return () => controller.abort();
@@ -538,13 +556,16 @@ export default function Page() {
       setFindings([]);
       setSelectedFindingId(null);
       setSelectedFinding(null);
+      setProgram(null);
       return;
     }
 
-    const [nextRuns, nextArtifacts, nextFindings] = await Promise.all([
+    const [nextRuns, nextArtifacts, nextFindings, nextProgram, nextConnectors] = await Promise.all([
       fetchRuns(workspaceId),
       fetchArtifacts(workspaceId),
       fetchFindings(workspaceId),
+      fetchProgram(workspaceId),
+      fetchConnectors(),
     ]);
 
     setRuns(nextRuns);
@@ -566,6 +587,8 @@ export default function Page() {
         ? current
         : (nextFindings[0]?.id ?? null),
     );
+    setProgram(nextProgram);
+    setConnectors(nextConnectors);
   }
 
   async function runComposerCommand() {
@@ -593,6 +616,10 @@ export default function Page() {
       setSelectedRunId(run?.id ?? null);
       setSelectedRunEvents([]);
       setActiveSection("chat");
+      if (run !== null) {
+        clearSelectedCommand();
+        setComposerPrompt("");
+      }
       await refreshRunnerData(activeWorkspaceId);
     } finally {
       setRunPending(false);
@@ -829,7 +856,7 @@ export default function Page() {
               setActiveSection("artifacts");
             }}
             onOpenHistory={openHistory}
-            onSubmitPrompt={async (_promptId, answers) => {
+            onSubmitPrompt={async (promptId, answers) => {
               if (!activeWorkspaceId || !selectedRunId) {
                 return;
               }
@@ -837,6 +864,7 @@ export default function Page() {
               const updated = await respondToRunPrompt(
                 activeWorkspaceId,
                 selectedRunId,
+                promptId,
                 answers,
               );
 
@@ -880,9 +908,9 @@ export default function Page() {
             loading={findingLoading && selectedFindingId !== null}
           />
         ) : activeSection === "program" ? (
-          <SectionSurface
-            title="Program"
-            description="Program state, risks, and operational records will live here as a dedicated interface."
+          <ProgramSurface
+            program={program}
+            loading={programLoading}
           />
         ) : (
           <ArtifactsSurface

@@ -26,7 +26,8 @@
   ],
   "remove": [
     "assessmentScopeOptionalIsmsAnnexaSpecificControl",
-    "controlDomainOptionalForAnnexAAssessment"
+    "controlDomainOptionalForAnnexAAssessment",
+    "controlDomainOptionalForAnnexAAssessment)"
   ],
   "submitLabel": "Run ISO 27001 Assessment"
 }

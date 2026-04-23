@@ -18,10 +18,8 @@
       "type": "select",
       "required": false,
       "position": "argument",
-      "description": "Optional cloud provider override.",
-      "defaultValue": "auto-detect",
+      "description": "Optional cloud provider override. Omit to use the current CLI default.",
       "options": [
-        { "label": "Auto-detect", "value": "auto-detect" },
         { "label": "AWS", "value": "aws" },
         { "label": "Azure", "value": "azure" },
         { "label": "GCP", "value": "gcp" },
@@ -29,18 +27,47 @@
       ]
     },
     {
-      "name": "option",
-      "label": "Option",
-      "type": "text",
+      "name": "output",
+      "label": "Output Format",
+      "type": "select",
       "required": false,
-      "position": "argument",
-      "description": "Optional raw option such as --verbose, --fix-failures, or --output=json."
+      "flag": "--output",
+      "description": "Optional output format override.",
+      "options": [
+        { "label": "Text", "value": "text" },
+        { "label": "JSON", "value": "json" }
+      ]
+    },
+    {
+      "name": "verbose",
+      "label": "Verbose Output",
+      "type": "boolean",
+      "required": false,
+      "flag": "--verbose",
+      "description": "Enable verbose output.",
+      "defaultValue": false
+    },
+    {
+      "name": "fixFailures",
+      "label": "Fix Failures",
+      "type": "boolean",
+      "required": false,
+      "flag": "--fix-failures",
+      "description": "Attempt to fix failures automatically.",
+      "defaultValue": false
     }
   ],
   "remove": [
     "controlIDOrNameEGAccessControlAccountManagementAC2EncryptionAtRest)",
     "cloudProviderOptionalAwsAzureGcpKubernetesDefaultAutoDetect)",
     "optionsOptionalVerboseFixFailuresOutputJson`"
+  ],
+  "order": [
+    "controlId",
+    "cloudProvider",
+    "output",
+    "verbose",
+    "fixFailures"
   ],
   "submitLabel": "Run Test Control"
 }

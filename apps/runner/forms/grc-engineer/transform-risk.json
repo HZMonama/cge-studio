@@ -18,8 +18,7 @@
       "type": "text",
       "required": false,
       "position": "argument",
-      "description": "Optional Jira project key.",
-      "defaultValue": "SEC",
+      "description": "Optional Jira project key. Omit to use the configured CLI default.",
       "placeholder": "SEC"
     }
   ],

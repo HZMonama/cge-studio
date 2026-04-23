@@ -33,26 +33,11 @@
       ]
     }
   ],
-  "overrides": {
-    "reportDir": {
-      "label": "Output Directory",
-      "description": "Optional directory where the tailored FedRAMP baseline output should be written.",
-      "placeholder": "./fedramp-baseline"
-    },
-    "quiet": {
-      "label": "Quiet output",
-      "description": "Suppress progress output while selecting and tailoring the baseline.",
-      "defaultValue": false
-    }
-  },
-  "remove": [
-    "output"
-  ],
+  "overrides": {},
+  "remove": [],
   "order": [
     "impactLevel",
-    "systemType",
-    "reportDir",
-    "quiet"
+    "systemType"
   ],
   "submitLabel": "Select FedRAMP Baseline"
 }

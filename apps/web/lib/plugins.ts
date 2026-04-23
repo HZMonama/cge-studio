@@ -12,6 +12,25 @@ export type PluginCategory =
   | "tool";
 
 export type OutputType = "report" | "code" | "document" | "status" | "score";
+export type CommandUiHint =
+  | "analysis"
+  | "assessment"
+  | "checklist"
+  | "mapping"
+  | "plan"
+  | "policy"
+  | "config"
+  | "status"
+  | "code"
+  | "score"
+  | "report"
+  | "document";
+export type CommandExecutionMode =
+  | "script"
+  | "workflow"
+  | "agent"
+  | "unsupported";
+export type CommandRunnerSupport = "ready" | "planned";
 
 export interface CommandFormOption {
   label: string;
@@ -20,6 +39,7 @@ export interface CommandFormOption {
 
 export type CommandFormFieldType =
   | "text"
+  | "textarea"
   | "select"
   | "multiselect"
   | "boolean"
@@ -36,8 +56,9 @@ export interface CommandFormField {
   flag?: string;
   description?: string;
   placeholder?: string;
-  defaultValue?: string | string[] | boolean | null;
+  defaultValue?: string | string[] | number | boolean | null;
   options?: CommandFormOption[];
+  repeatable?: boolean;
 }
 
 export interface CommandFormReadinessCondition {
@@ -51,6 +72,8 @@ export interface CommandFormReadinessRule {
   when: CommandFormReadinessCondition;
   requireAll?: string[];
   requireOneOf?: string[];
+  forbidAll?: string[];
+  forbidOneOf?: string[];
 }
 
 export interface CommandFormSchema {
@@ -64,7 +87,10 @@ export interface CommandFormSchema {
 export interface Command {
   id: string;
   description: string;
-  executionMode?: "script" | "workflow";
+  executionMode?: CommandExecutionMode;
+  intendedExecutionMode?: Exclude<CommandExecutionMode, "unsupported">;
+  runnerSupport?: CommandRunnerSupport;
+  uiHint?: CommandUiHint;
   output?: OutputType;
   form?: CommandFormSchema | null;
 }
@@ -791,7 +817,7 @@ const NIST_BASELINE_SELECT_FORM: CommandFormSchema = {
 export const PLUGINS: Plugin[] = [
   {
     id: "aws-inspector",
-    label: "aws-inspector",
+    label: "AWS Inspector",
     type: "connector",
     personas: ["engineer"],
     commands: [
@@ -817,7 +843,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "cis-controls",
-    label: "cis-controls",
+    label: "CIS Controls",
     type: "framework",
     personas: ALL,
     commands: [
@@ -851,7 +877,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "cmmc",
-    label: "cmmc",
+    label: "CMMC",
     type: "framework",
     personas: ALL,
     commands: [
@@ -884,7 +910,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "csa-ccm",
-    label: "csa-ccm",
+    label: "CSA CCM",
     type: "framework",
     personas: ALL,
     commands: [
@@ -918,7 +944,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "dora",
-    label: "dora",
+    label: "DORA",
     type: "framework",
     personas: ALL,
     commands: [
@@ -951,7 +977,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "essential8",
-    label: "essential8",
+    label: "Essential Eight",
     type: "framework",
     personas: ALL,
     commands: [
@@ -984,7 +1010,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "fedramp-20x",
-    label: "fedramp-20x",
+    label: "FedRAMP 20x",
     type: "framework",
     personas: ["engineer", "auditor", "internal"],
     commands: [
@@ -1012,7 +1038,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "fedramp-rev5",
-    label: "fedramp-rev5",
+    label: "FedRAMP Rev 5",
     type: "framework",
     personas: ["engineer", "auditor", "internal"],
     commands: [
@@ -1041,7 +1067,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "fedramp-ssp",
-    label: "fedramp-ssp",
+    label: "FedRAMP SSP",
     type: "tool",
     personas: ["engineer", "auditor"],
     commands: [
@@ -1059,7 +1085,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "gcp-inspector",
-    label: "gcp-inspector",
+    label: "GCP Inspector",
     type: "connector",
     personas: ["engineer"],
     commands: [
@@ -1083,7 +1109,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "gdpr",
-    label: "gdpr",
+    label: "GDPR",
     type: "framework",
     personas: ALL,
     commands: [
@@ -1116,7 +1142,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "github-inspector",
-    label: "github-inspector",
+    label: "GitHub Inspector",
     type: "connector",
     personas: ["engineer"],
     commands: [
@@ -1140,7 +1166,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "glba",
-    label: "glba",
+    label: "GLBA",
     type: "framework",
     personas: ALL,
     commands: [
@@ -1173,7 +1199,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "grc-auditor",
-    label: "grc-auditor",
+    label: "GRC Auditor",
     type: "hub",
     personas: ["auditor"],
     commands: [
@@ -1196,7 +1222,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "grc-engineer",
-    label: "grc-engineer",
+    label: "GRC Engineer",
     type: "hub",
     personas: ["engineer"],
     commands: [
@@ -1359,7 +1385,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "grc-internal",
-    label: "grc-internal",
+    label: "GRC Internal",
     type: "hub",
     personas: ["internal"],
     commands: [
@@ -1382,7 +1408,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "grc-tprm",
-    label: "grc-tprm",
+    label: "GRC TPRM",
     type: "hub",
     personas: ["tprm"],
     commands: [
@@ -1405,7 +1431,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "hitrust",
-    label: "hitrust",
+    label: "HITRUST",
     type: "framework",
     personas: ALL,
     commands: [
@@ -1434,7 +1460,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "irap",
-    label: "irap",
+    label: "IRAP",
     type: "framework",
     personas: ALL,
     commands: [
@@ -1462,7 +1488,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "ismap",
-    label: "ismap",
+    label: "ISMAP",
     type: "framework",
     personas: ALL,
     commands: [
@@ -1490,7 +1516,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "iso27001",
-    label: "iso27001",
+    label: "ISO 27001",
     type: "framework",
     personas: ALL,
     commands: [
@@ -1533,7 +1559,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "nist-800-53",
-    label: "nist-800-53",
+    label: "NIST 800-53",
     type: "framework",
     personas: ALL,
     commands: [
@@ -1577,7 +1603,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "nydfs",
-    label: "nydfs",
+    label: "NYDFS",
     type: "framework",
     personas: ALL,
     commands: [
@@ -1610,7 +1636,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "okta-inspector",
-    label: "okta-inspector",
+    label: "Okta Inspector",
     type: "connector",
     personas: ["engineer"],
     commands: [
@@ -1633,7 +1659,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "oscal",
-    label: "oscal",
+    label: "OSCAL",
     type: "tool",
     personas: ["engineer", "auditor"],
     commands: [
@@ -1656,7 +1682,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "pbmm",
-    label: "pbmm",
+    label: "PBMM",
     type: "framework",
     personas: ALL,
     commands: [
@@ -1684,7 +1710,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "pci-dss",
-    label: "pci-dss",
+    label: "PCI DSS",
     type: "framework",
     personas: ALL,
     commands: [
@@ -1717,7 +1743,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "singapore-pdpa",
-    label: "singapore-pdpa",
+    label: "Singapore PDPA",
     type: "framework",
     personas: ALL,
     commands: [
@@ -1740,7 +1766,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "soc2",
-    label: "soc2",
+    label: "SOC 2",
     type: "framework",
     personas: ALL,
     commands: [
@@ -1785,7 +1811,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "stateramp",
-    label: "stateramp",
+    label: "StateRAMP",
     type: "framework",
     personas: ALL,
     commands: [
@@ -1818,7 +1844,7 @@ export const PLUGINS: Plugin[] = [
   },
   {
     id: "us-export",
-    label: "us-export",
+    label: "US Export",
     type: "framework",
     personas: ALL,
     commands: [

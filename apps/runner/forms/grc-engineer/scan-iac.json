@@ -17,17 +17,11 @@
     {
       "name": "frameworks",
       "label": "Frameworks",
-      "type": "multiselect",
+      "type": "text",
       "required": true,
       "position": "argument",
-      "description": "Frameworks to scan against.",
-      "options": [
-        { "label": "SOC 2", "value": "SOC2" },
-        { "label": "PCI DSS", "value": "PCI-DSS" },
-        { "label": "NIST", "value": "NIST" },
-        { "label": "ISO", "value": "ISO" },
-        { "label": "GDPR", "value": "GDPR" }
-      ]
+      "description": "Comma-separated framework codes to scan against.",
+      "placeholder": "SOC2,PCI-DSS,NIST"
     },
     {
       "name": "outputFormat",
@@ -35,8 +29,7 @@
       "type": "select",
       "required": false,
       "position": "argument",
-      "description": "Scan output format.",
-      "defaultValue": "detailed",
+      "description": "Scan output format. Omit to use the CLI default.",
       "options": [
         { "label": "Detailed", "value": "detailed" },
         { "label": "Summary", "value": "summary" },
@@ -45,12 +38,22 @@
       ]
     },
     {
-      "name": "option",
-      "label": "Option",
+      "name": "fix",
+      "label": "Auto-fix",
+      "type": "boolean",
+      "required": false,
+      "flag": "--fix",
+      "description": "Apply the script's `--fix` option when available.",
+      "defaultValue": false
+    },
+    {
+      "name": "severity",
+      "label": "Severity Filter",
       "type": "text",
       "required": false,
-      "position": "argument",
-      "description": "Optional raw option such as --fix, --severity=high, or --exclude=test/."
+      "flag": "--severity",
+      "description": "Optional severity filter, for example `high`.",
+      "placeholder": "high"
     }
   ],
   "remove": [
@@ -58,6 +61,13 @@
     "commaSeparatedFrameworksEGSOC2PCIDSSNIST)",
     "outputFormatOptionalDetailedSummaryJsonSarifDefaultDetailed)",
     "optionsOptionalFixSeverityHighExcludeTest`"
+  ],
+  "order": [
+    "directory",
+    "frameworks",
+    "outputFormat",
+    "fix",
+    "severity"
   ],
   "submitLabel": "Run Scan IaC"
 }

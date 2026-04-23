@@ -9,8 +9,7 @@
   "overrides": {
     "output": {
       "label": "Output Mode",
-      "description": "Choose how connector results should be emitted: summary text, JSON, or no stdout output.",
-      "defaultValue": "summary",
+      "description": "Choose how connector results should be emitted when you want to override the CLI default output mode.",
       "options": [
         { "label": "Summary", "value": "summary" },
         { "label": "JSON", "value": "json" },

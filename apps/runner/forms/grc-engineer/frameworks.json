@@ -60,8 +60,7 @@
       "type": "select",
       "required": false,
       "flag": "--format",
-      "description": "Choose how framework discovery results should be rendered.",
-      "defaultValue": "text",
+      "description": "Choose how framework discovery results should be rendered when you want to override the CLI default.",
       "options": [
         { "label": "Text", "value": "text" },
         { "label": "JSON", "value": "json" },

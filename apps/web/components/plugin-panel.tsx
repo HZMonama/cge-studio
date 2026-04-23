@@ -6,12 +6,24 @@ import { XIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { usePluginPanel } from "@/stores/plugin-panel-store";
 
-const OUTPUT_COLORS: Record<string, string> = {
-  report: "bg-blue-500/10 text-blue-400",
-  code: "bg-green-500/10 text-green-400",
-  document: "bg-amber-500/10 text-amber-400",
+const UI_HINT_COLORS: Record<string, string> = {
+  analysis: "bg-cyan-500/10 text-cyan-400",
+  assessment: "bg-blue-500/10 text-blue-400",
+  checklist: "bg-teal-500/10 text-teal-400",
+  mapping: "bg-indigo-500/10 text-indigo-400",
+  plan: "bg-orange-500/10 text-orange-400",
+  policy: "bg-fuchsia-500/10 text-fuchsia-400",
+  config: "bg-yellow-500/10 text-yellow-400",
   status: "bg-muted text-muted-foreground",
+  code: "bg-green-500/10 text-green-400",
   score: "bg-purple-500/10 text-purple-400",
+  report: "bg-sky-500/10 text-sky-400",
+  document: "bg-amber-500/10 text-amber-400",
+};
+
+const SUPPORT_COLORS: Record<string, string> = {
+  ready: "bg-emerald-500/10 text-emerald-400",
+  planned: "bg-pink-500/10 text-pink-400",
 };
 
 export function PluginPanel({
@@ -20,6 +32,13 @@ export function PluginPanel({
   onSelectCommand?: (pluginId: string, command: Command) => void;
 }) {
   const { selectedPlugin, setSelectedPlugin } = usePluginPanel();
+  const readyCount =
+    selectedPlugin?.commands.filter((command) => command.runnerSupport === "ready")
+      .length ?? 0;
+  const plannedCount =
+    selectedPlugin?.commands.filter(
+      (command) => command.runnerSupport === "planned",
+    ).length ?? 0;
 
   return (
     <div
@@ -29,20 +48,40 @@ export function PluginPanel({
       )}
     >
       <div className="flex h-full min-h-0 w-[var(--app-sidebar-w)] min-w-[var(--app-sidebar-w)] basis-[var(--app-sidebar-w)] flex-col border-l bg-sidebar text-sidebar-foreground">
-        <div className="flex h-[calc(var(--row-h)*2)] shrink-0 items-start justify-between border-b pl-4 pr-2 pt-3">
-          <div className="flex min-w-0 flex-col gap-1">
+        <div className="flex h-[calc(var(--row-h)*2)] shrink-0 items-center justify-between border-b px-4">
+          <div className="flex min-w-0 flex-col gap-0">
             <span className="truncate text-sm font-medium">
               {selectedPlugin?.label}
             </span>
             {selectedPlugin && (
-              <span className="text-xs text-sidebar-foreground/50 capitalize">
-                {selectedPlugin.type}
-              </span>
+              <>
+                <span className="text-xs text-sidebar-foreground/50 capitalize">
+                  {selectedPlugin.type}
+                </span>
+                <div className="flex flex-wrap items-center gap-1.5 self-start pt-1">
+                  <span
+                    className={cn(
+                      "inline-flex h-6 items-center px-2 text-[10px] font-medium uppercase tracking-[0.12em]",
+                      SUPPORT_COLORS.ready,
+                    )}
+                  >
+                    {readyCount} ready
+                  </span>
+                  <span
+                    className={cn(
+                      "inline-flex h-6 items-center px-2 text-[10px] font-medium uppercase tracking-[0.12em]",
+                      SUPPORT_COLORS.planned,
+                    )}
+                  >
+                    {plannedCount} planned
+                  </span>
+                </div>
+              </>
             )}
           </div>
           <button
             onClick={() => setSelectedPlugin(null)}
-            className="mt-0.5 flex size-6 items-center justify-center text-sidebar-foreground/50 transition-colors hover:text-sidebar-foreground"
+            className="self-start pt-3 flex size-6 items-center justify-center text-sidebar-foreground/50 transition-colors hover:text-sidebar-foreground"
           >
             <XIcon className="size-3.5" />
           </button>
@@ -55,24 +94,42 @@ export function PluginPanel({
                 onClick={() =>
                   selectedPlugin && onSelectCommand?.(selectedPlugin.id, cmd)
                 }
-                className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                className="sidebar-fade-item w-full px-4 py-3 text-left transition-colors hover:text-sidebar-accent-foreground"
               >
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium">{cmd.id}</p>
-                  <p className="mt-0.5 text-xs text-sidebar-foreground/60">
+                <div className="min-w-0">
+                  <p className="min-w-0 font-mono text-base font-light">{cmd.id}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    {cmd.runnerSupport && (
+                      <span
+                        className={cn(
+                          "inline-flex items-center border-0 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em]",
+                          SUPPORT_COLORS[cmd.runnerSupport],
+                        )}
+                      >
+                        {cmd.runnerSupport}
+                      </span>
+                    )}
+                    {cmd.uiHint ? (
+                      <span
+                        className={cn(
+                          "inline-flex items-center border-0 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em]",
+                          UI_HINT_COLORS[cmd.uiHint],
+                        )}
+                      >
+                        {cmd.uiHint}
+                      </span>
+                    ) : cmd.output ? (
+                      <span
+                        className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-amber-400 bg-amber-500/10"
+                      >
+                        {cmd.output}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-1.5 text-xs text-sidebar-foreground/60">
                     {cmd.description}
                   </p>
                 </div>
-                {cmd.output && (
-                  <span
-                    className={cn(
-                      "mt-0.5 shrink-0 px-1.5 py-0.5 text-[10px] font-medium",
-                      OUTPUT_COLORS[cmd.output],
-                    )}
-                  >
-                    {cmd.output}
-                  </span>
-                )}
               </button>
             </li>
           ))}

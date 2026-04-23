@@ -1,31 +1,6 @@
 {
   "mode": "inline",
-  "compose": [
-    "output-format",
-    "report-dir",
-    "quiet-flag"
-  ],
+  "compose": [],
   "fields": [],
-  "overrides": {
-    "output": {
-      "label": "Output Format",
-      "description": "Choose the format for the assessment output.",
-      "defaultValue": "markdown",
-      "options": [
-        { "label": "Markdown", "value": "markdown" },
-        { "label": "JSON", "value": "json" },
-        { "label": "SARIF", "value": "sarif" }
-      ]
-    },
-    "reportDir": {
-      "label": "Report Directory",
-      "description": "Optional directory where the assessment output should be written.",
-      "placeholder": "./assess-output"
-    },
-    "quiet": {
-      "label": "Quiet output",
-      "description": "Suppress progress output to stderr.",
-      "defaultValue": false
-    }
-  }
+  "overrides": {}
 }

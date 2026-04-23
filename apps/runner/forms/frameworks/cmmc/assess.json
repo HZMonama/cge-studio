@@ -32,8 +32,12 @@
     }
   ],
   "remove": [
-    "targetCmmcLevelRequired1_2Or3",
-    "assessmentScopeOptionalFullGapAnalysisSpecificDomain"
+    "targetCMMCLevel",
+    "targetCmmcLevelRequired1_2Or3"
+  ],
+  "order": [
+    "targetLevel",
+    "assessmentScope"
   ],
   "submitLabel": "Run CMMC Assessment"
 }

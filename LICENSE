@@ -1,0 +1,104 @@
+CGE STUDIO COMMUNITY LICENSE
+Version 1.0
+Copyright (c) 2026 CGE Studio. All rights reserved.
+
+IMPORTANT: This license is source-available and is NOT an open source license.
+
+1. Purpose
+
+This license is intended to allow individuals and organizations to use, modify,
+and self-host CGE Studio for their own internal business purposes, while
+restricting the provision of CGE Studio as a hosted or managed service to third parties.
+
+2. Definitions
+
+"Software" means the CGE Studio source code, binaries, documentation, assets,
+and any derivative works distributed under this license.
+
+"Licensor" means the copyright holder of the Software.
+
+"Internal Use" means use of the Software by you or your organization solely
+for your own internal operations, business processes, or affiliates under common control.
+
+"Third Party" means any person or entity other than you, your organization,
+or affiliates under common control.
+
+"Hosted Service" means making the Software, or a substantially similar version
+of the Software, available to Third Parties over a network, including as SaaS,
+managed service, platform service, white-label service, or outsourced operations.
+
+3. Grant of Rights
+
+Subject to the terms of this license, Licensor grants you a non-exclusive,
+non-transferable, revocable license to:
+
+a. use the Software for Internal Use;
+b. install and self-host the Software for Internal Use;
+c. copy the Software as reasonably necessary for Internal Use;
+d. modify the Software for Internal Use;
+e. create derivative works for Internal Use.
+
+4. Restrictions
+
+You may not, without prior written permission from Licensor:
+
+a. provide the Software as a Hosted Service to any Third Party;
+b. sublicense, sell, lease, rent, resell, or commercially distribute the Software;
+c. use the Software to operate a service bureau, managed service, consulting
+platform, or outsourcing service where Third Parties access or benefit from
+the Software as a core service offering;
+d. remove or alter copyright, trademark, or license notices;
+e. represent modified versions as official CGE Studio releases.
+
+5. Permitted Service Providers
+
+You may allow contractors, consultants, and service providers acting solely on
+your behalf to access and operate the Software for your Internal Use, provided
+they do not gain independent rights under this license.
+
+6. Redistribution
+
+You may share unmodified copies of the Software internally within your organization.
+Any external redistribution requires prior written permission from Licensor.
+
+7. Feedback
+
+You may voluntarily provide suggestions or feedback. Licensor may use such
+feedback without restriction or obligation.
+
+8. Ownership
+
+The Software is licensed, not sold. Licensor retains all right, title, and
+interest in and to the Software, including all intellectual property rights.
+
+9. No Warranty
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT.
+
+10. Limitation of Liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, LICENSOR SHALL NOT BE LIABLE FOR ANY
+INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR EXEMPLARY DAMAGES, OR ANY LOSS
+OF DATA, PROFITS, GOODWILL, OR BUSINESS INTERRUPTION, ARISING FROM USE OF THE SOFTWARE.
+
+11. Termination
+
+This license terminates automatically if you violate its terms.
+Upon termination, you must cease use of the Software and delete all copies.
+
+12. Commercial Licensing
+
+If you wish to offer CGE Studio as a Hosted Service, provide managed services,
+or obtain broader commercial rights, contact Licensor for a commercial license.
+
+13. Governing Law
+
+This license shall be governed by the laws of the jurisdiction chosen by Licensor,
+excluding conflict of law principles.
+
+14. Entire Agreement
+
+This license constitutes the entire agreement regarding the Software and supersedes
+prior understandings relating to its subject matter.

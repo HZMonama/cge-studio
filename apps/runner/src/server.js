@@ -55,6 +55,150 @@ const frameworkCatalog = [
   { id: "CIS-v8", label: "CIS Controls v8", family: "CIS" },
 ];
 
+const supportedWorkflowCommands = new Set([
+  "/grc-reporter:exec-summary",
+  "/grc-reporter:board-brief",
+  "/grc-reporter:automation-coverage",
+  "/grc-reporter:program-health",
+]);
+
+const plannedWorkflowCommands = new Set([]);
+
+const scriptCommandFactories = new Map([
+  ["/aws-inspector:collect", (input) =>
+    buildNodeScriptExecution(input, {
+      scriptPathSegments: ["plugins", "connectors", "aws-inspector", "scripts", "collect.js"],
+    })],
+  ["/aws-inspector:setup", (input) =>
+    buildShellScriptExecution(input, {
+      scriptPathSegments: ["plugins", "connectors", "aws-inspector", "scripts", "setup.sh"],
+    })],
+  ["/aws-inspector:status", (input) =>
+    buildShellScriptExecution(input, {
+      scriptPathSegments: ["plugins", "connectors", "aws-inspector", "scripts", "status.sh"],
+    })],
+  ["/gcp-inspector:collect", (input) =>
+    buildNodeScriptExecution(input, {
+      scriptPathSegments: ["plugins", "connectors", "gcp-inspector", "scripts", "collect.js"],
+    })],
+  ["/gcp-inspector:setup", (input) =>
+    buildShellScriptExecution(input, {
+      scriptPathSegments: ["plugins", "connectors", "gcp-inspector", "scripts", "setup.sh"],
+    })],
+  ["/gcp-inspector:status", (input) =>
+    buildShellScriptExecution(input, {
+      scriptPathSegments: ["plugins", "connectors", "gcp-inspector", "scripts", "status.sh"],
+    })],
+  ["/github-inspector:collect", (input) =>
+    buildNodeScriptExecution(input, {
+      scriptPathSegments: ["plugins", "connectors", "github-inspector", "scripts", "collect.js"],
+      syncStrategy: "github-inspector-collect",
+    })],
+  ["/github-inspector:setup", (input) =>
+    buildShellScriptExecution(input, {
+      scriptPathSegments: ["plugins", "connectors", "github-inspector", "scripts", "setup.sh"],
+    })],
+  ["/github-inspector:status", (input) =>
+    buildShellScriptExecution(input, {
+      scriptPathSegments: ["plugins", "connectors", "github-inspector", "scripts", "status.sh"],
+    })],
+  ["/okta-inspector:collect", (input) =>
+    buildNodeScriptExecution(input, {
+      scriptPathSegments: ["plugins", "connectors", "okta-inspector", "scripts", "collect.js"],
+    })],
+  ["/okta-inspector:setup", (input) =>
+    buildShellScriptExecution(input, {
+      scriptPathSegments: ["plugins", "connectors", "okta-inspector", "scripts", "setup.sh"],
+    })],
+  ["/okta-inspector:status", (input) =>
+    buildShellScriptExecution(input, {
+      scriptPathSegments: ["plugins", "connectors", "okta-inspector", "scripts", "status.sh"],
+    })],
+  ["/fedramp-ssp:convert", (input) =>
+    buildShellScriptExecution(input, {
+      scriptPathSegments: ["plugins", "fedramp-ssp", "scripts", "convert.sh"],
+    })],
+  ["/fedramp-ssp:setup", (input) =>
+    buildShellScriptExecution(input, {
+      scriptPathSegments: ["plugins", "fedramp-ssp", "scripts", "setup.sh"],
+    })],
+  ["/fedramp-20x:sync-docs", (input) =>
+    buildFedramp20xSyncExecution(input)],
+  ["/oscal:convert", (input) =>
+    buildShellScriptExecution(input, {
+      scriptPathSegments: ["plugins", "oscal", "scripts", "convert.sh"],
+    })],
+  ["/oscal:setup", (input) =>
+    buildShellScriptExecution(input, {
+      scriptPathSegments: ["plugins", "oscal", "scripts", "setup.sh"],
+    })],
+  ["/oscal:validate", (input) =>
+    buildShellScriptExecution(input, {
+      scriptPathSegments: ["plugins", "oscal", "scripts", "validate.sh"],
+    })],
+  ["/grc-engineer:collect-evidence", (input) =>
+    buildNodeScriptExecution(input, {
+      scriptPathSegments: ["plugins", "grc-engineer", "scripts", "collect-evidence.js"],
+    })],
+  ["/grc-engineer:find-conflicts", (input) =>
+    buildNodeScriptExecution(input, {
+      scriptPathSegments: ["plugins", "grc-engineer", "scripts", "cross-framework-analyzer.js"],
+      args: ["conflicts", ...input.parsed.argumentTokens],
+    })],
+  ["/grc-engineer:frameworks", (input) =>
+    buildNodeScriptExecution(input, {
+      scriptPathSegments: ["plugins", "grc-engineer", "scripts", "frameworks.js"],
+    })],
+  ["/grc-engineer:gap-assessment", (input) =>
+    buildGapAssessmentExecution(input)],
+  ["/grc-engineer:generate-policy", (input) =>
+    buildNodeScriptExecution(input, {
+      scriptPathSegments: ["plugins", "grc-engineer", "scripts", "generate-policy.js"],
+    })],
+  ["/grc-engineer:map-control", (input) =>
+    buildNodeScriptExecution(input, {
+      scriptPathSegments: ["plugins", "grc-engineer", "scripts", "map-control.js"],
+    })],
+  ["/grc-engineer:map-controls-unified", (input) =>
+    buildNodeScriptExecution(input, {
+      scriptPathSegments: ["plugins", "grc-engineer", "scripts", "cross-framework-analyzer.js"],
+      args: ["map", ...input.parsed.argumentTokens],
+    })],
+  ["/grc-engineer:optimize-multi-framework", (input) =>
+    buildNodeScriptExecution(input, {
+      scriptPathSegments: ["plugins", "grc-engineer", "scripts", "cross-framework-analyzer.js"],
+      args: ["optimize", ...input.parsed.argumentTokens],
+    })],
+  ["/grc-engineer:pipeline-status", (input) =>
+    buildShellScriptExecution(input, {
+      scriptPathSegments: ["plugins", "grc-engineer", "scripts", "pipeline-status.sh"],
+    })],
+  ["/grc-engineer:record-automation-metrics", (input) =>
+    buildNodeScriptExecution(input, {
+      scriptPathSegments: ["plugins", "grc-engineer", "scripts", "record-automation-metrics.js"],
+    })],
+  ["/grc-engineer:review-pr", (input) =>
+    buildNodeScriptExecution(input, {
+      scriptPathSegments: ["plugins", "grc-engineer", "scripts", "review-pr.js"],
+    })],
+  ["/grc-engineer:scaffold-framework", (input) =>
+    buildNodeScriptExecution(input, {
+      scriptPathSegments: ["plugins", "grc-engineer", "scripts", "scaffold-framework.js"],
+    })],
+  ["/grc-engineer:scan-iac", (input) =>
+    buildNodeScriptExecution(input, {
+      scriptPathSegments: ["plugins", "grc-engineer", "scripts", "scan-iac.js"],
+    })],
+  ["/grc-engineer:test-control", (input) =>
+    buildNodeScriptExecution(input, {
+      scriptPathSegments: ["plugins", "grc-engineer", "scripts", "test-control.js"],
+    })],
+  ["/grc-engineer:transform-risk", (input) =>
+    buildNodeScriptExecution(input, {
+      scriptPathSegments: ["plugins", "grc-engineer", "scripts", "transform-risk.js"],
+    })],
+]);
+
 const roots = {
   configRoot: path.join(os.homedir(), ".config", "claude-grc"),
   cacheRoot: path.join(os.homedir(), ".cache", "claude-grc"),
@@ -369,6 +513,14 @@ const server = createServer(async (request, response) => {
         }
 
         return json(response, 200, finding);
+      }
+
+      if (
+        request.method === "GET" &&
+        pathSegments.length === 3 &&
+        pathSegments[2] === "program"
+      ) {
+        return json(response, 200, await readWorkspaceProgram(workspace));
       }
     }
 
@@ -749,6 +901,7 @@ async function readPluginManifest(toolkitPath, pluginDir) {
           "utf8",
         );
         const frontmatter = parseFrontmatter(contents);
+        const runtime = resolveCommandRuntime(pluginId, commandId);
         const form = await resolveCommandForm({
           commandId,
           commandPath: `/${pluginId}:${commandId}`,
@@ -764,8 +917,13 @@ async function readPluginManifest(toolkitPath, pluginDir) {
             frontmatter.description ??
             extractFirstParagraph(contents) ??
             humanizeId(commandId),
-          executionMode: resolveExecutionMode(pluginId, commandId),
-          output: inferOutputType(commandId, frontmatter.output),
+          executionMode: runtime.executionMode,
+          intendedExecutionMode: runtime.intendedExecutionMode,
+          runnerSupport: runtime.runnerSupport,
+          uiHint: inferCommandUiHint(
+            commandId,
+            frontmatter.ui_hint ?? frontmatter.result_hint ?? frontmatter.output,
+          ),
           form,
         };
       }),
@@ -831,19 +989,38 @@ function inferPluginMetadata(pathSegments, pluginId) {
   return { type: "tool", category: "tool", personas: allPersonas };
 }
 
-function resolveExecutionMode(pluginId, commandId) {
-  if (
-    (pluginId === "github-inspector" && commandId === "collect") ||
-    (pluginId === "grc-engineer" && commandId === "gap-assessment")
-  ) {
-    return "script";
+function resolveCommandRuntime(pluginId, commandId) {
+  const commandPath = `/${pluginId}:${commandId}`;
+
+  if (scriptCommandFactories.has(commandPath)) {
+    return {
+      executionMode: "script",
+      intendedExecutionMode: "script",
+      runnerSupport: "ready",
+    };
   }
 
-  if (pluginId === "grc-reporter" && commandId === "exec-summary") {
-    return "workflow";
+  if (supportedWorkflowCommands.has(commandPath)) {
+    return {
+      executionMode: "workflow",
+      intendedExecutionMode: "workflow",
+      runnerSupport: "ready",
+    };
   }
 
-  return "workflow";
+  if (plannedWorkflowCommands.has(commandPath)) {
+    return {
+      executionMode: "unsupported",
+      intendedExecutionMode: "workflow",
+      runnerSupport: "planned",
+    };
+  }
+
+  return {
+    executionMode: "agent",
+    intendedExecutionMode: "agent",
+    runnerSupport: "ready",
+  };
 }
 
 function parseFrontmatter(contents) {
@@ -885,42 +1062,152 @@ function extractFirstParagraph(contents) {
   return sanitized[0] ?? null;
 }
 
-function inferOutputType(commandId, declaredOutput) {
-  if (
-    declaredOutput &&
-    ["report", "code", "document", "status", "score"].includes(declaredOutput)
-  ) {
-    return declaredOutput;
+function inferCommandUiHint(commandId, declaredHint) {
+  const normalizedHint = declaredHint?.trim().toLowerCase();
+  const supportedHints = new Set([
+    "analysis",
+    "assessment",
+    "checklist",
+    "mapping",
+    "plan",
+    "policy",
+    "config",
+    "status",
+    "code",
+    "score",
+    "report",
+    "document",
+  ]);
+
+  if (normalizedHint && supportedHints.has(normalizedHint)) {
+    return normalizedHint;
   }
 
   if (
-    commandId.startsWith("status") ||
     commandId === "setup" ||
-    commandId.endsWith("status")
+    commandId.startsWith("setup") ||
+    commandId.endsWith("setup") ||
+    commandId.includes("select") ||
+    commandId.includes("baseline") ||
+    commandId.includes("tailor") ||
+    commandId.includes("overlay")
   ) {
+    return "config";
+  }
+
+  if (commandId.startsWith("status") || commandId.endsWith("status")) {
     return "status";
-  }
-
-  if (commandId.startsWith("generate-") || commandId.startsWith("scaffold-")) {
-    return "code";
-  }
-
-  if (
-    commandId.startsWith("report-") ||
-    commandId.includes("assessment") ||
-    commandId.startsWith("assess")
-  ) {
-    return "report";
   }
 
   if (commandId.includes("score")) {
     return "score";
   }
 
+  if (commandId.includes("checklist")) {
+    return "checklist";
+  }
+
+  if (commandId.includes("map") || commandId.includes("matrix")) {
+    return "mapping";
+  }
+
+  if (
+    commandId.includes("roadmap") ||
+    commandId.includes("plan") ||
+    commandId.includes("planner")
+  ) {
+    return "plan";
+  }
+
+  if (commandId.includes("policy") || commandId.includes("ssp") || commandId.includes("soa")) {
+    return "policy";
+  }
+
+  if (
+    commandId === "gap-to-code" ||
+    commandId === "generate-implementation" ||
+    commandId.startsWith("scaffold-")
+  ) {
+    return "code";
+  }
+
+  if (
+    commandId.startsWith("assess") ||
+    commandId.includes("assessment") ||
+    commandId.includes("gap") ||
+    commandId.includes("review") ||
+    commandId.includes("validate") ||
+    commandId.includes("scan") ||
+    commandId.includes("check")
+  ) {
+    return "assessment";
+  }
+
+  if (
+    commandId.includes("analyze") ||
+    commandId.includes("analysis") ||
+    commandId.includes("guidance") ||
+    commandId.includes("deep-dive") ||
+    commandId.includes("optimize") ||
+    commandId.includes("find-conflicts") ||
+    commandId.includes("monitor") ||
+    commandId.includes("test-control") ||
+    commandId.includes("transform-risk")
+  ) {
+    return "analysis";
+  }
+
+  if (
+    commandId.includes("summary") ||
+    commandId.includes("brief") ||
+    commandId.includes("health") ||
+    commandId.includes("coverage") ||
+    commandId.startsWith("report-")
+  ) {
+    return "report";
+  }
+
   return "document";
 }
 
+const PLUGIN_LABEL_OVERRIDES = {
+  "aws-inspector":    "AWS Inspector",
+  "cis-controls":     "CIS Controls",
+  "cmmc":             "CMMC",
+  "csa-ccm":          "CSA CCM",
+  "dora":             "DORA",
+  "essential8":       "Essential Eight",
+  "fedramp-20x":      "FedRAMP 20x",
+  "fedramp-rev5":     "FedRAMP Rev 5",
+  "fedramp-ssp":      "FedRAMP SSP",
+  "gcp-inspector":    "GCP Inspector",
+  "gdpr":             "GDPR",
+  "github-inspector": "GitHub Inspector",
+  "glba":             "GLBA",
+  "grc-auditor":      "GRC Auditor",
+  "grc-engineer":     "GRC Engineer",
+  "grc-internal":     "GRC Internal",
+  "grc-tprm":         "GRC TPRM",
+  "hitrust":          "HITRUST",
+  "irap":             "IRAP",
+  "ismap":            "ISMAP",
+  "iso27001":         "ISO 27001",
+  "nist-800-53":      "NIST 800-53",
+  "nydfs":            "NYDFS",
+  "okta-inspector":   "Okta Inspector",
+  "oscal":            "OSCAL",
+  "pbmm":             "PBMM",
+  "pci-dss":          "PCI DSS",
+  "singapore-pdpa":   "Singapore PDPA",
+  "soc2":             "SOC 2",
+  "stateramp":        "StateRAMP",
+  "us-export":        "US Export",
+};
+
 function humanizeId(value) {
+  if (PLUGIN_LABEL_OVERRIDES[value]) {
+    return PLUGIN_LABEL_OVERRIDES[value];
+  }
   return value
     .split(/[-_]/g)
     .filter(Boolean)
@@ -1053,13 +1340,12 @@ async function createCommandRun(input) {
 
   const run = {
     id: runId,
-    status:
-      execution.kind === "script" || execution.kind === "workflow"
-        ? "running"
-        : "failed",
+    status: execution.kind === "script" || execution.kind === "workflow" || execution.kind === "agent"
+      ? "running"
+      : "failed",
     createdAt: now,
     completedAt:
-      execution.kind === "script" || execution.kind === "workflow"
+      execution.kind === "script" || execution.kind === "workflow" || execution.kind === "agent"
         ? null
         : now,
     prompt: persistedPrompt,
@@ -1071,7 +1357,7 @@ async function createCommandRun(input) {
     runDirectory,
     outputDir: runArtifactsDir,
     commandPreview,
-    executionMode: execution.kind === "script" ? "script" : "workflow",
+    executionMode: execution.kind,
     artifactCount: 0,
     artifacts: [],
   };
@@ -1092,17 +1378,27 @@ async function createCommandRun(input) {
     },
   });
 
-  if (execution.kind !== "script") {
-    if (execution.kind === "workflow") {
-      void executeWorkflowRun({
-        execution,
-        run,
-        runDirectory,
-        workspace: input.workspace,
-      });
-      return run;
-    }
+  if (execution.kind === "workflow") {
+    void executeWorkflowRun({
+      execution,
+      run,
+      runDirectory,
+      workspace: input.workspace,
+    });
+    return run;
+  }
 
+  if (execution.kind === "agent") {
+    void executeAgentRun({
+      execution,
+      run,
+      runDirectory,
+      workspace: input.workspace,
+    });
+    return run;
+  }
+
+  if (execution.kind !== "script") {
     await appendRunEvent(runDirectory, {
       type: "run.failed",
       data: {
@@ -1216,58 +1512,9 @@ function resolveCommandExecution(input) {
     };
   }
 
-  if (input.parsed.commandPath === "/github-inspector:collect") {
-    return {
-      kind: "script",
-      cwd: input.toolkitPath,
-      runtime: process.execPath,
-      scriptPath: path.join(
-        input.toolkitPath,
-        "plugins",
-        "connectors",
-        "github-inspector",
-        "scripts",
-        "collect.js",
-      ),
-      args: input.parsed.argumentTokens,
-      commandPath: input.parsed.commandPath,
-      pluginId: input.parsed.pluginId,
-      commandId: input.parsed.commandId,
-      syncStrategy: "github-inspector-collect",
-    };
-  }
-
-  if (input.parsed.commandPath === "/grc-engineer:gap-assessment") {
-    const reportDir =
-      readOptionValue(input.parsed.argumentTokens, "--report-dir") ??
-      path.join(input.runArtifactsDir, "gap-assessment");
-
-    return {
-      kind: "script",
-      cwd: input.toolkitPath,
-      runtime: process.execPath,
-      scriptPath: path.join(
-        input.toolkitPath,
-        "plugins",
-        "grc-engineer",
-        "scripts",
-        "gap-assessment.js",
-      ),
-      args: ensureOption(
-        ensureOption(
-          input.parsed.argumentTokens,
-          "--cache-dir",
-          input.workspace.folders.findingsRaw,
-        ),
-        "--report-dir",
-        reportDir,
-      ),
-      commandPath: input.parsed.commandPath,
-      pluginId: input.parsed.pluginId,
-      commandId: input.parsed.commandId,
-      reportDir,
-      syncStrategy: "gap-assessment",
-    };
+  const scriptFactory = scriptCommandFactories.get(input.parsed.commandPath);
+  if (scriptFactory) {
+    return scriptFactory(input);
   }
 
   const workflowExecution = resolveWorkflowExecution(input.parsed);
@@ -1275,11 +1522,89 @@ function resolveCommandExecution(input) {
     return workflowExecution;
   }
 
+  return buildAgentExecution(input);
+}
+
+function buildAgentExecution(input) {
+  const prompt = [input.parsed.commandPath, ...input.parsed.argumentTokens].join(" ");
   return {
-    kind: "unsupported",
-    reason:
-      "This milestone wires /github-inspector:collect, /grc-engineer:gap-assessment, and /grc-reporter:exec-summary.",
+    kind: "agent",
+    cwd: input.toolkitPath,
+    workspacePath: input.workspace.rootPath,
+    commandPath: input.parsed.commandPath,
+    pluginId: input.parsed.pluginId,
+    commandId: input.parsed.commandId,
+    prompt,
   };
+}
+
+function buildNodeScriptExecution(input, config) {
+  const outputDir = input.runArtifactsDir ?? null;
+  return {
+    kind: "script",
+    cwd: outputDir ?? input.toolkitPath,
+    outputDir,
+    runtime: process.execPath,
+    scriptPath: path.join(input.toolkitPath, ...config.scriptPathSegments),
+    args: config.args ?? input.parsed.argumentTokens,
+    commandPath: input.parsed.commandPath,
+    pluginId: input.parsed.pluginId,
+    commandId: input.parsed.commandId,
+    syncStrategy: config.syncStrategy,
+    ...(config.extra ?? {}),
+  };
+}
+
+function buildShellScriptExecution(input, config) {
+  return {
+    kind: "script",
+    cwd: input.toolkitPath,
+    runtime: "bash",
+    scriptPath: path.join(input.toolkitPath, ...config.scriptPathSegments),
+    args: config.args ?? input.parsed.argumentTokens,
+    commandPath: input.parsed.commandPath,
+    pluginId: input.parsed.pluginId,
+    commandId: input.parsed.commandId,
+    syncStrategy: config.syncStrategy,
+    ...(config.extra ?? {}),
+  };
+}
+
+function buildGapAssessmentExecution(input) {
+  const reportDir =
+    readOptionValue(input.parsed.argumentTokens, "--report-dir") ??
+    path.join(input.runArtifactsDir, "gap-assessment");
+
+  return buildNodeScriptExecution(input, {
+    scriptPathSegments: ["plugins", "grc-engineer", "scripts", "gap-assessment.js"],
+    args: ensureOption(
+      ensureOption(
+        input.parsed.argumentTokens,
+        "--cache-dir",
+        input.workspace.folders.findingsRaw,
+      ),
+      "--report-dir",
+      reportDir,
+    ),
+    syncStrategy: "gap-assessment",
+    extra: { reportDir },
+  });
+}
+
+function buildFedramp20xSyncExecution(input) {
+  const mode = input.parsed.argumentTokens[0] ?? null;
+  const args = [];
+
+  if (mode === "check") {
+    args.push("--check");
+  } else if (mode === "force") {
+    args.push("--force");
+  }
+
+  return buildNodeScriptExecution(input, {
+    scriptPathSegments: ["plugins", "frameworks", "fedramp-20x", "scripts", "check-fedramp-updates.js"],
+    args,
+  });
 }
 
 async function executeCommandRun(input) {
@@ -1310,15 +1635,18 @@ async function executeCommandRun(input) {
     },
   });
 
+  await fs.mkdir(execution.cwd, { recursive: true });
+
   const child = spawn(
     execution.runtime,
     [execution.scriptPath, ...execution.args],
     {
       cwd: execution.cwd,
       env: process.env,
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: ["pipe", "pipe", "pipe"],
     },
   );
+  child.stdin.end();
 
   const forwardStreamChunk = (streamName, targetPath, chunks) => async (chunk) => {
     const text = chunk.toString("utf8");
@@ -1474,6 +1802,225 @@ async function respondToWorkflowRun(input) {
   return workflowRuntime.respondToWorkflowRun(input);
 }
 
+async function executeAgentRun(input) {
+  const { execution, run, runDirectory, workspace } = input;
+  const startedAt = new Date();
+
+  await appendRunEvent(runDirectory, {
+    type: "run.started",
+    data: { commandPreview: run.commandPreview },
+  });
+
+  const workspaceContext =
+    `Active CGE workspace: ${workspace.rootPath}. ` +
+    `Write all output files (reports, assessments, analyses, policies) to paths inside this workspace directory. ` +
+    `Use ${workspace.rootPath}/grc-reports/ for generated reports.`;
+
+  const claudeArgs = [
+    "--print",
+    "--output-format", "stream-json",
+    "--dangerously-skip-permissions",
+    "--add-dir", workspace.rootPath,
+    "--append-system-prompt", workspaceContext,
+    execution.prompt,
+  ];
+
+  const child = spawn("claude", claudeArgs, {
+    cwd: execution.cwd,
+    env: process.env,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+
+  let stdoutBuffer = "";
+  let pendingText = "";
+  let completedAt = null;
+  let exitCode = null;
+
+  const flushPendingText = async () => {
+    const text = pendingText.trim();
+    if (!text) return;
+    pendingText = "";
+    await appendRunEvent(runDirectory, {
+      type: "message",
+      data: { role: "assistant", text },
+    });
+  };
+
+  const processLine = async (line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+
+    let event;
+    try {
+      event = JSON.parse(trimmed);
+    } catch {
+      return;
+    }
+
+    if (event.type === "assistant") {
+      const content = event.message?.content ?? [];
+      for (const block of content) {
+        if (block.type === "text" && block.text) {
+          pendingText += (pendingText ? "\n" : "") + block.text;
+        } else if (block.type === "tool_use") {
+          await flushPendingText();
+          await appendRunEvent(runDirectory, {
+            type: "tool.started",
+            data: { command: block.name, args: [], cwd: workspace.rootPath },
+          });
+        }
+      }
+    }
+
+    if (event.type === "result") {
+      await flushPendingText();
+      completedAt = new Date().toISOString();
+
+      if (event.subtype === "success") {
+        const artifacts = await collectAgentArtifacts({
+          run,
+          workspace,
+          startedAt,
+        });
+
+        const nextRun = {
+          ...run,
+          artifacts,
+          artifactCount: artifacts.length,
+          completedAt,
+          status: "completed",
+        };
+
+        for (const artifact of artifacts) {
+          await appendRunEvent(runDirectory, {
+            type: "artifact.created",
+            data: {
+              artifactId: artifact.id,
+              title: artifact.title,
+              kind: artifact.kind,
+              format: artifact.format,
+              path: artifact.path,
+            },
+          });
+        }
+
+        await appendRunEvent(runDirectory, {
+          type: "run.completed",
+          data: { artifactCount: artifacts.length, exitCode: 0 },
+        });
+
+        await writeRun(runDirectory, nextRun);
+      } else {
+        const message =
+          event.error ?? event.message ?? `Agent exited with subtype: ${event.subtype}`;
+
+        await appendRunEvent(runDirectory, {
+          type: "run.failed",
+          data: { message },
+        });
+
+        await writeRun(runDirectory, {
+          ...run,
+          completedAt,
+          status: "failed",
+        });
+      }
+    }
+  };
+
+  child.stdout.on("data", async (chunk) => {
+    stdoutBuffer += chunk.toString("utf8");
+    const lines = stdoutBuffer.split("\n");
+    stdoutBuffer = lines.pop() ?? "";
+    for (const line of lines) {
+      await processLine(line);
+    }
+  });
+
+  child.stderr.on("data", async (chunk) => {
+    const text = chunk.toString("utf8").trim();
+    if (text) {
+      await appendRunEvent(runDirectory, {
+        type: "tool.stderr",
+        data: { text },
+      });
+    }
+  });
+
+  child.on("close", async (code) => {
+    exitCode = code;
+    if (stdoutBuffer.trim()) {
+      await processLine(stdoutBuffer);
+    }
+    await flushPendingText();
+
+    if (!completedAt) {
+      completedAt = new Date().toISOString();
+      const message = code === 0
+        ? "Agent completed without a result event."
+        : `Agent process exited with code ${code}.`;
+
+      await appendRunEvent(runDirectory, {
+        type: "run.failed",
+        data: { message },
+      });
+
+      await writeRun(runDirectory, {
+        ...run,
+        completedAt,
+        status: "failed",
+      });
+    }
+  });
+}
+
+async function collectAgentArtifacts(input) {
+  const { run, workspace, startedAt } = input;
+  const reportsDir = path.join(workspace.rootPath, "grc-reports");
+  const artifacts = [];
+  const completedAt = new Date().toISOString();
+
+  try {
+    await fs.mkdir(reportsDir, { recursive: true });
+    const entries = await fs.readdir(reportsDir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (!entry.isFile()) continue;
+
+      const filePath = path.join(reportsDir, entry.name);
+      const stats = await fs.stat(filePath);
+
+      if (stats.mtime >= startedAt) {
+        const ext = path.extname(entry.name).toLowerCase();
+        const format = ext === ".md" ? "markdown" : ext === ".json" ? "json" : "text";
+        const kind = entry.name.includes("policy") ? "document"
+          : entry.name.includes("gap") ? "report"
+          : entry.name.includes("assess") ? "report"
+          : "report";
+        const title = entry.name
+          .replace(/\.[^.]+$/, "")
+          .split(/[-_]/)
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(" ");
+
+        artifacts.push(createArtifactSummary({
+          commandId: run.commandId,
+          commandPath: run.commandPath,
+          createdAt: completedAt,
+          format,
+          kind,
+          path: filePath,
+          pluginId: run.pluginId,
+          runId: run.id,
+          title,
+        }));
+      }
+    }
+  } catch { /* if reportsDir doesn't exist yet, no artifacts */ }
+
+  return artifacts;
+}
+
 function classifyRunStatus(execution, exitCode) {
   if (execution.syncStrategy === "github-inspector-collect") {
     return exitCode === 0 || exitCode === 4 ? "completed" : "failed";
@@ -1491,7 +2038,64 @@ async function collectRunArtifacts(input) {
     return collectGapAssessmentArtifacts(input);
   }
 
+  if (input.execution.outputDir) {
+    return collectOutputDirArtifacts(input);
+  }
+
   return [];
+}
+
+async function collectOutputDirArtifacts(input) {
+  const outputDir = input.execution.outputDir;
+  const artifacts = [];
+  const completedAt = new Date().toISOString();
+
+  const knownExtensions = new Set([".md", ".json", ".yaml", ".yml", ".txt", ".rego", ".sentinel", ".py", ".tf"]);
+
+  let entries;
+  try {
+    entries = await fs.readdir(outputDir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+
+    const ext = path.extname(entry.name).toLowerCase();
+    if (!knownExtensions.has(ext)) continue;
+
+    const filePath = path.join(outputDir, entry.name);
+    const format = ext === ".md" ? "markdown"
+      : ext === ".json" ? "json"
+      : ext === ".yaml" || ext === ".yml" ? "yaml"
+      : "text";
+
+    const kind = entry.name.includes("policy") || ext === ".rego" || ext === ".sentinel" || ext === ".tf" ? "code"
+      : entry.name.includes("review") || entry.name.includes("report") ? "report"
+      : entry.name.includes("risk") ? "document"
+      : "document";
+
+    const title = entry.name
+      .replace(/\.[^.]+$/, "")
+      .split(/[-_]/)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+
+    artifacts.push(createArtifactSummary({
+      commandId: input.commandId,
+      commandPath: input.commandPath,
+      createdAt: completedAt,
+      format,
+      kind,
+      path: filePath,
+      pluginId: input.execution.pluginId,
+      runId: input.runId,
+      title,
+    }));
+  }
+
+  return artifacts;
 }
 
 function buildGapAssessmentCommand(input) {
@@ -1900,32 +2504,35 @@ async function readWorkspaceFindings(workspace) {
     workspace.folders.findingsRawConnectors ?? {},
   );
 
-  const groups = await Promise.all(
-    connectorEntries.map(async ([connectorId, connectorDir]) => {
-      try {
-        const files = await fs.readdir(connectorDir);
-        const docGroups = await Promise.all(
-          files
-            .filter((file) => file.endsWith(".json"))
-            .map(async (file) => {
-              const filePath = path.join(connectorDir, file);
-              try {
-                const content = await fs.readFile(filePath, "utf8");
-                const doc = JSON.parse(content);
-                return normalizeFindingDocument(doc, filePath, connectorId);
-              } catch {
-                return [];
-              }
-            }),
-        );
-        return docGroups.flat();
-      } catch {
-        return [];
-      }
-    }),
-  );
+  const [connectorGroups, gapGroups] = await Promise.all([
+    Promise.all(
+      connectorEntries.map(async ([connectorId, connectorDir]) => {
+        try {
+          const files = await fs.readdir(connectorDir);
+          const docGroups = await Promise.all(
+            files
+              .filter((file) => file.endsWith(".json"))
+              .map(async (file) => {
+                const filePath = path.join(connectorDir, file);
+                try {
+                  const content = await fs.readFile(filePath, "utf8");
+                  const doc = JSON.parse(content);
+                  return normalizeFindingDocument(doc, filePath, connectorId);
+                } catch {
+                  return [];
+                }
+              }),
+          );
+          return docGroups.flat();
+        } catch {
+          return [];
+        }
+      }),
+    ),
+    readNormalizedGapFindings(workspace),
+  ]);
 
-  return groups.flat().sort((left, right) => {
+  return [...connectorGroups.flat(), ...gapGroups].sort((left, right) => {
     const sl = FINDING_SEVERITY_ORDER[left.severity] ?? 5;
     const sr = FINDING_SEVERITY_ORDER[right.severity] ?? 5;
     if (sl !== sr) return sl - sr;
@@ -1933,6 +2540,139 @@ async function readWorkspaceFindings(workspace) {
     const tr = right.assessedAt ?? right.collectedAt ?? "";
     return tr.localeCompare(tl);
   });
+}
+
+async function readNormalizedGapFindings(workspace) {
+  const filePath = path.join(
+    workspace.folders.findingsNormalized,
+    "findings.normalized.json",
+  );
+  try {
+    const content = await fs.readFile(filePath, "utf8");
+    const doc = JSON.parse(content);
+    return normalizeGapAssessmentDoc(doc, filePath);
+  } catch {
+    return [];
+  }
+}
+
+function normalizeGapAssessmentDoc(doc, filePath) {
+  if (!doc || typeof doc !== "object") {
+    return [];
+  }
+
+  const runId = doc.run_id ?? "unknown";
+  const tiers = [
+    { items: doc.tier1 ?? [], severity: "high" },
+    { items: doc.tier2 ?? [], severity: "medium" },
+    { items: doc.tier3 ?? [], severity: "low" },
+    { items: doc.inconclusive ?? [], severity: "info" },
+  ];
+
+  const findings = [];
+
+  for (const { items, severity: tierSeverity } of tiers) {
+    for (const item of items) {
+      const scfId = item.scf_id ?? null;
+      const effectiveSeverity = item.severity ?? tierSeverity;
+      const failingResources = Array.isArray(item.failing_resources)
+        ? item.failing_resources
+        : [];
+      const status = Array.isArray(doc.inconclusive) && doc.inconclusive.includes(item)
+        ? "inconclusive"
+        : "fail";
+
+      if (failingResources.length === 0) {
+        const id = deriveFindingId("gap-assessment", runId, null, "SCF", scfId);
+        findings.push({
+          id,
+          title: item.title ?? scfId ?? "Gap Finding",
+          severity: effectiveSeverity,
+          status,
+          source: "gap-assessment",
+          resourceType: null,
+          resourceId: null,
+          resourceRegion: null,
+          accountId: null,
+          controlFramework: "SCF",
+          controlId: scfId,
+          message: item.family ? `${item.family} — ${item.title ?? scfId}` : (item.title ?? null),
+          collectedAt: null,
+          assessedAt: null,
+          hasRemediation: false,
+          resource: {},
+          remediation: null,
+          evidenceRefs: [],
+          rawAttributes: item.frameworks ?? null,
+          metadata: { scf_id: scfId, family: item.family ?? null },
+          narrativeFindings: [],
+          documentPath: filePath,
+        });
+      } else {
+        for (const resource of failingResources) {
+          const resourceId = resource.id ?? resource.resource_id ?? null;
+          const id = deriveFindingId("gap-assessment", runId, resourceId, "SCF", scfId);
+          findings.push({
+            id,
+            title: item.title ?? scfId ?? "Gap Finding",
+            severity: effectiveSeverity,
+            status: resource.status ?? status,
+            source: "gap-assessment",
+            resourceType: resource.type ?? null,
+            resourceId,
+            resourceRegion: resource.region ?? null,
+            accountId: resource.account_id ?? null,
+            controlFramework: "SCF",
+            controlId: scfId,
+            message: resource.message ?? (item.family ? `${item.family} — ${item.title ?? scfId}` : null),
+            collectedAt: resource.collected_at ?? null,
+            assessedAt: resource.assessed_at ?? null,
+            hasRemediation: false,
+            resource,
+            remediation: null,
+            evidenceRefs: [],
+            rawAttributes: item.frameworks ?? null,
+            metadata: { scf_id: scfId, family: item.family ?? null },
+            narrativeFindings: [],
+            documentPath: filePath,
+          });
+        }
+      }
+    }
+  }
+
+  return findings;
+}
+
+async function readWorkspaceProgram(workspace) {
+  const grcDataRoot = path.join(workspace.rootPath, "grc-data");
+  const entityKinds = ["risks", "metrics", "exceptions", "vendors", "policies"];
+
+  const entityGroups = await Promise.all(
+    entityKinds.map(async (kind) => {
+      const dir = path.join(grcDataRoot, kind);
+      try {
+        const files = await fs.readdir(dir);
+        const records = await Promise.all(
+          files
+            .filter((f) => f.endsWith(".json"))
+            .map(async (file) => {
+              try {
+                const content = await fs.readFile(path.join(dir, file), "utf8");
+                return JSON.parse(content);
+              } catch {
+                return null;
+              }
+            }),
+        );
+        return [kind, records.filter(Boolean)];
+      } catch {
+        return [kind, []];
+      }
+    }),
+  );
+
+  return Object.fromEntries(entityGroups);
 }
 
 function normalizeFindingDocument(doc, filePath, fallbackSource) {

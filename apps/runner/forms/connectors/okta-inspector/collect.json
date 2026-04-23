@@ -33,7 +33,6 @@
       "required": false,
       "flag": "--inactive-threshold-days",
       "description": "Flag users inactive beyond this many days.",
-      "defaultValue": 90,
       "placeholder": "90"
     }
   ],

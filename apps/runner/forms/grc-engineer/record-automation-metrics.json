@@ -1,9 +1,21 @@
 {
   "mode": "inline",
-  "minimumConfiguration": [
-    "framework"
-  ],
+  "minimumConfiguration": [],
   "readinessRules": [
+    {
+      "when": {
+        "field": "configPath",
+        "hasValue": false
+      },
+      "requireAll": ["framework"]
+    },
+    {
+      "when": {
+        "field": "configPath",
+        "hasValue": true
+      },
+      "forbidAll": ["framework", "provider"]
+    },
     {
       "when": {
         "field": "controlsTotal",
@@ -31,25 +43,27 @@
       "name": "framework",
       "label": "Framework",
       "type": "text",
-      "required": true,
+      "required": false,
       "position": "argument",
-      "description": "Framework alias or FedRAMP scope. The composer currently models the common single-framework path, not batch --config mode.",
+      "description": "Framework alias or FedRAMP scope for single-run mode.",
       "placeholder": "fedramp-moderate"
     },
     {
       "name": "provider",
       "label": "Provider",
-      "type": "select",
+      "type": "text",
       "required": false,
       "position": "argument",
-      "description": "Provider used in derived mode.",
-      "defaultValue": "aws",
-      "options": [
-        { "label": "AWS", "value": "aws" },
-        { "label": "Azure", "value": "azure" },
-        { "label": "GCP", "value": "gcp" },
-        { "label": "Kubernetes", "value": "kubernetes" }
-      ]
+      "description": "Optional provider for derived mode.",
+      "placeholder": "aws"
+    },
+    {
+      "name": "configPath",
+      "label": "Batch Config",
+      "type": "path",
+      "required": false,
+      "flag": "--config",
+      "description": "YAML or JSON config file for batch mode."
     },
     {
       "name": "controlsTotal",
@@ -57,7 +71,7 @@
       "type": "number",
       "required": false,
       "flag": "--controls-total",
-      "description": "Total controls count for manual mode."
+      "description": "Total in-scope controls for manual mode."
     },
     {
       "name": "controlsAutomated",
@@ -73,15 +87,7 @@
       "type": "number",
       "required": false,
       "flag": "--controls-manual",
-      "description": "Optional manual count override."
-    },
-    {
-      "name": "windowLabel",
-      "label": "Window Label",
-      "type": "text",
-      "required": false,
-      "flag": "--window-label",
-      "description": "Optional reporting period label such as 2026-W16."
+      "description": "Optional manual controls count override."
     },
     {
       "name": "recordedAt",
@@ -89,11 +95,93 @@
       "type": "text",
       "required": false,
       "flag": "--recorded-at",
-      "description": "Optional observation timestamp in ISO 8601 format."
+      "description": "Observation timestamp in ISO 8601 format."
+    },
+    {
+      "name": "windowStart",
+      "label": "Window Start",
+      "type": "text",
+      "required": false,
+      "flag": "--window-start",
+      "description": "Optional reporting window start in ISO 8601 format."
+    },
+    {
+      "name": "windowEnd",
+      "label": "Window End",
+      "type": "text",
+      "required": false,
+      "flag": "--window-end",
+      "description": "Optional reporting window end in ISO 8601 format."
+    },
+    {
+      "name": "windowLabel",
+      "label": "Window Label",
+      "type": "text",
+      "required": false,
+      "flag": "--window-label",
+      "description": "Optional period label such as 2026-W16 or current-week."
+    },
+    {
+      "name": "source",
+      "label": "Source",
+      "type": "text",
+      "required": false,
+      "flag": "--source",
+      "description": "Optional provenance string for the emitted metric rows."
+    },
+    {
+      "name": "subjectKind",
+      "label": "Subject Kind",
+      "type": "text",
+      "required": false,
+      "flag": "--subject-kind",
+      "description": "Optional subject kind override.",
+      "placeholder": "framework"
+    },
+    {
+      "name": "subjectId",
+      "label": "Subject ID",
+      "type": "text",
+      "required": false,
+      "flag": "--subject-id",
+      "description": "Optional subject identifier override."
+    },
+    {
+      "name": "dimensions",
+      "label": "Dimensions",
+      "type": "textarea",
+      "required": false,
+      "flag": "--dimension",
+      "repeatable": true,
+      "description": "Extra dimensions, one `key=value` pair per line."
+    },
+    {
+      "name": "outDir",
+      "label": "Output Directory",
+      "type": "path",
+      "required": false,
+      "flag": "--out-dir",
+      "description": "Directory where metric rows should be written.",
+      "placeholder": "./grc-data/metrics"
+    },
+    {
+      "name": "fromFedRAMP",
+      "label": "FedRAMP Baseline",
+      "type": "select",
+      "required": false,
+      "flag": "--from-fedramp-baseline",
+      "description": "Force derived mode from a specific FedRAMP baseline.",
+      "options": [
+        { "label": "Low", "value": "low" },
+        { "label": "Moderate", "value": "moderate" },
+        { "label": "High", "value": "high" },
+        { "label": "20x", "value": "20x" },
+        { "label": "20x KSI", "value": "20x-ksi" }
+      ]
     },
     {
       "name": "dryRun",
-      "label": "Dry run",
+      "label": "Dry Run",
       "type": "boolean",
       "required": false,
       "flag": "--dry-run",
@@ -104,6 +192,25 @@
   "remove": [
     "frameworkAliasOrFedRAMPScope",
     "providerInDerivedModeOptionalDefaultsToAws)"
+  ],
+  "order": [
+    "framework",
+    "provider",
+    "configPath",
+    "controlsTotal",
+    "controlsAutomated",
+    "controlsManual",
+    "recordedAt",
+    "windowStart",
+    "windowEnd",
+    "windowLabel",
+    "source",
+    "subjectKind",
+    "subjectId",
+    "dimensions",
+    "outDir",
+    "fromFedRAMP",
+    "dryRun"
   ],
   "submitLabel": "Run Record Automation Metrics"
 }

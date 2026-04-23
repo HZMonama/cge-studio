@@ -1,55 +1,10 @@
 {
   "mode": "inline",
-  "compose": [
-    "quiet-flag"
-  ],
-  "fields": [
-    {
-      "name": "impactLevel",
-      "label": "Impact Level",
-      "type": "select",
-      "required": true,
-      "position": "argument",
-      "description": "Select the baseline impact level to tailor.",
-      "defaultValue": "",
-      "options": [
-        { "label": "Low", "value": "low" },
-        { "label": "Moderate", "value": "moderate" },
-        { "label": "High", "value": "high" }
-      ]
-    },
-    {
-      "name": "systemType",
-      "label": "System Type",
-      "type": "select",
-      "required": false,
-      "position": "argument",
-      "description": "Optional system type to further tailor the selected baseline.",
-      "defaultValue": "",
-      "options": [
-        { "label": "General", "value": "general" },
-        { "label": "SaaS", "value": "saas" },
-        { "label": "PaaS", "value": "paas" },
-        { "label": "IaaS", "value": "iaas" },
-        { "label": "Cloud", "value": "cloud" },
-        { "label": "Mobile", "value": "mobile" },
-        { "label": "Industrial", "value": "industrial" }
-      ]
-    }
-  ],
-  "overrides": {
-    "quiet": {
-      "label": "Quiet output",
-      "description": "Suppress progress output while selecting and tailoring the baseline.",
-      "defaultValue": false
-    }
-  },
+  "compose": [],
+  "fields": [],
+  "overrides": {},
   "remove": [],
-  "order": [
-    "impactLevel",
-    "systemType",
-    "quiet"
-  ],
+  "order": [],
   "submitLabel": "Select Baseline",
   "source": {
     "kind": "preset",

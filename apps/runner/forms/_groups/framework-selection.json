@@ -3,19 +3,11 @@
     {
       "name": "frameworks",
       "label": "Frameworks",
-      "type": "multiselect",
+      "type": "text",
       "required": true,
       "position": "argument",
-      "description": "Choose one or more target frameworks to assess.",
-      "placeholder": "Select frameworks",
-      "options": [
-        { "label": "SOC 2", "value": "SOC2" },
-        { "label": "FedRAMP Moderate", "value": "FedRAMP-Moderate" },
-        { "label": "FedRAMP High", "value": "FedRAMP-High" },
-        { "label": "NIST 800-53 Rev 5", "value": "NIST-800-53-r5" },
-        { "label": "ISO 27001:2022", "value": "ISO-27001-2022" },
-        { "label": "CIS Controls v8", "value": "CIS-v8" }
-      ]
+      "description": "Comma-separated framework aliases or SCF framework IDs.",
+      "placeholder": "SOC2,FedRAMP-Moderate,NIST-800-53-r5"
     }
   ]
 }

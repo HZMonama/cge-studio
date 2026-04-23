@@ -7,21 +7,11 @@
     {
       "name": "frameworks",
       "label": "Frameworks",
-      "type": "multiselect",
+      "type": "text",
       "required": true,
       "position": "argument",
-      "description": "Select the frameworks to compare for requirement conflicts.",
-      "options": [
-        { "label": "SOC 2", "value": "SOC2" },
-        { "label": "NIST 800-53", "value": "NIST" },
-        { "label": "ISO 27001", "value": "ISO" },
-        { "label": "PCI DSS", "value": "PCI-DSS" },
-        { "label": "CIS Controls", "value": "CIS" },
-        { "label": "CMMC", "value": "CMMC" },
-        { "label": "FedRAMP", "value": "FedRAMP" },
-        { "label": "HITRUST", "value": "HITRUST" },
-        { "label": "GDPR", "value": "GDPR" }
-      ]
+      "description": "Comma-separated framework codes to compare.",
+      "placeholder": "SOC2,PCI-DSS,NIST"
     },
     {
       "name": "detailLevel",
@@ -29,8 +19,7 @@
       "type": "select",
       "required": false,
       "position": "argument",
-      "description": "Choose summary or detailed conflict analysis.",
-      "defaultValue": "detailed",
+      "description": "Choose summary or detailed conflict analysis. Omit to use the CLI default.",
       "options": [
         { "label": "Summary", "value": "summary" },
         { "label": "Detailed", "value": "detailed" }
@@ -40,6 +29,10 @@
   "remove": [
     "commaSeparatedListOfFrameworksEGSOC2PCIDSSNIST)",
     "detailLevelOptionalSummaryOrDetailedDefaultDetailed)"
+  ],
+  "order": [
+    "frameworks",
+    "detailLevel"
   ],
   "submitLabel": "Run Find Conflicts"
 }

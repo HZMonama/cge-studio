@@ -26,6 +26,7 @@ export interface AppHeaderSection {
   id: string;
   label: string;
   Icon: ElementType;
+  disabled?: boolean;
 }
 
 export type SyncStatus = "synced" | "fallback" | "offline";
@@ -100,7 +101,7 @@ function SyncIndicator({
     : claudeAuthLabel;
 
   return (
-    <div className="flex h-full items-center pr-3">
+    <div className="flex h-full items-center justify-center px-3">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
           className={cn(
@@ -200,33 +201,41 @@ export function AppShellHeader({
           {sections.map((section) => (
             <button
               key={section.id}
-              onClick={() => onSelectSection(section.id)}
+              onClick={() => !section.disabled && onSelectSection(section.id)}
+              disabled={section.disabled}
+              title={section.disabled ? "Coming soon" : undefined}
               className={cn(
                 "group relative flex h-[calc(var(--row-h)-6px)] min-w-0 max-w-44 shrink-0 items-center gap-1.5 border border-b-0 px-3 text-xs transition-colors",
-                section.id === activeSection
-                  ? "z-10 -mb-px border-border/70 bg-(--editor-bg) text-foreground shadow-[0_2px_0_0_var(--editor-bg)]"
-                  : "border-transparent bg-background/28 text-muted-foreground hover:border-border/45 hover:bg-background/52 hover:text-foreground",
+                section.disabled
+                  ? "cursor-not-allowed border-transparent text-muted-foreground/40"
+                  : section.id === activeSection
+                    ? "z-10 -mb-px border-border/70 bg-(--editor-bg) text-foreground shadow-[0_2px_0_0_var(--editor-bg)]"
+                    : "border-transparent bg-background/28 text-muted-foreground hover:border-border/45 hover:bg-background/52 hover:text-foreground",
               )}
             >
               <span className="relative flex size-3.5 shrink-0 items-center justify-center">
                 <section.Icon
                   className={cn(
                     "size-3.5 transition-opacity",
-                    section.id === activeSection
+                    !section.disabled && section.id === activeSection
                       ? "opacity-0"
-                      : "group-hover:opacity-0",
+                      : section.disabled
+                        ? "opacity-100"
+                        : "group-hover:opacity-0",
                   )}
                   weight="regular"
                 />
-                <section.Icon
-                  className={cn(
-                    "absolute inset-0 size-3.5 transition-opacity",
-                    section.id === activeSection
-                      ? "opacity-100"
-                      : "opacity-0 group-hover:opacity-100",
-                  )}
-                  weight="fill"
-                />
+                {!section.disabled && (
+                  <section.Icon
+                    className={cn(
+                      "absolute inset-0 size-3.5 transition-opacity",
+                      section.id === activeSection
+                        ? "opacity-100"
+                        : "opacity-0 group-hover:opacity-100",
+                    )}
+                    weight="fill"
+                  />
+                )}
               </span>
               <span className="truncate">{section.label}</span>
             </button>

@@ -13,24 +13,33 @@
     "offline-flag",
     "quiet-flag"
   ],
-  "fields": [],
+  "fields": [
+    {
+      "name": "cacheDir",
+      "label": "Cache Directory",
+      "type": "path",
+      "required": false,
+      "flag": "--cache-dir",
+      "description": "Optional findings cache directory override.",
+      "placeholder": "~/.cache/claude-grc/findings"
+    }
+  ],
   "overrides": {
     "frameworks": {
       "label": "Frameworks",
       "required": true,
       "position": "argument",
-      "description": "Choose one or more target frameworks to assess."
+      "description": "Comma-separated framework aliases or SCF framework IDs to assess."
     },
     "sources": {
       "label": "Sources",
       "flag": "--sources",
-      "description": "Restrict the assessment to specific connectors."
+      "description": "Comma-separated connector IDs to include in the assessment."
     },
     "output": {
       "label": "Output Format",
       "flag": "--output",
-      "description": "Choose the report format to generate.",
-      "defaultValue": "markdown",
+      "description": "Choose the report format to generate when you want to override the CLI default.",
       "options": [
         { "label": "Markdown", "value": "markdown" },
         { "label": "JSON", "value": "json" },
@@ -72,6 +81,7 @@
     "frameworks",
     "sources",
     "output",
+    "cacheDir",
     "reportDir",
     "refresh",
     "offline",

@@ -19,8 +19,7 @@
       "type": "select",
       "required": false,
       "position": "argument",
-      "description": "Target cloud provider for the evidence collection script.",
-      "defaultValue": "aws",
+      "description": "Target cloud provider for the evidence collection script. Omit to use the CLI default.",
       "options": [
         { "label": "AWS", "value": "aws" },
         { "label": "Azure", "value": "azure" },
@@ -34,8 +33,7 @@
       "type": "select",
       "required": false,
       "position": "argument",
-      "description": "Choose the generated script format.",
-      "defaultValue": "python",
+      "description": "Choose the generated script format. Omit to use the CLI default.",
       "options": [
         { "label": "Python", "value": "python" },
         { "label": "Bash", "value": "bash" }

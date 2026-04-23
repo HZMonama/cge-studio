@@ -31,34 +31,14 @@
       ]
     }
   ],
-  "overrides": {
-    "output": {
-      "label": "Output Format",
-      "description": "Choose the format for the generated framework mapping output.",
-      "defaultValue": "markdown",
-      "options": [
-        { "label": "Markdown", "value": "markdown" },
-        { "label": "JSON", "value": "json" }
-      ]
-    },
-    "reportDir": {
-      "label": "Output Directory",
-      "description": "Optional directory where the framework mapping output should be written.",
-      "placeholder": "./ccm-framework-mapping"
-    },
-    "quiet": {
-      "label": "Quiet output",
-      "description": "Suppress progress output while generating the framework mapping.",
-      "defaultValue": false
-    }
-  },
-  "remove": [],
+  "overrides": {},
+  "remove": [
+    "cCMControlIDRequiredEGCEK01IAM06LOG08)",
+    "sourceControlId"
+  ],
   "order": [
     "controlId",
-    "targetFramework",
-    "output",
-    "reportDir",
-    "quiet"
+    "targetFramework"
   ],
   "submitLabel": "Run CCM Framework Mapping"
 }

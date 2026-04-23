@@ -19,8 +19,7 @@
       "type": "select",
       "required": false,
       "position": "argument",
-      "description": "Policy language or target output format.",
-      "defaultValue": "rego",
+      "description": "Policy language or target output format. Omit to use the CLI default.",
       "options": [
         { "label": "Rego", "value": "rego" },
         { "label": "Sentinel", "value": "sentinel" },

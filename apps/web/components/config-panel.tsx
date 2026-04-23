@@ -92,14 +92,14 @@ export function ConfigPanel({
       )}
     >
       <div className="flex h-full min-h-0 w-[var(--app-sidebar-w)] min-w-[var(--app-sidebar-w)] basis-[var(--app-sidebar-w)] flex-col border-l bg-sidebar text-sidebar-foreground">
-        <div className="flex h-[calc(var(--row-h)*2)] shrink-0 items-start justify-between border-b pl-4 pr-2 pt-3">
-          <div className="flex flex-col gap-1">
+        <div className="flex h-[calc(var(--row-h)*2)] shrink-0 items-center justify-between border-b px-4">
+          <div className="flex flex-col gap-0">
             <span className="text-sm font-medium">Configuration</span>
             <span className="text-xs text-sidebar-foreground/50">settings</span>
           </div>
           <button
             onClick={closeConfig}
-            className="mt-0.5 flex size-6 items-center justify-center text-sidebar-foreground/50 transition-colors hover:text-sidebar-foreground"
+            className="self-start pt-3 flex size-6 items-center justify-center text-sidebar-foreground/50 transition-colors hover:text-sidebar-foreground"
           >
             <XIcon className="size-3.5" />
           </button>
@@ -180,7 +180,7 @@ export function ConfigPanel({
                   })
                 }
                 disabled={savePending}
-                className="flex w-full items-center justify-center gap-2 border border-sidebar-border px-3 py-2 text-xs transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground disabled:cursor-wait disabled:opacity-60"
+                className="sidebar-fade-item flex w-full items-center justify-center gap-2 border border-sidebar-border px-3 py-2 text-xs transition-colors hover:text-sidebar-accent-foreground disabled:cursor-wait disabled:opacity-60"
               >
                 <FloppyDiskIcon className="size-3.5" />
                 {savePending ? "Saving configuration" : "Save configuration"}
@@ -251,7 +251,7 @@ export function ConfigPanel({
               <button
                 onClick={() => void onSaveClaudeCode({ model: claudeModel })}
                 disabled={claudeCodeSavePending}
-                className="flex w-full items-center justify-center gap-2 border border-sidebar-border px-3 py-2 text-xs transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground disabled:cursor-wait disabled:opacity-60"
+                className="sidebar-fade-item flex w-full items-center justify-center gap-2 border border-sidebar-border px-3 py-2 text-xs transition-colors hover:text-sidebar-accent-foreground disabled:cursor-wait disabled:opacity-60"
               >
                 <FloppyDiskIcon className="size-3.5" />
                 {claudeCodeSavePending ? "Saving..." : "Save Claude Code config"}

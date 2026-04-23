@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono, Space_Grotesk } from "next/font/google";
+import { Instrument_Serif, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import "flag-icons/css/flag-icons.min.css";
 
 import { cn } from "@/lib/utils";
@@ -16,6 +16,13 @@ const jetbrainsMono = JetBrains_Mono({
   variable: "--font-mono",
 });
 
+const instrumentSerif = Instrument_Serif({
+  subsets: ["latin"],
+  variable: "--font-instrument-serif",
+  weight: "400",
+  style: "italic",
+});
+
 export const metadata: Metadata = {
   title: "cge-studio",
   description: "Local UI for claude-grc-engineering cli.",
@@ -29,7 +36,12 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn("dark h-full bg-background antialiased", spaceGrotesk.variable, jetbrainsMono.variable)}
+      className={cn(
+        "dark h-full bg-background antialiased",
+        spaceGrotesk.variable,
+        jetbrainsMono.variable,
+        instrumentSerif.variable,
+      )}
     >
       <body className="flex min-h-full flex-col">
         {children}

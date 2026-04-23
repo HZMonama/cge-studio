@@ -269,13 +269,24 @@ function normalizeReadinessRules(rules) {
       requireOneOf: normalizeArray(rule.requireOneOf).filter(
         (name) => typeof name === "string" && name.trim().length > 0,
       ),
+      forbidAll: normalizeArray(rule.forbidAll).filter(
+        (name) => typeof name === "string" && name.trim().length > 0,
+      ),
+      forbidOneOf: normalizeArray(rule.forbidOneOf).filter(
+        (name) => typeof name === "string" && name.trim().length > 0,
+      ),
     }))
     .filter(
       (rule) =>
         rule.when &&
         typeof rule.when.field === "string" &&
         rule.when.field.trim().length > 0 &&
-        (rule.requireAll.length > 0 || rule.requireOneOf.length > 0),
+        (
+          rule.requireAll.length > 0 ||
+          rule.requireOneOf.length > 0 ||
+          rule.forbidAll.length > 0 ||
+          rule.forbidOneOf.length > 0
+        ),
     );
 }
 

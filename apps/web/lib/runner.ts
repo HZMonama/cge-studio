@@ -61,7 +61,7 @@ export interface RunnerArtifactSummary {
   runId: string
   title: string
   kind: string
-  format: "markdown" | "json" | "text"
+  format: "markdown" | "json" | "yaml" | "text"
   path: string
   createdAt: string
   commandPath: string
@@ -100,7 +100,7 @@ export interface RunnerRun {
   commandPath?: string
   pluginId?: string
   commandId?: string
-  executionMode?: "script" | "workflow"
+  executionMode?: "script" | "workflow" | "unsupported"
   outputDir: string
   commandPreview: string | null
   artifactCount?: number
@@ -435,6 +435,7 @@ export async function fetchRunEvents(
 export async function respondToRunPrompt(
   workspaceId: string,
   runId: string,
+  promptId: string,
   answers: Record<string, string>,
 ): Promise<RunnerRun | null> {
   try {
@@ -443,7 +444,7 @@ export async function respondToRunPrompt(
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ answers }),
+      body: JSON.stringify({ promptId, answers }),
     })
 
     if (!response.ok) {
@@ -562,6 +563,95 @@ export async function fetchArtifactDetail(
     }
 
     return (await response.json()) as RunnerArtifactDetail
+  } catch {
+    return null
+  }
+}
+
+export interface ProgramRisk {
+  schema_version?: string
+  risk_id: string
+  title: string
+  status: string
+  owner?: string | null
+  treatment?: string | null
+  created_at?: string | null
+  updated_at?: string | null
+  inherent?: { likelihood?: number; impact?: number; score?: number }
+  residual?: { likelihood?: number; impact?: number; score?: number }
+  linked_findings?: string[]
+  linked_controls?: string[]
+  tags?: string[]
+}
+
+export interface ProgramMetric {
+  schema_version?: string
+  metric_id: string
+  recorded_at: string
+  value: number
+  unit?: string | null
+  subject?: string | null
+  source?: string | null
+}
+
+export interface ProgramException {
+  schema_version?: string
+  exception_id: string
+  control_id: string
+  control_framework: string
+  status: string
+  rationale: string
+  owner: string
+  created_at: string
+  expires_at?: string | null
+  compensating_controls?: string[]
+}
+
+export interface ProgramVendor {
+  schema_version?: string
+  vendor_id: string
+  name: string
+  tier: string
+  status: string
+  owner?: string | null
+  last_review_at?: string | null
+  next_review_at?: string | null
+  risks?: string[]
+}
+
+export interface ProgramPolicy {
+  schema_version?: string
+  policy_id: string
+  title: string
+  status: string
+  version: string
+  owner: string
+  document_path: string
+  effective_at?: string | null
+  next_review_at?: string | null
+  framework_refs?: string[]
+  control_refs?: string[]
+}
+
+export interface ProgramSummary {
+  risks: ProgramRisk[]
+  metrics: ProgramMetric[]
+  exceptions: ProgramException[]
+  vendors: ProgramVendor[]
+  policies: ProgramPolicy[]
+}
+
+export async function fetchProgram(
+  workspaceId: string,
+  signal?: AbortSignal,
+): Promise<ProgramSummary | null> {
+  try {
+    const response = await fetch(
+      `${RUNNER_BASE_URL}/workspaces/${workspaceId}/program`,
+      { cache: "no-store", signal },
+    )
+    if (!response.ok) return null
+    return (await response.json()) as ProgramSummary
   } catch {
     return null
   }

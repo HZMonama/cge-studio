@@ -7,7 +7,6 @@
       "required": false,
       "flag": "--output",
       "description": "Choose the output format for this command.",
-      "defaultValue": "markdown",
       "options": [
         { "label": "Markdown", "value": "markdown" },
         { "label": "JSON", "value": "json" },

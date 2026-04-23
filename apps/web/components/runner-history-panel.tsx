@@ -34,8 +34,8 @@ export function RunnerHistoryPanel({
       )}
     >
       <div className="flex h-full min-h-0 w-[var(--app-sidebar-w)] min-w-[var(--app-sidebar-w)] basis-[var(--app-sidebar-w)] flex-col border-l bg-sidebar text-sidebar-foreground">
-        <div className="flex h-[calc(var(--row-h)*2)] shrink-0 items-start justify-between border-b pl-4 pr-2 pt-3">
-          <div className="flex min-w-0 flex-col gap-1">
+        <div className="flex h-[calc(var(--row-h)*2)] shrink-0 items-center justify-between border-b px-4">
+          <div className="flex min-w-0 flex-col gap-0">
             <span className="truncate text-sm font-medium">Runner History</span>
             <span className="text-xs text-sidebar-foreground/50">
               recent runs
@@ -43,7 +43,7 @@ export function RunnerHistoryPanel({
           </div>
           <button
             onClick={closeHistory}
-            className="mt-0.5 flex size-6 items-center justify-center text-sidebar-foreground/50 transition-colors hover:text-sidebar-foreground"
+            className="self-start pt-3 flex size-6 items-center justify-center text-sidebar-foreground/50 transition-colors hover:text-sidebar-foreground"
           >
             <XIcon className="size-3.5" />
           </button>
@@ -94,7 +94,7 @@ export function RunnerHistoryPanel({
                           <button
                             key={artifact.id}
                             onClick={() => onSelectArtifact(artifact.id)}
-                            className="flex w-full items-center gap-2 border border-sidebar-border px-2.5 py-2 text-left transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                            className="sidebar-fade-item flex w-full items-center gap-2 border border-sidebar-border px-2.5 py-2 text-left transition-colors hover:text-sidebar-accent-foreground"
                           >
                             <ClockCounterClockwiseIcon className="size-3.5 shrink-0 text-sidebar-foreground/50" />
                             <div className="min-w-0 flex-1">

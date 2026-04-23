@@ -176,8 +176,10 @@ function PluginItem({ plugin }: { plugin: Plugin }) {
       <button
         onClick={() => setSelectedPlugin(isSelected ? null : plugin)}
         className={cn(
-          "group/plugin-item flex h-(--row-h) w-full items-center gap-2 overflow-hidden px-4 text-left text-xs outline-none transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2",
-          isSelected && "bg-sidebar-accent text-sidebar-accent-foreground"
+          "sidebar-fade-item group/plugin-item flex h-(--row-h) w-full items-center gap-2 overflow-hidden px-4 text-left text-xs outline-none transition-colors hover:text-sidebar-accent-foreground focus-visible:ring-2",
+          isSelected
+            ? "sidebar-fade-item-active text-sidebar-accent-foreground"
+            : "text-sidebar-foreground",
         )}
       >
         {brandSrc
@@ -242,8 +244,10 @@ function FindingItem({
       <button
         onClick={() => onSelect(finding.id)}
         className={cn(
-          "group/finding-item flex h-auto w-full items-start gap-2.5 overflow-hidden px-4 py-3 text-left text-xs outline-none transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2",
-          isSelected && "bg-sidebar-accent text-sidebar-accent-foreground",
+          "sidebar-fade-item group/finding-item flex h-auto w-full items-start gap-2.5 overflow-hidden px-4 py-3 text-left text-xs outline-none transition-colors hover:text-sidebar-accent-foreground focus-visible:ring-2",
+          isSelected
+            ? "sidebar-fade-item-active text-sidebar-accent-foreground"
+            : "text-sidebar-foreground",
         )}
       >
         <span
@@ -285,8 +289,10 @@ function ArtifactItem({
       <button
         onClick={() => onSelect(artifact.id)}
         className={cn(
-          "group/artifact-item flex h-auto w-full items-start gap-2 overflow-hidden px-4 py-3 text-left text-xs outline-none transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2",
-          isSelected && "bg-sidebar-accent text-sidebar-accent-foreground"
+          "sidebar-fade-item group/artifact-item flex h-auto w-full items-start gap-2 overflow-hidden px-4 py-3 text-left text-xs outline-none transition-colors hover:text-sidebar-accent-foreground focus-visible:ring-2",
+          isSelected
+            ? "sidebar-fade-item-active text-sidebar-accent-foreground"
+            : "text-sidebar-foreground",
         )}
       >
         <SidebarPhosphorIcon
@@ -297,7 +303,7 @@ function ArtifactItem({
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium">{artifact.title}</p>
           <p className="mt-1 truncate text-[10px] uppercase tracking-[0.14em] text-sidebar-foreground/45">
-            {artifact.commandPath}
+            {artifact.kind}
           </p>
         </div>
       </button>
@@ -361,7 +367,7 @@ export function AppSidebar({
   const visible = plugins.filter((p) => {
     const matchesPersona = !activePersona || p.personas.includes(activePersona)
     const matchesCategory = activeCategories.length === 0 || activeCategories.includes(getPluginCategory(p))
-    const matchesQuery = !query || p.id.includes(query.toLowerCase())
+    const matchesQuery = !query || p.id.includes(query.toLowerCase()) || p.label.toLowerCase().includes(query.toLowerCase())
     return matchesPersona && matchesCategory && matchesQuery
   })
   const visibleArtifacts = artifacts.filter((artifact) => {
@@ -424,7 +430,15 @@ export function AppSidebar({
         <div className="relative z-10 flex h-(--row-h) items-center overflow-hidden px-4 text-lg font-semibold text-white">
           <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/20 via-black/10 to-transparent" />
 
-          <span className="relative z-10 drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]">CGE Studio</span>
+          <div className="relative z-10 flex items-baseline gap-2 drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]">
+            <span>CGE Studio</span>
+            <span
+              className="text-lg font-normal italic"
+              style={{ fontFamily: "var(--font-instrument-serif)" }}
+            >
+              Alpha
+            </span>
+          </div>
         </div>
 
         <div className="group/search-row relative z-10 flex h-(--row-h) items-center border-y border-white/20 bg-sidebar/68 px-2 backdrop-blur-md">
@@ -599,8 +613,10 @@ export function AppSidebar({
         <button
           onClick={openConfig}
           className={cn(
-            "group/config-item flex h-(--row-h) w-full items-center gap-2 border-t border-sidebar-border px-4 text-xs transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-            configOpen ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/70"
+            "sidebar-fade-item group/config-item flex h-(--row-h) w-full items-center gap-2 border-t border-sidebar-border px-4 text-xs transition-colors hover:text-sidebar-accent-foreground",
+            configOpen
+              ? "sidebar-fade-item-active text-sidebar-accent-foreground"
+              : "text-sidebar-foreground/70"
           )}
         >
           <SidebarPhosphorIcon

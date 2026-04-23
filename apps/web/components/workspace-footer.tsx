@@ -48,7 +48,7 @@ export function WorkspaceFooter({
   setActiveWorkspaceId: (id: string) => void
 }) {
   const activeWorkspace =
-    workspaces.find(workspace => workspace.id === activeWorkspaceId) ?? workspaces[0] ?? null
+    workspaces.find(workspace => workspace.id === activeWorkspaceId) ?? null
   const [selectorPopoverOpen, setSelectorPopoverOpen] = useState(false)
   const [selectorPopoverMode, setSelectorPopoverMode] = useState<"list" | "details">("list")
 
@@ -57,17 +57,23 @@ export function WorkspaceFooter({
       <div className="flex h-full min-w-0 items-center pr-2">
         <button
           onClick={onRefreshWorkspace}
-          disabled={!activeWorkspace || refreshPending ? true : false}
-          className="mr-1 flex size-8 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+          disabled={!activeWorkspace || refreshPending}
+          className="group mr-1 flex size-8 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
           aria-label="Refresh workspace"
           title="Refresh workspace"
         >
-          <ArrowsClockwiseIcon className={cn("size-3.5", refreshPending && "animate-spin")} />
+          <span className={cn("relative flex size-3.5 items-center justify-center", refreshPending && "animate-spin")}>
+            <ArrowsClockwiseIcon className="size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0" />
+            <ArrowsClockwiseIcon
+              weight="fill"
+              className="absolute inset-0 size-3.5 opacity-0 transition-opacity group-hover:opacity-100 group-active:opacity-100"
+            />
+          </span>
         </button>
         <div className="flex h-full min-w-0 items-center border-r border-border/70 pr-2">
           <Popover open={selectorPopoverOpen} onOpenChange={setSelectorPopoverOpen}>
             <PopoverTrigger
-              disabled={!activeWorkspace ? true : false}
+              disabled={!activeWorkspace}
               onClick={() => {
                 setSelectorPopoverMode("list")
                 setSelectorPopoverOpen(true)
@@ -81,12 +87,18 @@ export function WorkspaceFooter({
                 setSelectorPopoverMode("details")
                 setSelectorPopoverOpen(true)
               }}
-              className="flex h-full min-w-0 items-center gap-2 px-2 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+              className="group flex h-full min-w-0 items-center gap-2 px-2 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
             >
               <div className="min-w-0 text-left">
                 <p className="truncate text-xs text-foreground">{activeWorkspace?.title ?? "No workspace"}</p>
               </div>
-              <CaretUpDownIcon className="size-3.5 shrink-0" />
+              <span className="relative flex size-3.5 shrink-0 items-center justify-center">
+                <CaretUpDownIcon className="size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0" />
+                <CaretUpDownIcon
+                  weight="fill"
+                  className="absolute inset-0 size-3.5 opacity-0 transition-opacity group-hover:opacity-100 group-active:opacity-100"
+                />
+              </span>
             </PopoverTrigger>
             <PopoverPortal>
               <PopoverPositioner side="top" align="start" sideOffset={8}>
@@ -133,33 +145,57 @@ export function WorkspaceFooter({
       <div className="flex items-center gap-1">
         <button
           onClick={onRenameWorkspace}
-          disabled={!activeWorkspace ? true : false}
-          className="flex items-center gap-1.5 px-2 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+          disabled={!activeWorkspace}
+          className="group flex items-center gap-1.5 px-2 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
         >
-          <NotePencilIcon className="size-3.5" />
+          <span className="relative flex size-3.5 items-center justify-center">
+            <NotePencilIcon className="size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0" />
+            <NotePencilIcon
+              weight="fill"
+              className="absolute inset-0 size-3.5 opacity-0 transition-opacity group-hover:opacity-100 group-active:opacity-100"
+            />
+          </span>
           Rename workspace
         </button>
         <button
           onClick={onExportWorkspace}
-          disabled={!activeWorkspace ? true : false}
-          className="flex items-center gap-1.5 px-2 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+          disabled={!activeWorkspace}
+          className="group flex items-center gap-1.5 px-2 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
         >
-          <DownloadSimpleIcon className="size-3.5" />
+          <span className="relative flex size-3.5 items-center justify-center">
+            <DownloadSimpleIcon className="size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0" />
+            <DownloadSimpleIcon
+              weight="fill"
+              className="absolute inset-0 size-3.5 opacity-0 transition-opacity group-hover:opacity-100 group-active:opacity-100"
+            />
+          </span>
           Export workspace
         </button>
         <button
           onClick={() => activeWorkspace && onCloseWorkspace(activeWorkspace.id)}
-          disabled={!activeWorkspace ? true : false}
-          className="flex items-center gap-1.5 px-2 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+          disabled={!activeWorkspace}
+          className="group flex items-center gap-1.5 px-2 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
         >
-          <TrashIcon className="size-3.5" />
+          <span className="relative flex size-3.5 items-center justify-center">
+            <TrashIcon className="size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0" />
+            <TrashIcon
+              weight="fill"
+              className="absolute inset-0 size-3.5 opacity-0 transition-opacity group-hover:opacity-100 group-active:opacity-100"
+            />
+          </span>
           Delete workspace
         </button>
         <button
           onClick={onAddWorkspace}
-          className="flex items-center gap-1.5 px-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          className="group flex items-center gap-1.5 px-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
-          <FolderSimplePlusIcon className="size-3.5" />
+          <span className="relative flex size-3.5 items-center justify-center">
+            <FolderSimplePlusIcon className="size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0" />
+            <FolderSimplePlusIcon
+              weight="fill"
+              className="absolute inset-0 size-3.5 opacity-0 transition-opacity group-hover:opacity-100 group-active:opacity-100"
+            />
+          </span>
           Add workspace
         </button>
       </div>
