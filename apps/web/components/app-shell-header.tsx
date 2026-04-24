@@ -209,7 +209,7 @@ export function AppShellHeader({
                 section.disabled
                   ? "cursor-not-allowed border-transparent bg-transparent text-muted-foreground/40"
                   : section.id === activeSection
-                    ? "border-border/70 bg-background text-foreground shadow-sm"
+                    ? "border-border/70 bg-border/70 text-foreground shadow-sm"
                     : "border-transparent bg-background/20 text-muted-foreground hover:border-border/45 hover:bg-background/52 hover:text-foreground",
               )}
             >

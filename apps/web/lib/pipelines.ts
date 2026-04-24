@@ -70,7 +70,7 @@ export const PIPELINES: Pipeline[] = [
     id: "evidence-to-gap",
     path: "/pipeline:evidence-to-gap",
     label: "Evidence → Gap → Summary",
-    readiness: "planned",
+    readiness: "ready",
     description:
       "Collect connector findings, run a gap assessment, then generate an executive summary. The most common daily GRC pipeline.",
     tier: 1,
@@ -102,7 +102,7 @@ export const PIPELINES: Pipeline[] = [
     id: "iac-compliance",
     path: "/pipeline:iac-compliance",
     label: "IaC Scan → Optimise → Coverage",
-    readiness: "planned",
+    readiness: "ready",
     description:
       "Scan infrastructure-as-code for violations, compute cross-framework optimisation opportunities, then produce an automation coverage report.",
     tier: 1,
@@ -138,7 +138,7 @@ export const PIPELINES: Pipeline[] = [
     id: "multi-cloud-collect",
     path: "/pipeline:multi-cloud-collect",
     label: "Multi-Cloud Collect → Gap",
-    readiness: "planned",
+    readiness: "ready",
     description:
       "Run all four connector collections in sequence, then assess findings across the chosen framework. Replaces four manual collect runs.",
     tier: 1,
@@ -182,7 +182,7 @@ export const PIPELINES: Pipeline[] = [
     id: "fedramp-package",
     path: "/pipeline:fedramp-package",
     label: "FedRAMP Package",
-    readiness: "planned",
+    readiness: "ready",
     description:
       "Convert the SSP, validate the OSCAL output, run a FedRAMP gap assessment, then produce a board brief for the audit committee.",
     tier: 2,
@@ -212,7 +212,7 @@ export const PIPELINES: Pipeline[] = [
     id: "new-framework-onboard",
     path: "/pipeline:new-framework-onboard",
     label: "Onboard New Framework",
-    readiness: "planned",
+    readiness: "ready",
     description:
       "Scaffold a new compliance framework, run an initial gap assessment, then compute overlap with existing frameworks to find implementation shortcuts.",
     tier: 2,
@@ -249,7 +249,7 @@ export const PIPELINES: Pipeline[] = [
     id: "control-test-and-report",
     path: "/pipeline:control-test-and-report",
     label: "Control Test → Evidence → Metrics",
-    readiness: "planned",
+    readiness: "ready",
     description:
       "Test a control's effectiveness, collect its evidence, then record the automation metric. A tight loop auditors run per-control.",
     tier: 2,

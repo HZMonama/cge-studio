@@ -29,9 +29,9 @@ function DialogContent({ className, ...props }: DialogPrimitive.Popup.Props) {
   return (
     <DialogPortal>
       <DialogOverlay />
-      <DialogPrimitive.Popup
+        <DialogPrimitive.Popup
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 w-[min(32rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-3xl border border-border/70 bg-background/92 text-foreground shadow-2xl backdrop-blur-xl transition duration-150 data-ending-style:opacity-0 data-ending-style:scale-95 data-starting-style:opacity-0 data-starting-style:scale-95",
+          "fixed top-1/2 left-1/2 z-50 w-[min(32rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-none border border-border/70 bg-background/72 text-foreground shadow-2xl backdrop-blur-xl transition duration-150 data-ending-style:opacity-0 data-ending-style:scale-95 data-starting-style:opacity-0 data-starting-style:scale-95",
           className,
         )}
         {...props}

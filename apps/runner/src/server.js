@@ -211,6 +211,7 @@ const defaultWorkspaceRoot = path.join(os.homedir(), "Documents", "CGE Workspace
 const workflowRuntime = createWorkflowRuntime({
   appendRunEvent,
   createArtifactSummary,
+  executeStep,
   findLatestJsonFile,
   parsePrompt,
   readRuns,
@@ -1410,6 +1411,7 @@ async function createCommandRun(input) {
       run,
       runDirectory,
       workspace: input.workspace,
+      toolkitPath: input.toolkitPath,
     });
     return run;
   }
@@ -1831,6 +1833,190 @@ async function executeCommandRun(input) {
 
 async function executeWorkflowRun(input) {
   return workflowRuntime.executeWorkflowRun(input);
+}
+
+async function executeStep({ commandPath, args, stepIndex, runId, runDirectory, workspace, toolkitPath }) {
+  const prompt = [commandPath, ...args].join(" ");
+  const parsed = parsePrompt(prompt);
+  if (!parsed) {
+    throw new Error(`Cannot parse step command: ${commandPath}`);
+  }
+
+  const stepArtifactsDir = path.join(
+    workspace.folders.artifactsGenerated,
+    `${runId}-step-${stepIndex}`,
+  );
+  await fs.mkdir(stepArtifactsDir, { recursive: true });
+
+  const execution = resolveCommandExecution({
+    parsed,
+    toolkitAvailable: Boolean(toolkitPath),
+    toolkitPath,
+    workspace,
+    runArtifactsDir: stepArtifactsDir,
+    runId,
+  });
+
+  if (execution.kind === "script") {
+    await appendRunEvent(runDirectory, {
+      type: "tool.started",
+      data: { command: commandPath, args, cwd: execution.cwd },
+    });
+
+    await fs.mkdir(execution.cwd, { recursive: true });
+
+    const stdoutChunks = [];
+    const stderrChunks = [];
+
+    return new Promise((resolve, reject) => {
+      const child = spawn(execution.runtime, [execution.scriptPath, ...execution.args], {
+        cwd: execution.cwd,
+        env: process.env,
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      child.stdin.end();
+
+      child.stdout.on("data", (chunk) => {
+        const text = chunk.toString("utf8");
+        stdoutChunks.push(text);
+        void appendRunEvent(runDirectory, { type: "tool.stdout", data: { stream: "stdout", text } });
+      });
+
+      child.stderr.on("data", (chunk) => {
+        const text = chunk.toString("utf8");
+        stderrChunks.push(text);
+        void appendRunEvent(runDirectory, { type: "tool.stderr", data: { stream: "stderr", text } });
+      });
+
+      child.on("error", reject);
+
+      child.on("close", async (exitCode) => {
+        const stdoutText = stdoutChunks.join("");
+        const status = classifyRunStatus(execution, exitCode);
+
+        await appendRunEvent(runDirectory, {
+          type: "tool.completed",
+          data: { exitCode, status },
+        });
+
+        const artifacts = status === "completed"
+          ? await collectRunArtifacts({
+              commandPath,
+              commandId: parsed.commandId,
+              execution,
+              runId,
+              stdoutText,
+              workspace,
+            })
+          : [];
+
+        resolve({ status, artifacts, stdoutText, exitCode });
+      });
+    });
+  }
+
+  if (execution.kind === "agent") {
+    await fs.mkdir(path.join(workspace.rootPath, "grc-reports"), { recursive: true });
+
+    await appendRunEvent(runDirectory, {
+      type: "tool.started",
+      data: { command: "claude", args: [commandPath, ...args], cwd: execution.cwd },
+    });
+
+    const claudeArgs = buildClaudeArgs({
+      commandPath: execution.commandPath,
+      workspacePath: workspace.rootPath,
+      args: execution.args,
+    });
+
+    const startedAt = new Date();
+
+    return new Promise((resolve) => {
+      const child = spawn("claude", claudeArgs, {
+        cwd: execution.cwd,
+        env: process.env,
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+
+      let stdoutBuffer = "";
+      let pendingText = "";
+      let resolved = false;
+
+      const flushPendingText = async () => {
+        const text = pendingText.trim();
+        if (!text) return;
+        pendingText = "";
+        await appendRunEvent(runDirectory, {
+          type: "message",
+          data: { role: "assistant", text },
+        });
+      };
+
+      const processLine = async (line) => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+        let event;
+        try { event = JSON.parse(trimmed); } catch { return; }
+
+        if (event.type === "assistant") {
+          for (const block of event.message?.content ?? []) {
+            if (block.type === "text" && block.text) {
+              pendingText += (pendingText ? "\n" : "") + block.text;
+            } else if (block.type === "tool_use") {
+              await flushPendingText();
+              await appendRunEvent(runDirectory, {
+                type: "tool.started",
+                data: { command: block.name, args: [], cwd: workspace.rootPath },
+              });
+            }
+          }
+        }
+
+        if (event.type === "result" && !resolved) {
+          resolved = true;
+          await flushPendingText();
+          const success = event.subtype === "success";
+          const artifacts = success
+            ? await collectAgentArtifacts({ run: { id: runId, commandId: parsed.commandId, commandPath }, workspace, startedAt })
+            : [];
+          await appendRunEvent(runDirectory, {
+            type: "tool.completed",
+            data: { exitCode: success ? 0 : 1, status: success ? "completed" : "failed" },
+          });
+          resolve({ status: success ? "completed" : "failed", artifacts, exitCode: success ? 0 : 1 });
+        }
+      };
+
+      child.stdout.on("data", async (chunk) => {
+        stdoutBuffer += chunk.toString("utf8");
+        const lines = stdoutBuffer.split("\n");
+        stdoutBuffer = lines.pop() ?? "";
+        for (const line of lines) await processLine(line);
+      });
+
+      child.stderr.on("data", async (chunk) => {
+        const text = chunk.toString("utf8").trim();
+        if (text) {
+          await appendRunEvent(runDirectory, { type: "tool.stderr", data: { stream: "stderr", text } });
+        }
+      });
+
+      child.on("close", async (exitCode) => {
+        if (stdoutBuffer.trim()) await processLine(stdoutBuffer);
+        await flushPendingText();
+        if (!resolved) {
+          resolved = true;
+          await appendRunEvent(runDirectory, {
+            type: "tool.completed",
+            data: { exitCode, status: "failed" },
+          });
+          resolve({ status: "failed", artifacts: [], exitCode: exitCode ?? 1 });
+        }
+      });
+    });
+  }
+
+  throw new Error(`Pipeline step ${commandPath} resolved to unsupported kind: ${execution.kind}`);
 }
 
 async function finalizeCommandRun(input) {

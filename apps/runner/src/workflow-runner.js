@@ -3,6 +3,69 @@ import path from "node:path";
 
 const workflowDefinitions = [
   defineWorkflow({
+    commandPath: "/pipeline:evidence-to-gap",
+    handlerId: "pipeline.evidence-to-gap",
+    workflowType: "pipeline",
+    start: startEvidenceToGapPipeline,
+    respond: respondEvidenceToGapPipeline,
+  }),
+  defineWorkflow({
+    commandPath: "/pipeline:iac-compliance",
+    handlerId: "pipeline.iac-compliance",
+    workflowType: "pipeline",
+    start: startIacCompliancePipeline,
+    respond: respondIacCompliancePipeline,
+  }),
+  defineWorkflow({
+    commandPath: "/pipeline:multi-cloud-collect",
+    handlerId: "pipeline.multi-cloud-collect",
+    workflowType: "pipeline",
+    start: startMultiCloudCollectPipeline,
+    respond: respondMultiCloudCollectPipeline,
+  }),
+  defineWorkflow({
+    commandPath: "/pipeline:fedramp-package",
+    handlerId: "pipeline.fedramp-package",
+    workflowType: "pipeline",
+    start: startFedRampPackagePipeline,
+    respond: respondFedRampPackagePipeline,
+  }),
+  defineWorkflow({
+    commandPath: "/pipeline:new-framework-onboard",
+    handlerId: "pipeline.new-framework-onboard",
+    workflowType: "pipeline",
+    start: startNewFrameworkOnboardPipeline,
+    respond: respondNewFrameworkOnboardPipeline,
+  }),
+  defineWorkflow({
+    commandPath: "/pipeline:control-test-and-report",
+    handlerId: "pipeline.control-test-and-report",
+    workflowType: "pipeline",
+    start: startControlTestAndReportPipeline,
+    respond: respondControlTestAndReportPipeline,
+  }),
+  defineWorkflow({
+    commandPath: "/pipeline:tprm-assessment",
+    handlerId: "pipeline.tprm-assessment",
+    workflowType: "pipeline",
+    start: startTprmAssessmentPipeline,
+    respond: respondTprmAssessmentPipeline,
+  }),
+  defineWorkflow({
+    commandPath: "/pipeline:incident-response",
+    handlerId: "pipeline.incident-response",
+    workflowType: "pipeline",
+    start: startIncidentResponsePipeline,
+    respond: respondIncidentResponsePipeline,
+  }),
+  defineWorkflow({
+    commandPath: "/pipeline:audit-prep",
+    handlerId: "pipeline.audit-prep",
+    workflowType: "pipeline",
+    start: startAuditPrepPipeline,
+    respond: respondAuditPrepPipeline,
+  }),
+  defineWorkflow({
     commandPath: "/grc-reporter:exec-summary",
     handlerId: "grc-reporter.exec-summary",
     workflowType: "exec-summary",
@@ -1373,4 +1436,1052 @@ function renderProgramHealthReport({ answers, asOf, context, excludedSet }) {
     `Connector findings: ${sourcesLine}`,
     `Priority order: ${answers.priority_order}`,
   ].join("\n");
+}
+
+// ─── Pipeline helpers ─────────────────────────────────────────────────────────
+
+async function runPipelineStep(input, { stepIndex, commandPath, args, label }) {
+  await input.appendRunEvent(input.runDirectory, {
+    type: "message",
+    data: { role: "assistant", text: `Step ${stepIndex + 1}: ${label}` },
+  });
+
+  const result = await input.executeStep({
+    commandPath,
+    args,
+    stepIndex,
+    runId: input.run.id,
+    runDirectory: input.runDirectory,
+    workspace: input.workspace,
+    toolkitPath: input.toolkitPath,
+  });
+
+  return result;
+}
+
+async function failPipeline(input, { message, completedAt }) {
+  await input.appendRunEvent(input.runDirectory, {
+    type: "run.failed",
+    data: { message },
+  });
+  await input.writeRun(input.runDirectory, {
+    ...input.run,
+    completedAt,
+    status: "failed",
+  });
+}
+
+async function completePipeline(input, { artifacts, completedAt }) {
+  const artifactCount = artifacts.length;
+  for (const artifact of artifacts) {
+    await input.appendRunEvent(input.runDirectory, {
+      type: "artifact.created",
+      data: {
+        artifactId: artifact.id,
+        title: artifact.title,
+        kind: artifact.kind,
+        format: artifact.format,
+        path: artifact.path,
+      },
+    });
+  }
+  await input.appendRunEvent(input.runDirectory, {
+    type: "run.completed",
+    data: { artifactCount, exitCode: 0 },
+  });
+  await input.writeRun(input.runDirectory, {
+    ...input.run,
+    artifacts,
+    artifactCount,
+    completedAt,
+    status: "completed",
+  });
+}
+
+// ─── Pipeline: evidence-to-gap ───────────────────────────────────────────────
+
+async function startEvidenceToGapPipeline(input) {
+  await input.appendRunEvent(input.runDirectory, {
+    type: "run.started",
+    data: { commandPreview: input.run.commandPreview },
+  });
+  await input.appendRunEvent(input.runDirectory, {
+    type: "prompt.required",
+    data: {
+      promptId: "evidence-to-gap-inputs",
+      title: "Pipeline inputs",
+      submitLabel: "Run pipeline",
+      fields: [
+        {
+          id: "connector",
+          label: "Connector",
+          placeholder: "github-inspector",
+          options: [
+            { label: "GitHub Inspector", value: "github-inspector" },
+            { label: "AWS Inspector", value: "aws-inspector" },
+            { label: "GCP Inspector", value: "gcp-inspector" },
+            { label: "Okta Inspector", value: "okta-inspector" },
+          ],
+        },
+        {
+          id: "framework",
+          label: "Framework",
+          placeholder: "SOC2",
+        },
+      ],
+    },
+  });
+  await writeWorkflowState(input.runDirectory, {
+    handlerId: input.definition.handlerId,
+    type: input.execution.workflowType,
+    phase: "awaiting_input",
+  });
+}
+
+async function respondEvidenceToGapPipeline(input) {
+  const answers = input.response?.answers ?? input.response ?? {};
+  const connector = String(answers.connector ?? "github-inspector").trim();
+  const framework = String(answers.framework ?? "SOC2").trim();
+  const completedAt = new Date().toISOString();
+
+  await input.appendRunEvent(input.runDirectory, {
+    type: "message",
+    data: {
+      role: "user",
+      text: `Connector: ${connector}\nFramework: ${framework}`,
+    },
+  });
+
+  // Step 1: collect
+  const collectResult = await runPipelineStep(input, {
+    stepIndex: 0,
+    commandPath: `/${connector}:collect`,
+    args: [],
+    label: `Collect findings (${connector})`,
+  });
+
+  if (collectResult.status !== "completed") {
+    return failPipeline(input, {
+      message: `${connector}:collect failed (exit ${collectResult.exitCode}).`,
+      completedAt,
+    });
+  }
+
+  // Step 2: gap-assessment
+  const gapResult = await runPipelineStep(input, {
+    stepIndex: 1,
+    commandPath: "/grc-engineer:gap-assessment",
+    args: [framework, `--sources=${connector}`],
+    label: `Gap assessment (${framework})`,
+  });
+
+  if (gapResult.status !== "completed") {
+    return failPipeline(input, {
+      message: `gap-assessment failed (exit ${gapResult.exitCode}).`,
+      completedAt,
+    });
+  }
+
+  await writeWorkflowState(input.runDirectory, {
+    ...input.workflowState,
+    phase: "completed",
+  });
+
+  return completePipeline(input, {
+    artifacts: [...collectResult.artifacts, ...gapResult.artifacts],
+    completedAt,
+  });
+}
+
+// ─── Pipeline: iac-compliance ─────────────────────────────────────────────────
+
+async function startIacCompliancePipeline(input) {
+  await input.appendRunEvent(input.runDirectory, {
+    type: "run.started",
+    data: { commandPreview: input.run.commandPreview },
+  });
+  await input.appendRunEvent(input.runDirectory, {
+    type: "prompt.required",
+    data: {
+      promptId: "iac-compliance-inputs",
+      title: "Pipeline inputs",
+      submitLabel: "Run pipeline",
+      fields: [
+        {
+          id: "directory",
+          label: "IaC directory",
+          placeholder: "./terraform",
+        },
+        {
+          id: "frameworks",
+          label: "Frameworks (comma-separated)",
+          placeholder: "SOC2,NIST-800-53",
+        },
+      ],
+    },
+  });
+  await writeWorkflowState(input.runDirectory, {
+    handlerId: input.definition.handlerId,
+    type: input.execution.workflowType,
+    phase: "awaiting_input",
+  });
+}
+
+async function respondIacCompliancePipeline(input) {
+  const answers = input.response?.answers ?? input.response ?? {};
+  const directory = String(answers.directory ?? "./terraform").trim();
+  const frameworks = String(answers.frameworks ?? "SOC2").trim();
+  const completedAt = new Date().toISOString();
+
+  await input.appendRunEvent(input.runDirectory, {
+    type: "message",
+    data: {
+      role: "user",
+      text: `Directory: ${directory}\nFrameworks: ${frameworks}`,
+    },
+  });
+
+  // Step 1: scan-iac
+  const scanResult = await runPipelineStep(input, {
+    stepIndex: 0,
+    commandPath: "/grc-engineer:scan-iac",
+    args: [directory, frameworks],
+    label: `Scan IaC (${directory})`,
+  });
+
+  if (scanResult.status !== "completed") {
+    return failPipeline(input, {
+      message: `scan-iac failed (exit ${scanResult.exitCode}).`,
+      completedAt,
+    });
+  }
+
+  // Step 2: optimize-multi-framework
+  const optimizeResult = await runPipelineStep(input, {
+    stepIndex: 1,
+    commandPath: "/grc-engineer:optimize-multi-framework",
+    args: [frameworks],
+    label: `Optimise frameworks (${frameworks})`,
+  });
+
+  if (optimizeResult.status !== "completed") {
+    return failPipeline(input, {
+      message: `optimize-multi-framework failed (exit ${optimizeResult.exitCode}).`,
+      completedAt,
+    });
+  }
+
+  await writeWorkflowState(input.runDirectory, {
+    ...input.workflowState,
+    phase: "completed",
+  });
+
+  return completePipeline(input, {
+    artifacts: [...scanResult.artifacts, ...optimizeResult.artifacts],
+    completedAt,
+  });
+}
+
+// ─── Pipeline: multi-cloud-collect ───────────────────────────────────────────
+
+async function startMultiCloudCollectPipeline(input) {
+  await input.appendRunEvent(input.runDirectory, {
+    type: "run.started",
+    data: { commandPreview: input.run.commandPreview },
+  });
+  await input.appendRunEvent(input.runDirectory, {
+    type: "prompt.required",
+    data: {
+      promptId: "multi-cloud-collect-inputs",
+      title: "Pipeline inputs",
+      submitLabel: "Run pipeline",
+      fields: [
+        {
+          id: "framework",
+          label: "Framework",
+          placeholder: "SOC2",
+        },
+        {
+          id: "connectors",
+          label: "Connectors to run (comma-separated)",
+          placeholder: "aws-inspector,gcp-inspector,github-inspector,okta-inspector",
+        },
+      ],
+    },
+  });
+  await writeWorkflowState(input.runDirectory, {
+    handlerId: input.definition.handlerId,
+    type: input.execution.workflowType,
+    phase: "awaiting_input",
+  });
+}
+
+async function respondMultiCloudCollectPipeline(input) {
+  const answers = input.response?.answers ?? input.response ?? {};
+  const framework = String(answers.framework ?? "SOC2").trim();
+  const connectorInput = String(
+    answers.connectors ?? "aws-inspector,gcp-inspector,github-inspector,okta-inspector",
+  ).trim();
+  const connectors = connectorInput
+    .split(",")
+    .map((c) => c.trim())
+    .filter(Boolean);
+  const completedAt = new Date().toISOString();
+
+  await input.appendRunEvent(input.runDirectory, {
+    type: "message",
+    data: {
+      role: "user",
+      text: `Connectors: ${connectors.join(", ")}\nFramework: ${framework}`,
+    },
+  });
+
+  const allArtifacts = [];
+
+  // Steps 1–N: collect from each connector sequentially
+  for (let i = 0; i < connectors.length; i++) {
+    const connector = connectors[i];
+    const result = await runPipelineStep(input, {
+      stepIndex: i,
+      commandPath: `/${connector}:collect`,
+      args: [],
+      label: `Collect findings (${connector})`,
+    });
+
+    if (result.status !== "completed") {
+      await input.appendRunEvent(input.runDirectory, {
+        type: "message",
+        data: {
+          role: "assistant",
+          text: `Warning: ${connector}:collect failed (exit ${result.exitCode}), continuing with remaining connectors.`,
+        },
+      });
+    } else {
+      allArtifacts.push(...result.artifacts);
+    }
+  }
+
+  // Final step: gap-assessment across all connectors
+  const sources = connectors.join(",");
+  const gapResult = await runPipelineStep(input, {
+    stepIndex: connectors.length,
+    commandPath: "/grc-engineer:gap-assessment",
+    args: [framework, `--sources=${sources}`],
+    label: `Gap assessment (${framework})`,
+  });
+
+  if (gapResult.status !== "completed") {
+    return failPipeline(input, {
+      message: `gap-assessment failed (exit ${gapResult.exitCode}).`,
+      completedAt,
+    });
+  }
+
+  allArtifacts.push(...gapResult.artifacts);
+
+  await writeWorkflowState(input.runDirectory, {
+    ...input.workflowState,
+    phase: "completed",
+  });
+
+  return completePipeline(input, { artifacts: allArtifacts, completedAt });
+}
+
+// ─── Pipeline: fedramp-package ────────────────────────────────────────────────
+
+async function startFedRampPackagePipeline(input) {
+  await input.appendRunEvent(input.runDirectory, {
+    type: "run.started",
+    data: { commandPreview: input.run.commandPreview },
+  });
+  await input.appendRunEvent(input.runDirectory, {
+    type: "prompt.required",
+    data: {
+      promptId: "fedramp-package-inputs",
+      title: "Pipeline inputs",
+      submitLabel: "Run pipeline",
+      fields: [
+        {
+          id: "ssp_path",
+          label: "SSP file path",
+          placeholder: "./fedramp-ssp.xml",
+        },
+        {
+          id: "framework",
+          label: "Framework variant",
+          placeholder: "fedramp-rev5",
+          options: [
+            { label: "FedRAMP Rev5", value: "fedramp-rev5" },
+            { label: "FedRAMP 20x", value: "fedramp-20x" },
+          ],
+        },
+      ],
+    },
+  });
+  await writeWorkflowState(input.runDirectory, {
+    handlerId: input.definition.handlerId,
+    type: input.execution.workflowType,
+    phase: "awaiting_input",
+  });
+}
+
+async function respondFedRampPackagePipeline(input) {
+  const answers = input.response?.answers ?? input.response ?? {};
+  const sspPath = String(answers.ssp_path ?? "").trim();
+  const framework = String(answers.framework ?? "fedramp-rev5").trim();
+  const completedAt = new Date().toISOString();
+
+  await input.appendRunEvent(input.runDirectory, {
+    type: "message",
+    data: {
+      role: "user",
+      text: `SSP path: ${sspPath || "(default)"}\nFramework: ${framework}`,
+    },
+  });
+
+  // Step 1: convert SSP
+  const convertArgs = sspPath ? [sspPath] : [];
+  const convertResult = await runPipelineStep(input, {
+    stepIndex: 0,
+    commandPath: "/fedramp-ssp:convert",
+    args: convertArgs,
+    label: "Convert SSP",
+  });
+
+  if (convertResult.status !== "completed") {
+    return failPipeline(input, {
+      message: `fedramp-ssp:convert failed (exit ${convertResult.exitCode}).`,
+      completedAt,
+    });
+  }
+
+  // Step 2: validate OSCAL
+  const validateResult = await runPipelineStep(input, {
+    stepIndex: 1,
+    commandPath: "/oscal:validate",
+    args: [],
+    label: "Validate OSCAL output",
+  });
+
+  if (validateResult.status !== "completed") {
+    return failPipeline(input, {
+      message: `oscal:validate failed (exit ${validateResult.exitCode}). Fix schema violations before gap assessment.`,
+      completedAt,
+    });
+  }
+
+  // Step 3: gap assessment
+  const gapResult = await runPipelineStep(input, {
+    stepIndex: 2,
+    commandPath: "/grc-engineer:gap-assessment",
+    args: [framework],
+    label: `Gap assessment (${framework})`,
+  });
+
+  if (gapResult.status !== "completed") {
+    return failPipeline(input, {
+      message: `gap-assessment failed (exit ${gapResult.exitCode}).`,
+      completedAt,
+    });
+  }
+
+  await writeWorkflowState(input.runDirectory, {
+    ...input.workflowState,
+    phase: "completed",
+  });
+
+  return completePipeline(input, {
+    artifacts: [
+      ...convertResult.artifacts,
+      ...validateResult.artifacts,
+      ...gapResult.artifacts,
+    ],
+    completedAt,
+  });
+}
+
+// ─── Pipeline: new-framework-onboard ─────────────────────────────────────────
+
+async function startNewFrameworkOnboardPipeline(input) {
+  await input.appendRunEvent(input.runDirectory, {
+    type: "run.started",
+    data: { commandPreview: input.run.commandPreview },
+  });
+  await input.appendRunEvent(input.runDirectory, {
+    type: "prompt.required",
+    data: {
+      promptId: "new-framework-onboard-inputs",
+      title: "Pipeline inputs",
+      submitLabel: "Run pipeline",
+      fields: [
+        {
+          id: "framework",
+          label: "New framework",
+          placeholder: "DORA",
+        },
+        {
+          id: "existing_frameworks",
+          label: "Existing frameworks for overlap analysis (comma-separated)",
+          placeholder: "SOC2,NIST-800-53",
+        },
+      ],
+    },
+  });
+  await writeWorkflowState(input.runDirectory, {
+    handlerId: input.definition.handlerId,
+    type: input.execution.workflowType,
+    phase: "awaiting_input",
+  });
+}
+
+async function respondNewFrameworkOnboardPipeline(input) {
+  const answers = input.response?.answers ?? input.response ?? {};
+  const framework = String(answers.framework ?? "").trim();
+  const existingFrameworks = String(answers.existing_frameworks ?? "").trim();
+  const completedAt = new Date().toISOString();
+
+  if (!framework) {
+    return failPipeline(input, {
+      message: "Framework is required.",
+      completedAt,
+    });
+  }
+
+  await input.appendRunEvent(input.runDirectory, {
+    type: "message",
+    data: {
+      role: "user",
+      text: [
+        `Framework: ${framework}`,
+        existingFrameworks ? `Existing frameworks: ${existingFrameworks}` : null,
+      ].filter(Boolean).join("\n"),
+    },
+  });
+
+  // Step 1: scaffold
+  const scaffoldResult = await runPipelineStep(input, {
+    stepIndex: 0,
+    commandPath: "/grc-engineer:scaffold-framework",
+    args: [framework],
+    label: `Scaffold ${framework}`,
+  });
+
+  if (scaffoldResult.status !== "completed") {
+    return failPipeline(input, {
+      message: `scaffold-framework failed (exit ${scaffoldResult.exitCode}).`,
+      completedAt,
+    });
+  }
+
+  // Step 2: initial gap assessment
+  const gapResult = await runPipelineStep(input, {
+    stepIndex: 1,
+    commandPath: "/grc-engineer:gap-assessment",
+    args: [framework],
+    label: `Initial gap assessment (${framework})`,
+  });
+
+  if (gapResult.status !== "completed") {
+    return failPipeline(input, {
+      message: `gap-assessment failed (exit ${gapResult.exitCode}).`,
+      completedAt,
+    });
+  }
+
+  // Step 3: overlap analysis (only if existing frameworks provided)
+  const optimizeArgs = existingFrameworks
+    ? [`${framework},${existingFrameworks}`]
+    : [framework];
+
+  const optimizeResult = await runPipelineStep(input, {
+    stepIndex: 2,
+    commandPath: "/grc-engineer:optimize-multi-framework",
+    args: optimizeArgs,
+    label: "Cross-framework overlap analysis",
+  });
+
+  if (optimizeResult.status !== "completed") {
+    return failPipeline(input, {
+      message: `optimize-multi-framework failed (exit ${optimizeResult.exitCode}).`,
+      completedAt,
+    });
+  }
+
+  await writeWorkflowState(input.runDirectory, {
+    ...input.workflowState,
+    phase: "completed",
+  });
+
+  return completePipeline(input, {
+    artifacts: [
+      ...scaffoldResult.artifacts,
+      ...gapResult.artifacts,
+      ...optimizeResult.artifacts,
+    ],
+    completedAt,
+  });
+}
+
+// ─── Pipeline: control-test-and-report ───────────────────────────────────────
+
+async function startControlTestAndReportPipeline(input) {
+  await input.appendRunEvent(input.runDirectory, {
+    type: "run.started",
+    data: { commandPreview: input.run.commandPreview },
+  });
+  await input.appendRunEvent(input.runDirectory, {
+    type: "prompt.required",
+    data: {
+      promptId: "control-test-and-report-inputs",
+      title: "Pipeline inputs",
+      submitLabel: "Run pipeline",
+      fields: [
+        {
+          id: "control",
+          label: "Control ID",
+          placeholder: "access_control_account_management",
+        },
+        {
+          id: "cloud",
+          label: "Cloud provider",
+          placeholder: "aws",
+          options: [
+            { label: "AWS", value: "aws" },
+            { label: "GCP", value: "gcp" },
+            { label: "Azure", value: "azure" },
+            { label: "Kubernetes", value: "kubernetes" },
+          ],
+        },
+      ],
+    },
+  });
+  await writeWorkflowState(input.runDirectory, {
+    handlerId: input.definition.handlerId,
+    type: input.execution.workflowType,
+    phase: "awaiting_input",
+  });
+}
+
+async function respondControlTestAndReportPipeline(input) {
+  const answers = input.response?.answers ?? input.response ?? {};
+  const control = String(answers.control ?? "").trim();
+  const cloud = String(answers.cloud ?? "aws").trim();
+  const completedAt = new Date().toISOString();
+
+  if (!control) {
+    return failPipeline(input, {
+      message: "Control ID is required.",
+      completedAt,
+    });
+  }
+
+  await input.appendRunEvent(input.runDirectory, {
+    type: "message",
+    data: {
+      role: "user",
+      text: `Control: ${control}\nCloud: ${cloud}`,
+    },
+  });
+
+  // Step 1: test control
+  const testResult = await runPipelineStep(input, {
+    stepIndex: 0,
+    commandPath: "/grc-engineer:test-control",
+    args: [control, cloud],
+    label: `Test control (${control})`,
+  });
+
+  if (testResult.status !== "completed") {
+    return failPipeline(input, {
+      message: `test-control failed (exit ${testResult.exitCode}).`,
+      completedAt,
+    });
+  }
+
+  // Step 2: collect evidence
+  const evidenceResult = await runPipelineStep(input, {
+    stepIndex: 1,
+    commandPath: "/grc-engineer:collect-evidence",
+    args: [control, cloud],
+    label: `Collect evidence (${control})`,
+  });
+
+  if (evidenceResult.status !== "completed") {
+    return failPipeline(input, {
+      message: `collect-evidence failed (exit ${evidenceResult.exitCode}).`,
+      completedAt,
+    });
+  }
+
+  // Step 3: record automation metrics
+  const metricsResult = await runPipelineStep(input, {
+    stepIndex: 2,
+    commandPath: "/grc-engineer:record-automation-metrics",
+    args: [control, cloud],
+    label: "Record automation metrics",
+  });
+
+  if (metricsResult.status !== "completed") {
+    return failPipeline(input, {
+      message: `record-automation-metrics failed (exit ${metricsResult.exitCode}).`,
+      completedAt,
+    });
+  }
+
+  await writeWorkflowState(input.runDirectory, {
+    ...input.workflowState,
+    phase: "completed",
+  });
+
+  return completePipeline(input, {
+    artifacts: [
+      ...testResult.artifacts,
+      ...evidenceResult.artifacts,
+      ...metricsResult.artifacts,
+    ],
+    completedAt,
+  });
+}
+
+// ─── Pipeline: tprm-assessment ────────────────────────────────────────────────
+
+async function startTprmAssessmentPipeline(input) {
+  await input.appendRunEvent(input.runDirectory, {
+    type: "run.started",
+    data: { commandPreview: input.run.commandPreview },
+  });
+  await input.appendRunEvent(input.runDirectory, {
+    type: "prompt.required",
+    data: {
+      promptId: "tprm-assessment-inputs",
+      title: "Pipeline inputs",
+      submitLabel: "Run pipeline",
+      fields: [
+        {
+          id: "vendor",
+          label: "Vendor name",
+          placeholder: "Acme Corp",
+        },
+        {
+          id: "framework",
+          label: "Framework (optional)",
+          placeholder: "SOC2",
+        },
+      ],
+    },
+  });
+  await writeWorkflowState(input.runDirectory, {
+    handlerId: input.definition.handlerId,
+    type: input.execution.workflowType,
+    phase: "awaiting_input",
+  });
+}
+
+async function respondTprmAssessmentPipeline(input) {
+  const answers = input.response?.answers ?? input.response ?? {};
+  const vendor = String(answers.vendor ?? "").trim();
+  const framework = String(answers.framework ?? "").trim();
+  const completedAt = new Date().toISOString();
+
+  if (!vendor) {
+    return failPipeline(input, { message: "Vendor name is required.", completedAt });
+  }
+
+  await input.appendRunEvent(input.runDirectory, {
+    type: "message",
+    data: {
+      role: "user",
+      text: [`Vendor: ${vendor}`, framework ? `Framework: ${framework}` : null]
+        .filter(Boolean)
+        .join("\n"),
+    },
+  });
+
+  // Step 1: TPRM assess (agent)
+  const assessArgs = [vendor, ...(framework ? [framework] : [])];
+  const assessResult = await runPipelineStep(input, {
+    stepIndex: 0,
+    commandPath: "/grc-tprm:assess",
+    args: assessArgs,
+    label: `TPRM assessment (${vendor})`,
+  });
+
+  if (assessResult.status !== "completed") {
+    return failPipeline(input, {
+      message: `grc-tprm:assess failed for vendor "${vendor}".`,
+      completedAt,
+    });
+  }
+
+  // Step 2: transform risk (script)
+  const transformArgs = [vendor, ...(framework ? [framework] : [])];
+  const transformResult = await runPipelineStep(input, {
+    stepIndex: 1,
+    commandPath: "/grc-engineer:transform-risk",
+    args: transformArgs,
+    label: "Transform risk register",
+  });
+
+  if (transformResult.status !== "completed") {
+    return failPipeline(input, {
+      message: `transform-risk failed (exit ${transformResult.exitCode}).`,
+      completedAt,
+    });
+  }
+
+  // Step 3: generate vendor policy (script)
+  const policyArgs = ["vendor-management", ...(framework ? [framework] : [])];
+  const policyResult = await runPipelineStep(input, {
+    stepIndex: 2,
+    commandPath: "/grc-engineer:generate-policy",
+    args: policyArgs,
+    label: "Generate vendor management policy",
+  });
+
+  if (policyResult.status !== "completed") {
+    return failPipeline(input, {
+      message: `generate-policy failed (exit ${policyResult.exitCode}).`,
+      completedAt,
+    });
+  }
+
+  await writeWorkflowState(input.runDirectory, { ...input.workflowState, phase: "completed" });
+
+  return completePipeline(input, {
+    artifacts: [
+      ...assessResult.artifacts,
+      ...transformResult.artifacts,
+      ...policyResult.artifacts,
+    ],
+    completedAt,
+  });
+}
+
+// ─── Pipeline: incident-response ──────────────────────────────────────────────
+
+async function startIncidentResponsePipeline(input) {
+  await input.appendRunEvent(input.runDirectory, {
+    type: "run.started",
+    data: { commandPreview: input.run.commandPreview },
+  });
+  await input.appendRunEvent(input.runDirectory, {
+    type: "prompt.required",
+    data: {
+      promptId: "incident-response-inputs",
+      title: "Pipeline inputs",
+      submitLabel: "Run pipeline",
+      fields: [
+        {
+          id: "framework",
+          label: "Framework",
+          placeholder: "DORA",
+          options: [
+            { label: "DORA", value: "DORA" },
+            { label: "NIST 800-53", value: "NIST-800-53" },
+          ],
+        },
+        {
+          id: "incident_summary",
+          label: "Incident summary",
+          placeholder: "Brief description of the incident",
+        },
+      ],
+    },
+  });
+  await writeWorkflowState(input.runDirectory, {
+    handlerId: input.definition.handlerId,
+    type: input.execution.workflowType,
+    phase: "awaiting_input",
+  });
+}
+
+async function respondIncidentResponsePipeline(input) {
+  const answers = input.response?.answers ?? input.response ?? {};
+  const framework = String(answers.framework ?? "DORA").trim();
+  const incidentSummary = String(answers.incident_summary ?? "").trim();
+  const completedAt = new Date().toISOString();
+
+  await input.appendRunEvent(input.runDirectory, {
+    type: "message",
+    data: {
+      role: "user",
+      text: [
+        `Framework: ${framework}`,
+        incidentSummary ? `Incident: ${incidentSummary}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    },
+  });
+
+  // Step 1: incident reporting (agent — framework persona)
+  const reportingArgs = [incidentSummary, framework].filter(Boolean);
+  const reportingResult = await runPipelineStep(input, {
+    stepIndex: 0,
+    commandPath: `/${framework.toLowerCase().replace(/[^a-z0-9]/g, "-")}:incident-reporting`,
+    args: reportingArgs,
+    label: `Incident reporting (${framework})`,
+  });
+
+  if (reportingResult.status !== "completed") {
+    return failPipeline(input, {
+      message: `Incident reporting step failed for framework "${framework}".`,
+      completedAt,
+    });
+  }
+
+  // Step 2: auditor review (agent)
+  const reviewResult = await runPipelineStep(input, {
+    stepIndex: 1,
+    commandPath: "/grc-auditor:review",
+    args: [framework],
+    label: "Auditor review",
+  });
+
+  if (reviewResult.status !== "completed") {
+    return failPipeline(input, {
+      message: `grc-auditor:review failed.`,
+      completedAt,
+    });
+  }
+
+  // Step 3: post-incident policy document (script)
+  const policyResult = await runPipelineStep(input, {
+    stepIndex: 2,
+    commandPath: "/grc-engineer:generate-policy",
+    args: ["incident-response", framework],
+    label: "Generate post-incident policy",
+  });
+
+  if (policyResult.status !== "completed") {
+    return failPipeline(input, {
+      message: `generate-policy failed (exit ${policyResult.exitCode}).`,
+      completedAt,
+    });
+  }
+
+  await writeWorkflowState(input.runDirectory, { ...input.workflowState, phase: "completed" });
+
+  return completePipeline(input, {
+    artifacts: [
+      ...reportingResult.artifacts,
+      ...reviewResult.artifacts,
+      ...policyResult.artifacts,
+    ],
+    completedAt,
+  });
+}
+
+// ─── Pipeline: audit-prep ────────────────────────────────────────────────────
+
+async function startAuditPrepPipeline(input) {
+  await input.appendRunEvent(input.runDirectory, {
+    type: "run.started",
+    data: { commandPreview: input.run.commandPreview },
+  });
+  await input.appendRunEvent(input.runDirectory, {
+    type: "prompt.required",
+    data: {
+      promptId: "audit-prep-inputs",
+      title: "Pipeline inputs",
+      submitLabel: "Run pipeline",
+      fields: [
+        {
+          id: "framework",
+          label: "Framework",
+          placeholder: "SOC2",
+        },
+        {
+          id: "audit_date",
+          label: "Audit date (optional)",
+          placeholder: "2026-06-01",
+        },
+      ],
+    },
+  });
+  await writeWorkflowState(input.runDirectory, {
+    handlerId: input.definition.handlerId,
+    type: input.execution.workflowType,
+    phase: "awaiting_input",
+  });
+}
+
+async function respondAuditPrepPipeline(input) {
+  const answers = input.response?.answers ?? input.response ?? {};
+  const framework = String(answers.framework ?? "").trim();
+  const auditDate = String(answers.audit_date ?? "").trim();
+  const completedAt = new Date().toISOString();
+
+  if (!framework) {
+    return failPipeline(input, { message: "Framework is required.", completedAt });
+  }
+
+  await input.appendRunEvent(input.runDirectory, {
+    type: "message",
+    data: {
+      role: "user",
+      text: [
+        `Framework: ${framework}`,
+        auditDate ? `Audit date: ${auditDate}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    },
+  });
+
+  // Step 1: gap assessment
+  const gapResult = await runPipelineStep(input, {
+    stepIndex: 0,
+    commandPath: "/grc-engineer:gap-assessment",
+    args: [framework],
+    label: `Gap assessment (${framework})`,
+  });
+
+  if (gapResult.status !== "completed") {
+    return failPipeline(input, {
+      message: `gap-assessment failed (exit ${gapResult.exitCode}).`,
+      completedAt,
+    });
+  }
+
+  // Step 2: collect evidence
+  const evidenceResult = await runPipelineStep(input, {
+    stepIndex: 1,
+    commandPath: "/grc-engineer:collect-evidence",
+    args: [framework],
+    label: "Collect evidence",
+  });
+
+  if (evidenceResult.status !== "completed") {
+    return failPipeline(input, {
+      message: `collect-evidence failed (exit ${evidenceResult.exitCode}).`,
+      completedAt,
+    });
+  }
+
+  // Step 3: generate policy
+  const policyResult = await runPipelineStep(input, {
+    stepIndex: 2,
+    commandPath: "/grc-engineer:generate-policy",
+    args: [framework],
+    label: `Generate ${framework} policy`,
+  });
+
+  if (policyResult.status !== "completed") {
+    return failPipeline(input, {
+      message: `generate-policy failed (exit ${policyResult.exitCode}).`,
+      completedAt,
+    });
+  }
+
+  await writeWorkflowState(input.runDirectory, { ...input.workflowState, phase: "completed" });
+
+  return completePipeline(input, {
+    artifacts: [
+      ...gapResult.artifacts,
+      ...evidenceResult.artifacts,
+      ...policyResult.artifacts,
+    ],
+    completedAt,
+  });
 }

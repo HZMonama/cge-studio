@@ -6,8 +6,8 @@ import {
   ArrowRightIcon,
   CaretDownIcon,
   ClockCounterClockwiseIcon,
-  GitMergeIcon,
   LightningIcon,
+  PipeIcon,
   XIcon,
 } from "@phosphor-icons/react";
 
@@ -743,11 +743,25 @@ export function ChatSurface({
             <button
               onClick={togglePipelines}
               className={cn(
-                "flex items-center gap-2 border border-border/70 bg-background px-3 py-1.5 text-xs font-medium tracking-wide text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+                "group flex items-center gap-2 border border-border/70 bg-background px-3 py-1.5 text-xs font-medium tracking-wide text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
                 pipelinesOpen && "bg-accent text-foreground",
               )}
             >
-              <GitMergeIcon className="size-3.5" />
+              <span className="relative flex size-3.5 items-center justify-center">
+                <PipeIcon
+                  className={cn(
+                    "size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0",
+                    pipelinesOpen && "opacity-0",
+                  )}
+                />
+                <PipeIcon
+                  weight="fill"
+                  className={cn(
+                    "absolute inset-0 size-3.5 opacity-0 transition-opacity group-hover:opacity-100 group-active:opacity-100",
+                    pipelinesOpen && "opacity-100",
+                  )}
+                />
+              </span>
               Pipelines
               <motion.span
                 animate={{ rotate: pipelinesOpen ? 180 : 0 }}

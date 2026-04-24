@@ -146,7 +146,7 @@ export function WorkspaceFooter({
         <button
           onClick={onRenameWorkspace}
           disabled={!activeWorkspace}
-          className="group flex items-center gap-1.5 px-2 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+          className="group flex h-[4vh] items-center gap-1.5 rounded border border-transparent px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border/45 hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
         >
           <span className="relative flex size-3.5 items-center justify-center">
             <NotePencilIcon className="size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0" />
@@ -160,7 +160,7 @@ export function WorkspaceFooter({
         <button
           onClick={onExportWorkspace}
           disabled={!activeWorkspace}
-          className="group flex items-center gap-1.5 px-2 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+          className="group flex h-[4vh] items-center gap-1.5 rounded border border-transparent px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border/45 hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
         >
           <span className="relative flex size-3.5 items-center justify-center">
             <DownloadSimpleIcon className="size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0" />
@@ -174,7 +174,7 @@ export function WorkspaceFooter({
         <button
           onClick={() => activeWorkspace && onCloseWorkspace(activeWorkspace.id)}
           disabled={!activeWorkspace}
-          className="group flex items-center gap-1.5 px-2 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+          className="group flex h-[4vh] items-center gap-1.5 rounded border border-transparent px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border/45 hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
         >
           <span className="relative flex size-3.5 items-center justify-center">
             <TrashIcon className="size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0" />
@@ -187,7 +187,7 @@ export function WorkspaceFooter({
         </button>
         <button
           onClick={onAddWorkspace}
-          className="group flex items-center gap-1.5 px-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          className="group flex h-[4vh] items-center gap-1.5 rounded border border-transparent px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border/45 hover:bg-accent hover:text-foreground"
         >
           <span className="relative flex size-3.5 items-center justify-center">
             <FolderSimplePlusIcon className="size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0" />

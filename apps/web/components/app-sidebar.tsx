@@ -441,7 +441,7 @@ export function AppSidebar({
           </div>
         </div>
 
-        <div className="group/search-row relative z-10 flex h-(--row-h) min-h-(--row-h) max-h-(--row-h) shrink-0 items-center overflow-hidden border-y border-white/20 bg-sidebar/68 px-2 backdrop-blur-md">
+        <div className="group/search-row relative z-10 flex h-(--row-h) min-h-(--row-h) max-h-(--row-h) shrink-0 items-center overflow-hidden border-y border-sidebar-border bg-sidebar/68 px-2 backdrop-blur-md">
           <SidebarPhosphorIcon
             Icon={MagnifyingGlassIcon}
             className="size-3.5 text-sidebar-foreground/50 group-hover/search-row:[&>svg:first-child]:opacity-0 group-hover/search-row:[&>svg:last-child]:opacity-100 group-focus-within/search-row:[&>svg:first-child]:opacity-0 group-focus-within/search-row:[&>svg:last-child]:opacity-100"

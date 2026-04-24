@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# cge-studio — web app
 
-## Getting Started
+The studio frontend. A Next.js App Router application that renders the full cge-studio UI and communicates with the runner over HTTP.
 
-First, run the development server:
+## Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 16.2 (App Router), React 19 |
+| Language | TypeScript 5 |
+| Styling | Tailwind CSS 4, shadcn/ui, `@base-ui/react` |
+| Icons | `@phosphor-icons/react` |
+| State | Zustand |
+| Editors | Monaco Editor, Tiptap (rich text / Markdown) |
+| Animation | Motion |
+
+## Running
+
+From the repo root:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm dev       # starts web + runner together
+pnpm dev:web   # web only, on http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Or from this directory:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The app expects the runner to be reachable at `http://127.0.0.1:3333`. Start `pnpm dev:runner` from the repo root if you're running the services separately.
 
-## Learn More
+## Key files
 
-To learn more about Next.js, take a look at the following resources:
+| Path | Purpose |
+|------|---------|
+| `app/page.tsx` | Main app shell — all top-level state, workspace management, section routing |
+| `components/chat-surface.tsx` | Command composer and run event stream |
+| `components/app-sidebar.tsx` | Navigation sidebar |
+| `components/app-shell-header.tsx` | Top bar with workspace switcher |
+| `components/workspace-footer.tsx` | Status bar and active run indicator |
+| `lib/pipelines.ts` | Workflow/pipeline type definitions |
+| `lib/plugins.ts` | Fallback plugin definitions for offline/runner-unavailable mode |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Runner API client
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+All runner calls go through `lib/runner.ts` (or equivalent fetch calls in `app/page.tsx`). The frontend never accesses the filesystem or executes toolkit commands directly.
 
-## Deploy on Vercel
+## Fallback plugin definitions
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+`lib/plugins.ts` carries static definitions for the highest-value commands so the composer can render inline forms even when the runner is offline. Runner-backed coverage is authoritative; fallback coverage is intentionally selective.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Building
+
+```bash
+pnpm build
+pnpm lint
+pnpm typecheck
+```

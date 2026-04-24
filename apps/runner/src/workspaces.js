@@ -256,18 +256,37 @@ export async function renameWorkspace(roots, workspaceId, nextTitle) {
     return null;
   }
 
+  const newFolderName = createWorkspaceFolderName(nextTitle);
+  const parentDir = path.dirname(workspace.rootPath);
+  let newRootPath = path.join(parentDir, newFolderName);
+  let counter = 1;
+
+  while (newRootPath !== workspace.rootPath && (await pathExists(newRootPath))) {
+    const existingManifest = await readWorkspaceManifest(newRootPath);
+    if (!existingManifest || existingManifest.id === workspace.id) break;
+    counter += 1;
+    newRootPath = path.join(
+      parentDir,
+      `${newFolderName}-${String(counter).padStart(2, "0")}`,
+    );
+  }
+
+  if (newRootPath !== workspace.rootPath) {
+    await fs.rename(workspace.rootPath, newRootPath);
+  }
+
   const updated = {
     version: workspace.version,
     id: workspace.id,
     name: normalizeWorkspaceName(nextTitle),
     title: normalizeWorkspaceName(nextTitle),
-    rootPath: workspace.rootPath,
+    rootPath: newRootPath,
     createdAt: workspace.createdAt,
     updatedAt: new Date().toISOString(),
     folders: createManifestFolders(),
   };
 
-  await writeWorkspaceManifest(workspace.rootPath, updated);
+  await writeWorkspaceManifest(newRootPath, updated);
   await writeWorkspaceRegistryEntry(roots, updated);
 
   return hydrateWorkspace(updated);
