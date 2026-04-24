@@ -195,9 +195,9 @@ export function AppShellHeader({
   onRefreshSync: () => void;
 }) {
   return (
-    <header className="sticky top-0 z-20 flex h-(--row-h) min-h-(--row-h) max-h-(--row-h) shrink-0 items-end overflow-hidden border-b border-border/70 bg-background/88 backdrop-blur">
+    <header className="sticky top-0 z-20 flex h-(--row-h) min-h-(--row-h) max-h-(--row-h) shrink-0 items-center overflow-hidden border-b border-border/70 bg-background/88 backdrop-blur">
       <div className="relative min-w-0 flex-1 self-stretch">
-        <div className="flex h-full min-h-0 items-end gap-1 overflow-x-auto overflow-y-hidden px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex h-full min-h-0 items-center gap-1.5 overflow-x-auto overflow-y-hidden px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {sections.map((section) => (
             <button
               key={section.id}
@@ -205,12 +205,12 @@ export function AppShellHeader({
               disabled={section.disabled}
               title={section.disabled ? "Coming soon" : undefined}
               className={cn(
-                "group relative flex h-[calc(var(--row-h)-6px)] min-w-0 max-w-44 shrink-0 items-center gap-1.5 border border-b-0 px-3 text-xs transition-colors",
+                "group relative flex h-[4vh] min-w-0 max-w-44 shrink-0 items-center gap-1.5 rounded-none border px-3 text-xs font-medium leading-none transition-colors",
                 section.disabled
-                  ? "cursor-not-allowed border-transparent text-muted-foreground/40"
+                  ? "cursor-not-allowed border-transparent bg-transparent text-muted-foreground/40"
                   : section.id === activeSection
-                    ? "z-10 -mb-px border-border/70 bg-(--editor-bg) text-foreground shadow-[0_2px_0_0_var(--editor-bg)]"
-                    : "border-transparent bg-background/28 text-muted-foreground hover:border-border/45 hover:bg-background/52 hover:text-foreground",
+                    ? "border-border/70 bg-background text-foreground shadow-sm"
+                    : "border-transparent bg-background/20 text-muted-foreground hover:border-border/45 hover:bg-background/52 hover:text-foreground",
               )}
             >
               <span className="relative flex size-3.5 shrink-0 items-center justify-center">
@@ -237,7 +237,7 @@ export function AppShellHeader({
                   />
                 )}
               </span>
-              <span className="truncate">{section.label}</span>
+              <span className="truncate leading-none">{section.label}</span>
             </button>
           ))}
         </div>

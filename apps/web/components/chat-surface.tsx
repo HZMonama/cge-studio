@@ -3,12 +3,15 @@
 import * as React from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
+  ArrowRightIcon,
   CaretDownIcon,
-  CaretUpIcon,
   ClockCounterClockwiseIcon,
+  GitMergeIcon,
   LightningIcon,
   XIcon,
 } from "@phosphor-icons/react";
+
+import { PIPELINES, type Pipeline, type PipelineReadiness } from "@/lib/pipelines";
 
 import {
   buildPromptFromCommandForm,
@@ -63,8 +66,8 @@ type SlashCommand = {
 };
 
 const SUPPORT_TONES: Record<"ready" | "planned", string> = {
-  ready: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
-  planned: "border-amber-500/30 bg-amber-500/10 text-amber-400",
+  ready: "bg-emerald-500/15 text-emerald-400",
+  planned: "bg-pink-500/15 text-pink-400",
 };
 
 const UI_HINT_TONES: Record<string, string> = {
@@ -321,11 +324,164 @@ function InlineFormField({
   );
 }
 
+
+function PipelineStepChain({ steps }: { steps: Pipeline["steps"] }) {
+  const parallelGroups: Array<{ parallel: boolean; items: Pipeline["steps"] }> = [];
+  for (const step of steps) {
+    const last = parallelGroups[parallelGroups.length - 1];
+    if (step.parallel && last?.parallel) {
+      last.items.push(step);
+    } else {
+      parallelGroups.push({ parallel: !!step.parallel, items: [step] });
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {parallelGroups.map((group, gi) => (
+        <React.Fragment key={gi}>
+          {gi > 0 && (
+            <ArrowRightIcon className="size-3 shrink-0 text-muted-foreground/50" />
+          )}
+          {group.parallel && group.items.length > 1 ? (
+            <span className="flex items-center gap-1 border border-border/50 bg-muted/20 px-1.5 py-0.5">
+              {group.items.map((step, si) => (
+                <React.Fragment key={si}>
+                  {si > 0 && (
+                    <span className="text-[9px] text-muted-foreground/40">∥</span>
+                  )}
+                  <span className="font-mono text-[10px] text-muted-foreground">
+                    {step.label}
+                  </span>
+                </React.Fragment>
+              ))}
+            </span>
+          ) : (
+            <span className="border border-border/50 bg-muted/20 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+              {group.items[0].label}
+            </span>
+          )}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+function PipelinesPanel() {
+  const [expandedId, setExpandedId] = React.useState<string | null>(null);
+
+  return (
+    <div className="max-h-[50vh] overflow-y-auto [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin]">
+      {PIPELINES.map((pipeline) => {
+              const expanded = expandedId === pipeline.id;
+              return (
+                <div key={pipeline.id} className="border-b border-border/50 last:border-b-0">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedId(expanded ? null : pipeline.id)}
+                    className="composer-fade-item flex w-full items-start gap-3 px-4 py-3 text-left"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-xs font-medium text-foreground">
+                        {pipeline.label}
+                      </span>
+                      <span className="mt-2 block">
+                        <PipelineStepChain steps={pipeline.steps} />
+                      </span>
+                    </span>
+                    <span
+                      className={cn(
+                        "mt-0.5 shrink-0 inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em]",
+                        SUPPORT_TONES[pipeline.readiness],
+                      )}
+                    >
+                      {pipeline.readiness}
+                    </span>
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {expanded && (
+                      <motion.div
+                        key="detail"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+                        style={{ overflow: "hidden" }}
+                      >
+                        <div className="border-t border-border/50 bg-muted/10 px-4 py-3 space-y-3">
+                          <p className="text-xs text-muted-foreground">{pipeline.description}</p>
+                          <div>
+                            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground/60">
+                              Steps
+                            </p>
+                            <ol className="space-y-1">
+                              {pipeline.steps.map((step, i) => (
+                                <li key={i} className="flex items-center gap-2">
+                                  <span className="flex size-4 shrink-0 items-center justify-center border border-border/50 text-[9px] text-muted-foreground/60">
+                                    {i + 1}
+                                  </span>
+                                  <span className="font-mono text-[11px] text-foreground">
+                                    {step.command}
+                                  </span>
+                                  {step.parallel && (
+                                    <span className="text-[9px] uppercase tracking-wide text-muted-foreground/40">
+                                      parallel
+                                    </span>
+                                  )}
+                                </li>
+                              ))}
+                            </ol>
+                          </div>
+                          {pipeline.inputs.length > 0 && (
+                            <div>
+                              <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground/60">
+                                Inputs
+                              </p>
+                              <ul className="space-y-0.5">
+                                {pipeline.inputs.map((input) => (
+                                  <li key={input.id} className="flex items-baseline gap-2 text-[11px]">
+                                    <span className="font-mono text-foreground">
+                                      {input.id}
+                                    </span>
+                                    <span className="text-muted-foreground/60">—</span>
+                                    <span className="text-muted-foreground">
+                                      {input.label}
+                                      {input.required && (
+                                        <span className="ml-1 text-rose-400">*</span>
+                                      )}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          <div className="flex justify-end">
+                            <button
+                              type="button"
+                              disabled
+                              className="inline-flex h-7 items-center gap-1.5 border border-border/50 px-3 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground/40 disabled:pointer-events-none"
+                            >
+                              <LightningIcon className="size-3" />
+                              Run pipeline
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
+    </div>
+  );
+}
+
 export function ChatSurface({
   commandFormValues,
   events,
   focusToken,
   loadingEvents,
+  onEditAndRerun,
   onClearRunner,
   onClearSelectedCommand,
   onCommandFormChange,
@@ -346,6 +502,7 @@ export function ChatSurface({
   events: RunnerRunEvent[];
   focusToken: number;
   loadingEvents: boolean;
+  onEditAndRerun: () => void;
   onClearRunner: () => void;
   onClearSelectedCommand: () => void;
   onCommandFormChange: (values: CommandFormValues) => void;
@@ -365,6 +522,12 @@ export function ChatSurface({
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [activeCommandIndex, setActiveCommandIndex] = React.useState(0);
   const [composerCollapsed, setComposerCollapsed] = React.useState(false);
+  const [pipelinesOpen, setPipelinesOpen] = React.useState(false);
+
+  function togglePipelines() {
+    setPipelinesOpen((v) => !v);
+    if (!pipelinesOpen) setPrompt("");
+  }
   const slashCommands = React.useMemo<SlashCommand[]>(
     () =>
       plugins.flatMap((plugin) =>
@@ -542,6 +705,14 @@ export function ChatSurface({
         </div>
         <div className="pointer-events-auto flex shrink-0 items-center gap-2">
           <button
+            onClick={onEditAndRerun}
+            disabled={!run || !(run.prompt ?? run.commandPreview ?? run.commandPath)}
+            className="group flex h-8 items-center gap-2 border border-border/70 bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:text-muted-foreground/60"
+          >
+            <LightningIcon className="size-3.5 text-muted-foreground transition-colors group-hover:text-foreground group-disabled:text-muted-foreground/60" />
+            Edit &amp; rerun
+          </button>
+          <button
             onClick={onClearRunner}
             className="group flex h-8 items-center gap-2 border border-border/70 bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent"
           >
@@ -567,6 +738,27 @@ export function ChatSurface({
       {/* Floating composer */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-6 pb-6">
         <div className="pointer-events-auto w-full max-w-[80%]">
+          {/* Pipelines button */}
+          <div className="mb-2 flex justify-center">
+            <button
+              onClick={togglePipelines}
+              className={cn(
+                "flex items-center gap-2 border border-border/70 bg-background px-3 py-1.5 text-xs font-medium tracking-wide text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+                pipelinesOpen && "bg-accent text-foreground",
+              )}
+            >
+              <GitMergeIcon className="size-3.5" />
+              Pipelines
+              <motion.span
+                animate={{ rotate: pipelinesOpen ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+                className="flex items-center justify-center"
+              >
+                <CaretDownIcon className="size-3" />
+              </motion.span>
+            </button>
+          </div>
+
           <div className="border border-border/70 bg-background">
             <AnimatePresence initial={false} mode="wait">
               {inlineFormActive && selectedCommand ? (
@@ -609,7 +801,7 @@ export function ChatSurface({
                     {selectedCommand.runnerSupport ? (
                       <span
                         className={cn(
-                          "mx-3 inline-flex h-6 shrink-0 items-center border px-2 text-[10px] font-medium uppercase tracking-[0.12em]",
+                          "mx-3 inline-flex h-6 shrink-0 items-center px-2 text-[10px] font-medium uppercase tracking-[0.12em]",
                           SUPPORT_TONES[selectedCommand.runnerSupport],
                         )}
                       >
@@ -654,6 +846,7 @@ export function ChatSurface({
                     value={prompt}
                     onChange={(event) => {
                       setActiveCommandIndex(0);
+                      setPipelinesOpen(false);
                       setPrompt(event.target.value);
                     }}
                     onKeyDown={handleComposerKeyDown}
@@ -730,6 +923,22 @@ export function ChatSurface({
             </AnimatePresence>
 
             <AnimatePresence initial={false}>
+              {!composerCollapsed && pipelinesOpen && !inlineFormActive && commandQuery.length === 0 && (
+                <motion.div
+                  key="pipelines"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                  style={{ overflow: "hidden" }}
+                  className="border-t border-border/70"
+                >
+                  <PipelinesPanel />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <AnimatePresence initial={false}>
               {!composerCollapsed && !inlineFormActive && commandQuery.length > 0 && (
                 <motion.div
                   key="search"
@@ -751,8 +960,8 @@ export function ChatSurface({
                             onClick={() => applyCommand(command.path)}
                             onMouseEnter={() => setActiveCommandIndex(index)}
                             className={cn(
-                              "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-accent",
-                              index === activeCommandIndex && "bg-accent",
+                              "composer-fade-item flex w-full items-start gap-3 px-4 py-3 text-left",
+                              index === activeCommandIndex && "composer-fade-item-active",
                             )}
                           >
                             <div className="min-w-0 flex-1">
@@ -763,7 +972,7 @@ export function ChatSurface({
                                 {command.runnerSupport ? (
                                   <span
                                     className={cn(
-                                      "inline-flex items-center border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em]",
+                                      "inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em]",
                                       SUPPORT_TONES[command.runnerSupport],
                                     )}
                                   >
@@ -773,7 +982,7 @@ export function ChatSurface({
                                 {command.uiHint ? (
                                   <span
                                     className={cn(
-                                      "inline-flex items-center border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em]",
+                                      "inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em]",
                                       UI_HINT_TONES[command.uiHint],
                                     )}
                                   >

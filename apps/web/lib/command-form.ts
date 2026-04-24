@@ -95,6 +95,91 @@ export function buildPromptFromCommandForm(
     .trim();
 }
 
+export function parsePromptToCommandFormValues(
+  commandPath: string,
+  schema: CommandFormSchema | null | undefined,
+  prompt: string,
+): CommandFormValues | null {
+  const normalizedPath = commandPath.trim();
+  const normalizedPrompt = prompt.trim();
+
+  if (!normalizedPath || !normalizedPrompt.startsWith(normalizedPath)) {
+    return null;
+  }
+
+  const nextCharacter = normalizedPrompt.charAt(normalizedPath.length);
+  if (nextCharacter && !/\s/.test(nextCharacter)) {
+    return null;
+  }
+
+  if (!schema?.fields?.length) {
+    return {};
+  }
+
+  const tokens = tokenizePrompt(normalizedPrompt.slice(normalizedPath.length).trim());
+  if (tokens === null) {
+    return null;
+  }
+
+  const values = Object.fromEntries(
+    schema.fields.map((field) => [field.name, getDefaultFieldValue(field)]),
+  ) as CommandFormValues;
+  const argumentFields = schema.fields.filter((field) => field.position === "argument");
+  const optionFields = schema.fields.filter(
+    (field) => field.position !== "argument" && field.flag,
+  );
+  let argumentIndex = 0;
+
+  for (const token of tokens) {
+    if (token.startsWith("--")) {
+      const separatorIndex = token.indexOf("=");
+      const flag = separatorIndex >= 0 ? token.slice(0, separatorIndex) : token;
+      const rawValue = separatorIndex >= 0 ? token.slice(separatorIndex + 1) : null;
+      const field = optionFields.find((item) => item.flag === flag);
+
+      if (!field) {
+        return null;
+      }
+
+      if (field.type === "boolean") {
+        if (rawValue !== null) {
+          return null;
+        }
+
+        values[field.name] = true;
+        continue;
+      }
+
+      if (rawValue === null) {
+        return null;
+      }
+
+      const parsedValue = parseFieldToken(field, rawValue);
+      if (parsedValue === null) {
+        return null;
+      }
+
+      values[field.name] = parsedValue;
+      continue;
+    }
+
+    const field = argumentFields[argumentIndex];
+    if (!field) {
+      return null;
+    }
+
+    const parsedValue = parseFieldToken(field, token);
+    if (parsedValue === null) {
+      return null;
+    }
+
+    values[field.name] = parsedValue;
+    argumentIndex += 1;
+  }
+
+  return values;
+}
+
 export function isCommandFormValid(
   schema: CommandFormSchema | null | undefined,
   values: CommandFormValues,
@@ -254,6 +339,130 @@ function serializeFieldValue(
 
 function quoteIfNeeded(value: string): string {
   return /\s/.test(value) ? JSON.stringify(value) : value;
+}
+
+function parseFieldToken(
+  field: CommandFormField,
+  rawValue: string,
+): CommandFormValue | null {
+  if (field.type === "multiselect") {
+    return rawValue
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  if (field.type === "number") {
+    return rawValue.trim();
+  }
+
+  return rawValue;
+}
+
+function tokenizePrompt(prompt: string): string[] | null {
+  if (!prompt) {
+    return [];
+  }
+
+  const tokens: string[] = [];
+  let index = 0;
+
+  while (index < prompt.length) {
+    while (index < prompt.length && /\s/.test(prompt.charAt(index))) {
+      index += 1;
+    }
+
+    if (index >= prompt.length) {
+      break;
+    }
+
+    let token = "";
+
+    while (index < prompt.length && !/\s/.test(prompt.charAt(index))) {
+      const character = prompt.charAt(index);
+
+      if (character === "\"" || character === "'") {
+        const quoted = readQuotedToken(prompt, index, character);
+        if (quoted === null) {
+          return null;
+        }
+
+        token += quoted.value;
+        index = quoted.nextIndex;
+        continue;
+      }
+
+      token += character;
+      index += 1;
+    }
+
+    if (!token) {
+      return null;
+    }
+
+    tokens.push(token);
+  }
+
+  return tokens;
+}
+
+function readQuotedToken(
+  input: string,
+  startIndex: number,
+  quote: "\"" | "'",
+): { value: string; nextIndex: number } | null {
+  let index = startIndex + 1;
+  let escaped = false;
+
+  while (index < input.length) {
+    const character = input.charAt(index);
+
+    if (escaped) {
+      escaped = false;
+      index += 1;
+      continue;
+    }
+
+    if (character === "\\") {
+      escaped = true;
+      index += 1;
+      continue;
+    }
+
+    if (character === quote) {
+      const rawToken = input.slice(startIndex, index + 1);
+      const decoded = decodeQuotedToken(rawToken);
+      return decoded === null
+        ? null
+        : {
+            value: decoded,
+            nextIndex: index + 1,
+          };
+    }
+
+    index += 1;
+  }
+
+  return null;
+}
+
+function decodeQuotedToken(token: string): string | null {
+  if (token.startsWith("\"") && token.endsWith("\"")) {
+    try {
+      return JSON.parse(token) as string;
+    } catch {
+      return null;
+    }
+  }
+
+  if (token.startsWith("'") && token.endsWith("'")) {
+    return token
+      .slice(1, -1)
+      .replace(/\\'/g, "'")
+      .replace(/\\\\/g, "\\");
+  }
+
+  return token;
 }
 
 function getActiveReadinessRules(

@@ -168,4 +168,32 @@
   .sidebar-fade-item-active::before {
     opacity: 1;
   }
+
+  .composer-fade-item {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .composer-fade-item::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--accent) 96%, transparent) 0%,
+      color-mix(in oklab, var(--accent) 82%, transparent) 28%,
+      color-mix(in oklab, var(--accent) 24%, transparent) 60%,
+      transparent 75%
+    );
+    opacity: 0;
+    transition: opacity 180ms ease;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  .composer-fade-item:hover::before,
+  .composer-fade-item:focus-visible::before,
+  .composer-fade-item-active::before {
+    opacity: 1;
+  }
 }

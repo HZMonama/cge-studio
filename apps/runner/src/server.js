@@ -68,6 +68,7 @@ const scriptCommandFactories = new Map([
   ["/aws-inspector:collect", (input) =>
     buildNodeScriptExecution(input, {
       scriptPathSegments: ["plugins", "connectors", "aws-inspector", "scripts", "collect.js"],
+      syncStrategy: "aws-inspector-collect",
     })],
   ["/aws-inspector:setup", (input) =>
     buildShellScriptExecution(input, {
@@ -80,6 +81,7 @@ const scriptCommandFactories = new Map([
   ["/gcp-inspector:collect", (input) =>
     buildNodeScriptExecution(input, {
       scriptPathSegments: ["plugins", "connectors", "gcp-inspector", "scripts", "collect.js"],
+      syncStrategy: "gcp-inspector-collect",
     })],
   ["/gcp-inspector:setup", (input) =>
     buildShellScriptExecution(input, {
@@ -105,6 +107,7 @@ const scriptCommandFactories = new Map([
   ["/okta-inspector:collect", (input) =>
     buildNodeScriptExecution(input, {
       scriptPathSegments: ["plugins", "connectors", "okta-inspector", "scripts", "collect.js"],
+      syncStrategy: "okta-inspector-collect",
     })],
   ["/okta-inspector:setup", (input) =>
     buildShellScriptExecution(input, {
@@ -279,6 +282,29 @@ const server = createServer(async (request, response) => {
         source: toolkitAvailable ? "toolkit" : "unconfigured",
         toolkitPath,
       });
+    }
+
+    if (request.method === "POST" && url.pathname === "/diagnostics/resolve-command") {
+      const body = await readJsonBody(request);
+      if (typeof body.prompt !== "string" || !body.prompt.trim()) {
+        return json(response, 400, { error: "prompt is required" });
+      }
+
+      const workspace = await resolveWorkspaceFromBody(roots, body);
+      if (!workspace) {
+        return json(response, 400, { error: "workspaceId is required" });
+      }
+
+      return json(
+        response,
+        200,
+        await resolveCommandDiagnostics({
+          workspace,
+          prompt: body.prompt,
+          toolkitAvailable,
+          toolkitPath,
+        }),
+      );
     }
 
     if (request.method === "GET" && url.pathname === "/frameworks") {
@@ -1420,6 +1446,84 @@ async function createCommandRun(input) {
   return run;
 }
 
+async function resolveCommandDiagnostics(input) {
+  const parsed = parsePrompt(input.prompt);
+  if (!parsed) {
+    return {
+      ok: false,
+      prompt: input.prompt,
+      issues: ["invalid_command_prompt"],
+    };
+  }
+
+  const execution = resolveCommandExecution({
+    parsed,
+    prompt: input.prompt,
+    toolkitAvailable: input.toolkitAvailable,
+    toolkitPath: input.toolkitPath,
+    workspace: input.workspace,
+    runId: "diagnostic",
+    runArtifactsDir: path.join(input.workspace.folders.artifactsGenerated, "diagnostic"),
+  });
+  const commandPreview = buildCommandPreview({
+    execution,
+    prompt: input.prompt,
+    argsOverride: parsed.argumentTokens,
+  });
+  const issues = [];
+  const details = {
+    executionMode: execution.kind,
+  };
+
+  if (execution.kind === "unsupported") {
+    issues.push(execution.reason);
+  }
+
+  if (execution.kind === "script") {
+    const [runtimeExists, scriptExists, cwdExists] = await Promise.all([
+      commandExists(execution.runtime),
+      pathExists(execution.scriptPath),
+      pathExists(execution.cwd),
+    ]);
+
+    details.runtime = execution.runtime;
+    details.scriptPath = execution.scriptPath;
+    details.runtimeExists = runtimeExists;
+    details.scriptPathExists = scriptExists;
+    details.cwd = execution.cwd;
+    details.cwdExists = cwdExists;
+
+    if (!runtimeExists) issues.push(`missing_runtime:${execution.runtime}`);
+    if (!scriptExists) issues.push(`missing_script:${execution.scriptPath}`);
+  } else if (execution.kind === "workflow") {
+    details.handlerId = execution.handlerId;
+    details.workflowType = execution.workflowType;
+  } else if (execution.kind === "agent") {
+    const claudeArgs = buildClaudeArgs({
+      commandPath: execution.commandPath,
+      workspacePath: execution.workspacePath,
+      args: execution.args,
+    });
+    const claudeInstalled = await commandExists("claude");
+
+    details.cwd = execution.cwd;
+    details.workspacePath = execution.workspacePath;
+    details.claudeArgs = claudeArgs;
+    details.claudeInstalled = claudeInstalled;
+
+    if (!claudeInstalled) issues.push("missing_runtime:claude");
+  }
+
+  return {
+    ok: issues.length === 0,
+    prompt: input.prompt,
+    parsed,
+    commandPreview,
+    issues,
+    details,
+  };
+}
+
 async function createPlannedRun(input) {
   await fs.mkdir(input.workspace.folders.runs, { recursive: true });
   await fs.mkdir(input.workspace.folders.artifactsGenerated, {
@@ -1526,15 +1630,14 @@ function resolveCommandExecution(input) {
 }
 
 function buildAgentExecution(input) {
-  const prompt = [input.parsed.commandPath, ...input.parsed.argumentTokens].join(" ");
   return {
     kind: "agent",
     cwd: input.toolkitPath,
     workspacePath: input.workspace.rootPath,
     commandPath: input.parsed.commandPath,
+    args: input.parsed.argumentTokens,
     pluginId: input.parsed.pluginId,
     commandId: input.parsed.commandId,
-    prompt,
   };
 }
 
@@ -1806,24 +1909,18 @@ async function executeAgentRun(input) {
   const { execution, run, runDirectory, workspace } = input;
   const startedAt = new Date();
 
+  await fs.mkdir(path.join(workspace.rootPath, "grc-reports"), { recursive: true });
+
   await appendRunEvent(runDirectory, {
     type: "run.started",
     data: { commandPreview: run.commandPreview },
   });
 
-  const workspaceContext =
-    `Active CGE workspace: ${workspace.rootPath}. ` +
-    `Write all output files (reports, assessments, analyses, policies) to paths inside this workspace directory. ` +
-    `Use ${workspace.rootPath}/grc-reports/ for generated reports.`;
-
-  const claudeArgs = [
-    "--print",
-    "--output-format", "stream-json",
-    "--dangerously-skip-permissions",
-    "--add-dir", workspace.rootPath,
-    "--append-system-prompt", workspaceContext,
-    execution.prompt,
-  ];
+  const claudeArgs = buildClaudeArgs({
+    commandPath: execution.commandPath,
+    workspacePath: workspace.rootPath,
+    args: execution.args,
+  });
 
   const child = spawn("claude", claudeArgs, {
     cwd: execution.cwd,
@@ -1980,44 +2077,52 @@ async function collectAgentArtifacts(input) {
   const artifacts = [];
   const completedAt = new Date().toISOString();
 
-  try {
-    await fs.mkdir(reportsDir, { recursive: true });
-    const entries = await fs.readdir(reportsDir, { withFileTypes: true });
-
+  const walk = async (dir) => {
+    let entries;
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
     for (const entry of entries) {
+      const filePath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        await walk(filePath);
+        continue;
+      }
       if (!entry.isFile()) continue;
 
-      const filePath = path.join(reportsDir, entry.name);
       const stats = await fs.stat(filePath);
+      if (stats.mtime < startedAt) continue;
 
-      if (stats.mtime >= startedAt) {
-        const ext = path.extname(entry.name).toLowerCase();
-        const format = ext === ".md" ? "markdown" : ext === ".json" ? "json" : "text";
-        const kind = entry.name.includes("policy") ? "document"
-          : entry.name.includes("gap") ? "report"
-          : entry.name.includes("assess") ? "report"
-          : "report";
-        const title = entry.name
-          .replace(/\.[^.]+$/, "")
-          .split(/[-_]/)
-          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-          .join(" ");
+      const ext = path.extname(entry.name).toLowerCase();
+      const format = ext === ".md" ? "markdown" : ext === ".json" ? "json" : "text";
+      const baseName = entry.name.toLowerCase();
+      const kind = baseName.includes("policy") ? "document"
+        : baseName.includes("gap") ? "report"
+        : baseName.includes("assess") ? "report"
+        : "report";
+      const title = entry.name
+        .replace(/\.[^.]+$/, "")
+        .split(/[-_]/)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
 
-        artifacts.push(createArtifactSummary({
-          commandId: run.commandId,
-          commandPath: run.commandPath,
-          createdAt: completedAt,
-          format,
-          kind,
-          path: filePath,
-          pluginId: run.pluginId,
-          runId: run.id,
-          title,
-        }));
-      }
+      artifacts.push(createArtifactSummary({
+        commandId: run.commandId,
+        commandPath: run.commandPath,
+        createdAt: completedAt,
+        format,
+        kind,
+        path: filePath,
+        pluginId: run.pluginId,
+        runId: run.id,
+        title,
+      }));
     }
-  } catch { /* if reportsDir doesn't exist yet, no artifacts */ }
+  };
 
+  await walk(reportsDir);
   return artifacts;
 }
 
@@ -2032,6 +2137,18 @@ function classifyRunStatus(execution, exitCode) {
 async function collectRunArtifacts(input) {
   if (input.execution.syncStrategy === "github-inspector-collect") {
     return collectGithubInspectorArtifacts(input);
+  }
+
+  if (input.execution.syncStrategy === "aws-inspector-collect") {
+    return collectConnectorInspectorArtifacts(input, "aws-inspector");
+  }
+
+  if (input.execution.syncStrategy === "gcp-inspector-collect") {
+    return collectConnectorInspectorArtifacts(input, "gcp-inspector");
+  }
+
+  if (input.execution.syncStrategy === "okta-inspector-collect") {
+    return collectConnectorInspectorArtifacts(input, "okta-inspector");
   }
 
   if (input.execution.syncStrategy === "gap-assessment") {
@@ -2122,7 +2239,43 @@ function buildCommandPreview(input) {
     return `cd ${JSON.stringify(input.execution.cwd)} && ${JSON.stringify(input.execution.runtime)} ${args}`;
   }
 
+  if (input.execution?.kind === "agent") {
+    const args = buildClaudeArgs({
+      commandPath: input.execution.commandPath,
+      workspacePath: input.execution.workspacePath,
+      args: input.argsOverride ?? input.execution.args,
+    })
+      .map((value) => JSON.stringify(value))
+      .join(" ");
+
+    return `cd ${JSON.stringify(input.execution.cwd)} && "claude" ${args}`;
+  }
+
   return input.prompt;
+}
+
+function buildClaudeArgs(input) {
+  return [
+    "--print",
+    "--output-format", "stream-json",
+    "--verbose",
+    "--dangerously-skip-permissions",
+    "--add-dir", input.workspacePath,
+    "--append-system-prompt", buildAgentWorkspaceContext(input.workspacePath),
+    buildAgentPrompt(input.commandPath, input.args),
+  ];
+}
+
+function buildAgentWorkspaceContext(workspacePath) {
+  return (
+    `Active CGE workspace: ${workspacePath}. ` +
+    `Write all output files (reports, assessments, analyses, policies) to paths inside this workspace directory. ` +
+    `Use ${workspacePath}/grc-reports/ for generated reports.`
+  );
+}
+
+function buildAgentPrompt(commandPath, args) {
+  return [commandPath, ...(args ?? [])].join(" ");
 }
 
 function parsePrompt(prompt) {
@@ -2252,7 +2405,17 @@ function artifactFormat(outputType) {
 }
 
 async function collectGithubInspectorArtifacts(input) {
-  const connectorId = "github-inspector";
+  return collectConnectorInspectorArtifacts(input, "github-inspector");
+}
+
+async function collectConnectorInspectorArtifacts(input, connectorId) {
+  const CONNECTOR_TITLES = {
+    "aws-inspector": "AWS Findings Cache",
+    "gcp-inspector": "GCP Findings Cache",
+    "github-inspector": "GitHub Findings Cache",
+    "okta-inspector": "Okta Findings Cache",
+  };
+
   const cachePath =
     parseCollectorCachePath(input.stdoutText) ??
     (await findLatestJsonFile(
@@ -2280,7 +2443,7 @@ async function collectGithubInspectorArtifacts(input) {
       path: destinationPath,
       pluginId: connectorId,
       runId: input.runId,
-      title: "GitHub Findings Cache",
+      title: CONNECTOR_TITLES[connectorId] ?? "Findings Cache",
     }),
   ];
 }
@@ -2438,6 +2601,14 @@ async function pathExists(targetPath) {
   } catch {
     return false;
   }
+}
+
+async function commandExists(command) {
+  return new Promise((resolve) => {
+    const proc = spawn("which", [command], { stdio: "ignore" });
+    proc.on("close", (code) => resolve(code === 0));
+    proc.on("error", () => resolve(false));
+  });
 }
 
 async function countJsonFiles(targetPath) {

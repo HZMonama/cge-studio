@@ -38,6 +38,7 @@ import { WorkspaceFooter } from "@/components/workspace-footer";
 import {
   buildPromptFromCommandForm,
   createInitialFormValues,
+  parsePromptToCommandFormValues,
   type CommandFormValues,
 } from "@/lib/command-form";
 import { FALLBACK_PLUGINS, type Command, type Plugin } from "@/lib/plugins";
@@ -459,6 +460,70 @@ export default function Page() {
     setComposerFocusToken((prev) => prev + 1);
   }
 
+  function editAndRerunRun(run: RunnerRun | null) {
+    if (!run) {
+      return;
+    }
+
+    const prompt =
+      run.prompt?.trim() ||
+      run.commandPreview?.trim() ||
+      run.commandPath?.trim() ||
+      "";
+    const commandPath = run.commandPath ?? extractCommandPath(prompt);
+
+    setActiveSection("chat");
+    setRunnerSurfaceCleared(false);
+    setSelectedRunId(run.id);
+    setComposerFocusToken((prev) => prev + 1);
+
+    if (!commandPath) {
+      setSelectedCommandPath(null);
+      setCommandFormValues({});
+      setComposerPrompt(prompt);
+      return;
+    }
+
+    const command = findCommandByPath(plugins, commandPath);
+    if (!command) {
+      setSelectedCommandPath(null);
+      setCommandFormValues({});
+      setComposerPrompt(prompt);
+      return;
+    }
+
+    if (!command.form) {
+      setSelectedCommandPath(commandPath);
+      setCommandFormValues({});
+      setComposerPrompt(prompt || commandPath);
+      return;
+    }
+
+    if (!prompt) {
+      insertComposerCommand(commandPath);
+      return;
+    }
+
+    const parsedValues = parsePromptToCommandFormValues(
+      commandPath,
+      command.form,
+      prompt,
+    );
+
+    if (parsedValues === null) {
+      setSelectedCommandPath(null);
+      setCommandFormValues({});
+      setComposerPrompt(prompt);
+      return;
+    }
+
+    setSelectedCommandPath(commandPath);
+    setCommandFormValues(parsedValues);
+    setComposerPrompt(
+      buildPromptFromCommandForm(commandPath, command.form, parsedValues),
+    );
+  }
+
   function updateSelectedCommandForm(values: CommandFormValues) {
     setCommandFormValues(values);
 
@@ -840,6 +905,7 @@ export default function Page() {
             events={selectedRunEvents}
             focusToken={composerFocusToken}
             loadingEvents={runEventsPending}
+            onEditAndRerun={() => editAndRerunRun(selectedRun)}
             onClearRunner={() => {
               setRunnerSurfaceCleared(true);
               setSelectedRunId(null);
@@ -1022,4 +1088,9 @@ function findCommandByPath(plugins: Plugin[], path: string): Command | null {
   const command = plugin?.commands.find((item) => item.id === commandId);
 
   return command ?? null;
+}
+
+function extractCommandPath(prompt: string | null | undefined): string | null {
+  const match = prompt?.trim().match(/^\/[a-z0-9-]+:[a-z0-9-]+/i);
+  return match ? match[0] : null;
 }

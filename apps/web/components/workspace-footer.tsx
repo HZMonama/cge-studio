@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import {
-  ArrowsClockwiseIcon,
+  BroadcastIcon,
   CaretUpDownIcon,
   CheckIcon,
   DownloadSimpleIcon,
@@ -63,8 +63,8 @@ export function WorkspaceFooter({
           title="Refresh workspace"
         >
           <span className={cn("relative flex size-3.5 items-center justify-center", refreshPending && "animate-spin")}>
-            <ArrowsClockwiseIcon className="size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0" />
-            <ArrowsClockwiseIcon
+            <BroadcastIcon className="size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0" />
+            <BroadcastIcon
               weight="fill"
               className="absolute inset-0 size-3.5 opacity-0 transition-opacity group-hover:opacity-100 group-active:opacity-100"
             />
