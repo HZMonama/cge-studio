@@ -59,6 +59,13 @@ const CATEGORIES: { id: PluginCategory; label: string }[] = [
   { id: "tool",      label: "Tools" },
 ]
 
+const ARTIFACT_KINDS: { id: string; label: string }[] = [
+  { id: "report",   label: "Reports" },
+  { id: "code",     label: "Code" },
+  { id: "document", label: "Documents" },
+  { id: "findings", label: "Findings" },
+]
+
 const BRAND_ICONS: Partial<Record<string, string>> = {
   "github-inspector": "/github_dark.svg",
   "okta-inspector":   "/okta_dark.png",
@@ -179,7 +186,7 @@ function PluginItem({ plugin }: { plugin: Plugin }) {
           "sidebar-fade-item group/plugin-item flex h-(--row-h) w-full items-center gap-2 overflow-hidden px-4 text-left text-xs outline-none transition-colors hover:text-sidebar-accent-foreground focus-visible:ring-2",
           isSelected
             ? "sidebar-fade-item-active text-sidebar-accent-foreground"
-            : "text-sidebar-foreground",
+            : "text-sidebar-foreground/60",
         )}
       >
         {brandSrc
@@ -194,7 +201,7 @@ function PluginItem({ plugin }: { plugin: Plugin }) {
             />
           )
         }
-        <span className="truncate">{plugin.label}</span>
+        <span className="truncate font-mono text-base font-light">{plugin.label}</span>
       </button>
     </SidebarMenuItem>
   )
@@ -247,7 +254,7 @@ function FindingItem({
           "sidebar-fade-item group/finding-item flex h-auto w-full items-start gap-2.5 overflow-hidden px-4 py-3 text-left text-xs outline-none transition-colors hover:text-sidebar-accent-foreground focus-visible:ring-2",
           isSelected
             ? "sidebar-fade-item-active text-sidebar-accent-foreground"
-            : "text-sidebar-foreground",
+            : "text-sidebar-foreground/60",
         )}
       >
         <span
@@ -292,7 +299,7 @@ function ArtifactItem({
           "sidebar-fade-item group/artifact-item flex h-auto w-full items-start gap-2 overflow-hidden px-4 py-3 text-left text-xs outline-none transition-colors hover:text-sidebar-accent-foreground focus-visible:ring-2",
           isSelected
             ? "sidebar-fade-item-active text-sidebar-accent-foreground"
-            : "text-sidebar-foreground",
+            : "text-sidebar-foreground/60",
         )}
       >
         <SidebarPhosphorIcon
@@ -337,6 +344,7 @@ export function AppSidebar({
   const [query, setQuery] = React.useState("")
   const [activePersona, setActivePersona] = React.useState<Persona | null>(null)
   const [activeCategories, setActiveCategories] = React.useState<PluginCategory[]>([])
+  const [activeArtifactKinds, setActiveArtifactKinds] = React.useState<string[]>([])
   const searchRef = React.useRef<HTMLInputElement>(null)
   const { openConfig, configOpen } = usePluginPanel()
 
@@ -352,6 +360,14 @@ export function AppSidebar({
       prev.includes(category)
         ? prev.filter(id => id !== category)
         : [...prev, category]
+    ))
+  }
+
+  function toggleArtifactKind(kind: string) {
+    setActiveArtifactKinds((prev) => (
+      prev.includes(kind)
+        ? prev.filter(id => id !== kind)
+        : [...prev, kind]
     ))
   }
 
@@ -372,13 +388,12 @@ export function AppSidebar({
   })
   const visibleArtifacts = artifacts.filter((artifact) => {
     const normalizedQuery = query.trim().toLowerCase()
-    if (!normalizedQuery) {
-      return true
-    }
-
-    return artifact.title.toLowerCase().includes(normalizedQuery)
+    const matchesQuery = !normalizedQuery
+      || artifact.title.toLowerCase().includes(normalizedQuery)
       || artifact.commandPath.toLowerCase().includes(normalizedQuery)
       || artifact.id.toLowerCase().includes(normalizedQuery)
+    const matchesKind = activeArtifactKinds.length === 0 || activeArtifactKinds.includes(artifact.kind)
+    return matchesQuery && matchesKind
   })
 
   const visibleFindings = findings.filter((finding) => {
@@ -536,6 +551,64 @@ export function AppSidebar({
               </PopoverPortal>
             </Popover>
           )}
+          {activeSection === "artifacts" && (
+            <Popover>
+              <PopoverTrigger
+                className={cn(
+                  "group/filter-trigger flex h-full items-center gap-1 border-l border-sidebar-border px-2 text-xs transition-colors hover:text-sidebar-foreground",
+                  activeArtifactKinds.length > 0 ? "text-sidebar-foreground" : "text-sidebar-foreground/50"
+                )}
+              >
+                <SidebarPhosphorIcon
+                  Icon={FunnelIcon}
+                  filled={activeArtifactKinds.length > 0}
+                  className="size-3.5 group-hover/filter-trigger:[&>svg:first-child]:opacity-0 group-hover/filter-trigger:[&>svg:last-child]:opacity-100"
+                />
+                <span>{activeArtifactKinds.length > 0 ? `${activeArtifactKinds.length} types` : "All"}</span>
+              </PopoverTrigger>
+              <PopoverPortal>
+                <PopoverPositioner side="bottom" align="end" sideOffset={4}>
+                  <PopoverContent className="w-52">
+                    <ul>
+                      <li className="border-b">
+                        <button
+                          onClick={() => setActiveArtifactKinds([])}
+                          className={cn(
+                            "flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs transition-colors hover:bg-accent",
+                            activeArtifactKinds.length === 0 && "font-medium"
+                          )}
+                        >
+                          <span>All</span>
+                          {activeArtifactKinds.length === 0 && <CheckIcon className="size-3.5" weight="bold" />}
+                        </button>
+                      </li>
+                      <li className="border-b px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-sidebar-foreground/45">
+                        Types
+                      </li>
+                      {ARTIFACT_KINDS.map((kind) => {
+                        const selected = activeArtifactKinds.includes(kind.id)
+
+                        return (
+                          <li key={kind.id} className="border-b last:border-0">
+                            <button
+                              onClick={() => toggleArtifactKind(kind.id)}
+                              className={cn(
+                                "flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs transition-colors hover:bg-accent",
+                                selected && "font-medium"
+                              )}
+                            >
+                              <span>{kind.label}</span>
+                              {selected && <CheckIcon className="size-3.5" weight="bold" />}
+                            </button>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </PopoverContent>
+                </PopoverPositioner>
+              </PopoverPortal>
+            </Popover>
+          )}
         </div>
       </SidebarHeader>
 
@@ -616,7 +689,7 @@ export function AppSidebar({
             "sidebar-fade-item group/config-item flex h-(--row-h) w-full items-center gap-2 border-t border-sidebar-border px-4 text-xs transition-colors hover:text-sidebar-accent-foreground",
             configOpen
               ? "sidebar-fade-item-active text-sidebar-accent-foreground"
-              : "text-sidebar-foreground/70"
+              : "text-sidebar-foreground/60"
           )}
         >
           <SidebarPhosphorIcon

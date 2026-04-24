@@ -46,7 +46,7 @@ function isArtifactTimelineItem(item: TimelineItem) {
 }
 
 function isCollapsibleTimelineItem(item: TimelineItem) {
-  return isCommandItem(item) || isArtifactTimelineItem(item);
+  return true;
 }
 
 function timelineItemLabel(item: TimelineItem) {
@@ -136,8 +136,7 @@ function EventBody({
   if (event.type === "run.created") {
     return (
       <div>
-        <p className="text-sm font-medium text-foreground">Run queued</p>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+        <p className="text-sm leading-6 text-muted-foreground">
           {coerceString(event.data.commandPath)}
         </p>
       </div>
@@ -152,16 +151,13 @@ function EventBody({
 
     return (
       <div>
-        <p className="text-sm font-medium text-foreground">
-          {event.type === "run.started" ? "Run started" : "Tool started"}
-        </p>
         {preview ? (
-          <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words border border-border/60 bg-muted/20 px-3 py-2 text-xs leading-5 text-foreground">
+          <pre className="overflow-x-auto whitespace-pre-wrap wrap-break-word border border-border/60 bg-muted/20 px-3 py-2 text-xs leading-5 text-foreground">
             {preview}
           </pre>
         ) : null}
         {command.length > 0 ? (
-          <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words border border-border/60 bg-muted/20 px-3 py-2 text-xs leading-5 text-foreground">
+          <pre className={preview ? "mt-2 overflow-x-auto whitespace-pre-wrap wrap-break-word border border-border/60 bg-muted/20 px-3 py-2 text-xs leading-5 text-foreground" : "overflow-x-auto whitespace-pre-wrap wrap-break-word border border-border/60 bg-muted/20 px-3 py-2 text-xs leading-5 text-foreground"}>
             {command.join(" ")}
           </pre>
         ) : null}
@@ -172,9 +168,8 @@ function EventBody({
   if (event.type === "tool.completed") {
     return (
       <div>
-        <p className="text-sm font-medium text-foreground">Tool finished</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Exit code {String(event.data.exitCode ?? "?")}
+        <p className="text-sm text-muted-foreground">
+          Exit Code {String(event.data.exitCode ?? "?")}
         </p>
       </div>
     );
@@ -208,7 +203,7 @@ function EventBody({
         <p className="text-sm font-medium text-foreground">
           {coerceString(event.data.role) === "user" ? "Input captured" : "Runner message"}
         </p>
-        <pre className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground">
+        <pre className="mt-2 whitespace-pre-wrap wrap-break-word text-sm leading-6 text-muted-foreground">
           {coerceString(event.data.text)}
         </pre>
       </div>
@@ -235,10 +230,7 @@ function EventBody({
   if (event.type === "run.completed" || event.type === "run.failed") {
     return (
       <div>
-        <p className="text-sm font-medium text-foreground">
-          {event.type === "run.completed" ? "Run completed" : "Run failed"}
-        </p>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+        <p className="text-sm leading-6 text-muted-foreground">
           {coerceString(event.data.message) || `Exit code ${String(event.data.exitCode ?? "?")}`}
         </p>
       </div>
@@ -396,36 +388,52 @@ export function RunnerTimeline({
   if (!run) {
     return (
       <div className="flex min-h-full items-center justify-center px-6 py-16">
-        <div className="w-full max-w-lg text-center">
-          <p className="text-[48pt] font-semibold leading-none tracking-tight text-foreground">
+        <div className="w-max text-center">
+          <motion.p
+            className="text-[48pt] font-semibold leading-none tracking-tight text-foreground"
+            initial={{ opacity: 0, y: 16, filter: "blur(8px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            transition={{ duration: 0.5, ease: [0.25, 0, 0.2, 1] }}
+          >
             CGE Studio
-          </p>
-          <p
+          </motion.p>
+          <motion.p
             className="mt-2 text-2xl font-normal italic text-muted-foreground/60"
             style={{ fontFamily: "var(--font-instrument-serif)" }}
+            initial={{ opacity: 0, y: 10, filter: "blur(6px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            transition={{ duration: 0.45, ease: [0.25, 0, 0.2, 1], delay: 0.1 }}
           >
             alpha
-          </p>
-          <div className="mt-14">
+          </motion.p>
+          <motion.div
+            className="mt-14"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: [0.25, 0, 0.2, 1], delay: 0.22 }}
+          >
             <div className="flex items-center gap-3">
               <div className="flex-1 border-t border-dashed border-border/40" />
               <span className="font-mono text-[11px] text-muted-foreground/40">Start here</span>
               <div className="flex-1 border-t border-dashed border-border/40" />
             </div>
             <div className="mt-6 flex items-center justify-center gap-3">
-              {INSPECTOR_SHORTCUTS.map((inspector) => (
-                <button
+              {INSPECTOR_SHORTCUTS.map((inspector, i) => (
+                <motion.button
                   key={inspector.id}
                   type="button"
                   onClick={() => onQuickRun?.(`/${inspector.id}:setup`)}
-                  className="flex items-center gap-2.5 border border-border/60 bg-card/60 p-2.5 text-sm text-muted-foreground transition-colors hover:border-border hover:text-foreground whitespace-nowrap"
+                  className="inline-flex items-center gap-2.5 border border-border/60 bg-card/60 p-2.5 text-sm text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+                  initial={{ opacity: 0, y: 8, filter: "blur(4px)" }}
+                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                  transition={{ duration: 0.35, ease: [0.25, 0, 0.2, 1], delay: 0.32 + i * 0.06 }}
                 >
-                  <img src={inspector.icon} alt="" className="size-4 shrink-0 object-contain" />
-                  {inspector.label}
-                </button>
+                  <img src={inspector.icon} alt="" className="w-4 h-4 flex-shrink-0 object-contain" />
+                  <span className="ml-1">{inspector.label}</span>
+                </motion.button>
               ))}
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
     );

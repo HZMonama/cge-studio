@@ -1515,7 +1515,8 @@ async function startEvidenceToGapPipeline(input) {
         {
           id: "connector",
           label: "Connector",
-          placeholder: "github-inspector",
+          type: "select",
+          placeholder: "Select a connector…",
           options: [
             { label: "GitHub Inspector", value: "github-inspector" },
             { label: "AWS Inspector", value: "aws-inspector" },
@@ -1526,7 +1527,21 @@ async function startEvidenceToGapPipeline(input) {
         {
           id: "framework",
           label: "Framework",
+          type: "checkboxes",
           placeholder: "SOC2",
+          options: [
+            { label: "SOC 2", value: "SOC2" },
+            { label: "NIST 800-53", value: "NIST-800-53" },
+            { label: "ISO 27001", value: "ISO-27001" },
+            { label: "PCI DSS", value: "PCI-DSS" },
+            { label: "FedRAMP Rev5", value: "fedramp-rev5" },
+            { label: "FedRAMP 20x", value: "fedramp-20x" },
+            { label: "CMMC", value: "CMMC" },
+            { label: "HITRUST", value: "HITRUST" },
+            { label: "DORA", value: "DORA" },
+            { label: "GDPR", value: "GDPR" },
+            { label: "CIS Controls", value: "CIS-Controls" },
+          ],
         },
       ],
     },
@@ -1541,7 +1556,7 @@ async function startEvidenceToGapPipeline(input) {
 async function respondEvidenceToGapPipeline(input) {
   const answers = input.response?.answers ?? input.response ?? {};
   const connector = String(answers.connector ?? "github-inspector").trim();
-  const framework = String(answers.framework ?? "SOC2").trim();
+  const framework = String(answers.framework ?? "SOC2").split(",").map((s) => s.trim()).filter(Boolean)[0] ?? "SOC2";
   const completedAt = new Date().toISOString();
 
   await input.appendRunEvent(input.runDirectory, {

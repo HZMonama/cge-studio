@@ -791,6 +791,25 @@ async function readClaudeCodeStatus(settings) {
   };
 }
 
+let shuttingDown = false;
+
+function gracefulShutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`[runner] ${signal} received, shutting down…`);
+  server.close(() => {
+    process.exit(0);
+  });
+  setTimeout(() => {
+    console.log("[runner] forced shutdown after timeout");
+    process.exit(1);
+  }, 5000);
+}
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGHUP", () => gracefulShutdown("SIGHUP"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+
 server.listen(port, "127.0.0.1", () => {
   console.log(`[runner] listening on http://127.0.0.1:${port}`);
 });
@@ -1941,10 +1960,12 @@ async function executeStep({ commandPath, args, stepIndex, runId, runDirectory, 
       let stdoutBuffer = "";
       let pendingText = "";
       let resolved = false;
+      const conversationLog = [];
 
       const flushPendingText = async () => {
         const text = pendingText.trim();
         if (!text) return;
+        conversationLog.push(text);
         pendingText = "";
         await appendRunEvent(runDirectory, {
           type: "message",
@@ -1975,23 +1996,50 @@ async function executeStep({ commandPath, args, stepIndex, runId, runDirectory, 
         if (event.type === "result" && !resolved) {
           resolved = true;
           await flushPendingText();
-          const success = event.subtype === "success";
-          const artifacts = success
+          const isSuccess = event.subtype === "success" && !event.is_error;
+          let artifacts = isSuccess
             ? await collectAgentArtifacts({ run: { id: runId, commandId: parsed.commandId, commandPath }, workspace, startedAt })
             : [];
+
+          if (isSuccess && artifacts.length === 0 && conversationLog.length > 0) {
+            const stepArtifactsDir = path.join(
+              workspace.folders.artifactsGenerated,
+              `${runId}-step-${stepIndex}`,
+            );
+            await fs.mkdir(stepArtifactsDir, { recursive: true });
+            const artifactPath = path.join(stepArtifactsDir, "conversation.md");
+            const content = conversationLog.join("\n\n---\n\n");
+            await fs.writeFile(artifactPath, content, "utf8");
+
+            artifacts = [createArtifactSummary({
+              commandId: parsed.commandId,
+              commandPath,
+              createdAt: new Date().toISOString(),
+              format: "markdown",
+              kind: "report",
+              path: artifactPath,
+              pluginId: parsed.pluginId,
+              runId,
+              title: `${commandPath} Response`,
+            })];
+          }
+
           await appendRunEvent(runDirectory, {
             type: "tool.completed",
-            data: { exitCode: success ? 0 : 1, status: success ? "completed" : "failed" },
+            data: { exitCode: isSuccess ? 0 : 1, status: isSuccess ? "completed" : "failed" },
           });
-          resolve({ status: success ? "completed" : "failed", artifacts, exitCode: success ? 0 : 1 });
+          resolve({ status: isSuccess ? "completed" : "failed", artifacts, exitCode: isSuccess ? 0 : 1 });
         }
       };
 
-      child.stdout.on("data", async (chunk) => {
-        stdoutBuffer += chunk.toString("utf8");
-        const lines = stdoutBuffer.split("\n");
-        stdoutBuffer = lines.pop() ?? "";
-        for (const line of lines) await processLine(line);
+      let stdoutQueue = Promise.resolve();
+      child.stdout.on("data", (chunk) => {
+        stdoutQueue = stdoutQueue.then(async () => {
+          stdoutBuffer += chunk.toString("utf8");
+          const lines = stdoutBuffer.split("\n");
+          stdoutBuffer = lines.pop() ?? "";
+          for (const line of lines) await processLine(line);
+        });
       });
 
       child.stderr.on("data", async (chunk) => {
@@ -2002,6 +2050,7 @@ async function executeStep({ commandPath, args, stepIndex, runId, runDirectory, 
       });
 
       child.on("close", async (exitCode) => {
+        await stdoutQueue;
         if (stdoutBuffer.trim()) await processLine(stdoutBuffer);
         await flushPendingText();
         if (!resolved) {
@@ -2027,7 +2076,7 @@ async function finalizeCommandRun(input) {
     completedAt: completionTime,
   };
 
-  const artifacts =
+  let artifacts =
     input.status === "completed"
       ? await collectRunArtifacts({
           commandPath: input.run.commandPath,
@@ -2038,6 +2087,28 @@ async function finalizeCommandRun(input) {
           workspace: input.workspace,
         })
       : [];
+
+  // When a script produces no files but has stdout output, capture it as a text artifact
+  if (artifacts.length === 0 && input.status === "completed" && input.stdoutText?.trim()) {
+    const outputDir = input.execution.outputDir ?? input.run.outputDir;
+    if (outputDir) {
+      await fs.mkdir(outputDir, { recursive: true });
+      const artifactPath = path.join(outputDir, "output.txt");
+      await fs.writeFile(artifactPath, input.stdoutText, "utf8");
+
+      artifacts = [createArtifactSummary({
+        commandId: input.run.commandId,
+        commandPath: input.run.commandPath,
+        createdAt: completionTime,
+        format: "text",
+        kind: "report",
+        path: artifactPath,
+        pluginId: input.execution.pluginId ?? input.run.pluginId,
+        runId: input.run.id,
+        title: input.run.commandPath ? `${input.run.commandPath} Output` : "Command Output",
+      })];
+    }
+  }
 
   nextRun.artifacts = artifacts;
   nextRun.artifactCount = artifacts.length;
@@ -2118,10 +2189,12 @@ async function executeAgentRun(input) {
   let pendingText = "";
   let completedAt = null;
   let exitCode = null;
+  const conversationLog = [];
 
   const flushPendingText = async () => {
     const text = pendingText.trim();
     if (!text) return;
+    conversationLog.push(text);
     pendingText = "";
     await appendRunEvent(runDirectory, {
       type: "message",
@@ -2159,12 +2232,33 @@ async function executeAgentRun(input) {
       await flushPendingText();
       completedAt = new Date().toISOString();
 
-      if (event.subtype === "success") {
-        const artifacts = await collectAgentArtifacts({
+      const isSuccess = event.subtype === "success" && !event.is_error;
+
+      if (isSuccess) {
+        let artifacts = await collectAgentArtifacts({
           run,
           workspace,
           startedAt,
         });
+
+        if (artifacts.length === 0 && conversationLog.length > 0) {
+          await fs.mkdir(run.outputDir, { recursive: true });
+          const artifactPath = path.join(run.outputDir, "conversation.md");
+          const content = conversationLog.join("\n\n---\n\n");
+          await fs.writeFile(artifactPath, content, "utf8");
+
+          artifacts = [createArtifactSummary({
+            commandId: run.commandId,
+            commandPath: run.commandPath,
+            createdAt: completedAt,
+            format: "markdown",
+            kind: "report",
+            path: artifactPath,
+            pluginId: run.pluginId,
+            runId: run.id,
+            title: run.commandPath ? `${run.commandPath} Response` : "Agent Response",
+          })];
+        }
 
         const nextRun = {
           ...run,
@@ -2195,7 +2289,7 @@ async function executeAgentRun(input) {
         await writeRun(runDirectory, nextRun);
       } else {
         const message =
-          event.error ?? event.message ?? `Agent exited with subtype: ${event.subtype}`;
+          event.result ?? event.message ?? event.error ?? `Agent exited with subtype: ${event.subtype}`;
 
         await appendRunEvent(runDirectory, {
           type: "run.failed",
@@ -2211,13 +2305,16 @@ async function executeAgentRun(input) {
     }
   };
 
-  child.stdout.on("data", async (chunk) => {
-    stdoutBuffer += chunk.toString("utf8");
-    const lines = stdoutBuffer.split("\n");
-    stdoutBuffer = lines.pop() ?? "";
-    for (const line of lines) {
-      await processLine(line);
-    }
+  let stdoutQueue = Promise.resolve();
+  child.stdout.on("data", (chunk) => {
+    stdoutQueue = stdoutQueue.then(async () => {
+      stdoutBuffer += chunk.toString("utf8");
+      const lines = stdoutBuffer.split("\n");
+      stdoutBuffer = lines.pop() ?? "";
+      for (const line of lines) {
+        await processLine(line);
+      }
+    });
   });
 
   child.stderr.on("data", async (chunk) => {
@@ -2231,6 +2328,7 @@ async function executeAgentRun(input) {
   });
 
   child.on("close", async (code) => {
+    await stdoutQueue;
     exitCode = code;
     if (stdoutBuffer.trim()) {
       await processLine(stdoutBuffer);
@@ -2645,6 +2743,21 @@ async function collectGapAssessmentArtifacts(input) {
     .filter((entry) => entry.isFile())
     .map((entry) => path.join(reportDir, entry.name))
     .sort((left, right) => left.localeCompare(right));
+
+  // Sync findings.normalized.json to workspace for findings tab
+  const normalizedSource = path.join(reportDir, 'findings.normalized.json');
+  if (await pathExists(normalizedSource)) {
+    const normalizedDir = input.workspace.folders.findingsNormalized;
+    await fs.mkdir(normalizedDir, { recursive: true });
+
+    // Copy as the single latest file (for findings tab)
+    const latestPath = path.join(normalizedDir, 'findings.normalized.json');
+    await fs.copyFile(normalizedSource, latestPath);
+
+    // Also copy as versioned artifact (for history in artifacts tab)
+    const versionedPath = path.join(normalizedDir, `findings.normalized.${input.runId}.json`);
+    await fs.copyFile(normalizedSource, versionedPath);
+  }
 
   return files.map((filePath) =>
     createArtifactSummary({

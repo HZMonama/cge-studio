@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   BroadcastIcon,
   CaretUpDownIcon,
@@ -47,10 +47,48 @@ export function WorkspaceFooter({
   workspaces: WorkspaceLike[]
   setActiveWorkspaceId: (id: string) => void
 }) {
-  const activeWorkspace =
-    workspaces.find(workspace => workspace.id === activeWorkspaceId) ?? null
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  const activeWorkspace = mounted
+    ? (workspaces.find(workspace => workspace.id === activeWorkspaceId) ?? null)
+    : null
   const [selectorPopoverOpen, setSelectorPopoverOpen] = useState(false)
   const [selectorPopoverMode, setSelectorPopoverMode] = useState<"list" | "details">("list")
+
+  if (!mounted) {
+    return (
+      <footer className="flex h-(--row-h) shrink-0 items-center justify-between border-t border-border/70 bg-background/90 px-2">
+        <div className="flex h-full min-w-0 items-center pr-2">
+          <div className="mr-1 flex size-8 shrink-0 items-center justify-center text-muted-foreground/40">
+            <BroadcastIcon className="size-3.5" />
+          </div>
+          <div className="flex h-full min-w-0 items-center border-r border-border/70 pr-2">
+            <div className="min-w-0 px-2">
+              <p className="truncate text-xs text-muted-foreground/40">No workspace</p>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="flex h-[4vh] items-center gap-1.5 px-2.5 text-xs text-muted-foreground/40">
+            <NotePencilIcon className="size-3.5" />
+            Rename workspace
+          </div>
+          <div className="flex h-[4vh] items-center gap-1.5 px-2.5 text-xs text-muted-foreground/40">
+            <DownloadSimpleIcon className="size-3.5" />
+            Export workspace
+          </div>
+          <div className="flex h-[4vh] items-center gap-1.5 px-2.5 text-xs text-muted-foreground/40">
+            <TrashIcon className="size-3.5" />
+            Delete workspace
+          </div>
+          <div className="flex h-[4vh] items-center gap-1.5 rounded border border-transparent px-2.5 text-xs text-muted-foreground">
+            <FolderSimplePlusIcon className="size-3.5" />
+            Add workspace
+          </div>
+        </div>
+      </footer>
+    )
+  }
 
   return (
     <footer className="flex h-(--row-h) shrink-0 items-center justify-between border-t border-border/70 bg-background/90 px-2">
@@ -119,6 +157,7 @@ export function WorkspaceFooter({
                           >
                             <div className="min-w-0">
                               <p className="truncate">{workspace.title}</p>
+                              <p className="truncate font-mono text-[10px] text-muted-foreground/50">{workspace.id}</p>
                             </div>
                             {workspace.id === activeWorkspace?.id && <CheckIcon className="size-3.5 shrink-0" weight="bold" />}
                           </button>
@@ -146,7 +185,7 @@ export function WorkspaceFooter({
         <button
           onClick={onRenameWorkspace}
           disabled={!activeWorkspace}
-          className="group flex h-[4vh] items-center gap-1.5 rounded border border-transparent px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border/45 hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+          className="group flex h-[4vh] items-center gap-1.5 rounded-none border border-transparent px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border/45 hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
         >
           <span className="relative flex size-3.5 items-center justify-center">
             <NotePencilIcon className="size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0" />
@@ -159,8 +198,8 @@ export function WorkspaceFooter({
         </button>
         <button
           onClick={onExportWorkspace}
-          disabled={!activeWorkspace}
-          className="group flex h-[4vh] items-center gap-1.5 rounded border border-transparent px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border/45 hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+          disabled={true}
+          className="group flex h-[4vh] items-center gap-1.5 rounded-none border border-transparent px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border/45 hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
         >
           <span className="relative flex size-3.5 items-center justify-center">
             <DownloadSimpleIcon className="size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0" />
@@ -174,7 +213,7 @@ export function WorkspaceFooter({
         <button
           onClick={() => activeWorkspace && onCloseWorkspace(activeWorkspace.id)}
           disabled={!activeWorkspace}
-          className="group flex h-[4vh] items-center gap-1.5 rounded border border-transparent px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border/45 hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+          className="group flex h-[4vh] items-center gap-1.5 rounded-none border border-transparent px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border/45 hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
         >
           <span className="relative flex size-3.5 items-center justify-center">
             <TrashIcon className="size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0" />

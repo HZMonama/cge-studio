@@ -94,7 +94,7 @@ export function PluginPanel({
                 onClick={() =>
                   selectedPlugin && onSelectCommand?.(selectedPlugin.id, cmd)
                 }
-                className="sidebar-fade-item w-full px-4 py-3 text-left transition-colors hover:text-sidebar-accent-foreground"
+                className="sidebar-fade-item w-full px-4 py-3 text-left text-sidebar-foreground/60 transition-colors hover:text-sidebar-accent-foreground"
               >
                 <div className="min-w-0">
                   <p className="min-w-0 font-mono text-base font-light">{cmd.id}</p>

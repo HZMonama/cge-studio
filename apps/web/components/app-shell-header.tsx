@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ElementType } from "react";
+import { motion } from "motion/react";
 import {
   ArrowClockwiseIcon,
   CheckCircleIcon,
@@ -209,10 +210,17 @@ export function AppShellHeader({
                 section.disabled
                   ? "cursor-not-allowed border-transparent bg-transparent text-muted-foreground/40"
                   : section.id === activeSection
-                    ? "border-border/70 bg-border/70 text-foreground shadow-sm"
-                    : "border-transparent bg-background/20 text-muted-foreground hover:border-border/45 hover:bg-background/52 hover:text-foreground",
+                    ? "border-border/70 text-foreground"
+                    : "border-transparent bg-transparent text-muted-foreground hover:border-border/45 hover:bg-background/52 hover:text-foreground",
               )}
             >
+              {section.id === activeSection && !section.disabled && (
+                <motion.span
+                  layoutId="header-tab-bg"
+                  className="absolute inset-0 rounded-none border border-border/70 bg-border/70 shadow-sm"
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
               <span className="relative flex size-3.5 shrink-0 items-center justify-center">
                 <section.Icon
                   className={cn(
@@ -237,7 +245,7 @@ export function AppShellHeader({
                   />
                 )}
               </span>
-              <span className="truncate leading-none">{section.label}</span>
+              <span className="relative truncate leading-none">{section.label}</span>
             </button>
           ))}
         </div>

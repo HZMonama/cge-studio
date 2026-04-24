@@ -367,7 +367,13 @@ function PipelineStepChain({ steps }: { steps: Pipeline["steps"] }) {
   );
 }
 
-function PipelinesPanel() {
+function PipelinesPanel({
+  onRunPipeline,
+  runPending,
+}: {
+  onRunPipeline: (path: string) => void;
+  runPending: boolean;
+}) {
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
 
   return (
@@ -458,11 +464,12 @@ function PipelinesPanel() {
                           <div className="flex justify-end">
                             <button
                               type="button"
-                              disabled
-                              className="inline-flex h-7 items-center gap-1.5 border border-border/50 px-3 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground/40 disabled:pointer-events-none"
+                              disabled={runPending || pipeline.readiness !== "ready"}
+                              onClick={() => onRunPipeline(pipeline.path)}
+                              className="inline-flex h-7 items-center gap-1.5 border border-primary/40 bg-primary/10 px-3 text-[10px] font-medium uppercase tracking-[0.12em] text-primary transition-colors hover:bg-primary/20 disabled:pointer-events-none disabled:border-border/50 disabled:text-muted-foreground/40"
                             >
                               <LightningIcon className="size-3" />
-                              Run pipeline
+                              {runPending ? "Running…" : pipeline.readiness === "ready" ? "Run pipeline" : "Not yet available"}
                             </button>
                           </div>
                         </div>
@@ -490,6 +497,7 @@ export function ChatSurface({
   onOpenHistory,
   onSubmitPrompt,
   onRun,
+  onRunPipeline,
   runPending,
   run,
   plugins,
@@ -511,6 +519,7 @@ export function ChatSurface({
   onOpenHistory: () => void;
   onSubmitPrompt: (promptId: string, answers: Record<string, string>) => Promise<void>;
   onRun: () => void;
+  onRunPipeline: (pipelinePath: string) => void;
   runPending: boolean;
   run: RunnerRun | null;
   plugins: Plugin[];
@@ -668,19 +677,25 @@ export function ChatSurface({
     <div className="relative flex flex-1 flex-col overflow-hidden bg-(--editor-bg)">
       {/* Scroll view */}
       <div className="flex-1 overflow-y-auto [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin]">
-        <div className="pt-[5vh] pb-40">
+        <div className={cn("min-h-full", run ? "pt-[5vh] pb-40" : "h-full")}>
           <RunnerTimeline
             events={events}
             loading={loadingEvents}
             onSelectArtifact={onOpenArtifact}
             onSubmitPrompt={onSubmitPrompt}
+            onQuickRun={onRunPipeline}
             run={run}
           />
         </div>
       </div>
 
       {/* Floating run bar */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 flex h-[5vh] min-h-10 items-center justify-between gap-4 border-b border-border/70 bg-background/88 px-4 backdrop-blur">
+      <motion.div
+        className="pointer-events-none absolute inset-x-0 top-0 flex h-[5vh] min-h-10 items-center justify-between gap-4 border-b border-border/70 bg-background/88 px-4 backdrop-blur"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.25, 0, 0.2, 1], delay: 0.18 }}
+      >
         <div className="flex min-w-0 items-center gap-2">
           {run ? (() => {
             const statusTag = getRunStatusTag(run.status);
@@ -733,10 +748,15 @@ export function ChatSurface({
             History
           </button>
         </div>
-      </div>
+      </motion.div>
 
       {/* Floating composer */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-6 pb-6">
+      <motion.div
+        className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-6 pb-6"
+        initial={{ opacity: 0, y: 48 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.25, 0, 0.2, 1], delay: 0.06 }}
+      >
         <div className="pointer-events-auto w-full max-w-[80%]">
           {/* Pipelines button */}
           <div className="mb-2 flex justify-center">
@@ -947,7 +967,14 @@ export function ChatSurface({
                   style={{ overflow: "hidden" }}
                   className="border-t border-border/70"
                 >
-                  <PipelinesPanel />
+                  <PipelinesPanel
+                    onRunPipeline={(path) => {
+                      setPipelinesOpen(false);
+                      setComposerCollapsed(true);
+                      onRunPipeline(path);
+                    }}
+                    runPending={runPending}
+                  />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -1025,7 +1052,7 @@ export function ChatSurface({
             </AnimatePresence>
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

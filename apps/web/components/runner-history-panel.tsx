@@ -62,7 +62,7 @@ export function RunnerHistoryPanel({
                           "min-w-0 flex-1 text-left transition-colors hover:text-sidebar-foreground",
                           selectedRunId === run.id
                             ? "text-sidebar-foreground"
-                            : "text-sidebar-foreground/75",
+                            : "text-sidebar-foreground/60",
                         )}
                       >
                         <p className="truncate text-xs font-medium">
@@ -94,7 +94,7 @@ export function RunnerHistoryPanel({
                           <button
                             key={artifact.id}
                             onClick={() => onSelectArtifact(artifact.id)}
-                            className="sidebar-fade-item flex w-full items-center gap-2 border border-sidebar-border px-2.5 py-2 text-left transition-colors hover:text-sidebar-accent-foreground"
+                            className="sidebar-fade-item flex w-full items-center gap-2 border border-sidebar-border px-2.5 py-2 text-left text-sidebar-foreground/60 transition-colors hover:text-sidebar-accent-foreground"
                           >
                             <ClockCounterClockwiseIcon className="size-3.5 shrink-0 text-sidebar-foreground/50" />
                             <div className="min-w-0 flex-1">

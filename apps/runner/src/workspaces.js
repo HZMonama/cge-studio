@@ -164,38 +164,66 @@ export async function createWorkspace({
 }) {
   await ensureWorkspaceSystem(roots);
 
-  const targetRootPath = rootPath
-    ? resolveWorkspaceRootPath(rootPath)
-    : await resolveNewWorkspaceRootPath({
-        workspaceRoot,
-        workspaceName: title ?? name,
-      });
-  const existingRegistry = await findWorkspaceByRootPath(roots, targetRootPath);
-  if (existingRegistry) {
-    return existingRegistry;
+  // When a rootPath is given (importing an existing folder), use it directly.
+  // Otherwise generate the ID first and use it as the folder name so the
+  // folder is permanently stable — title changes never require moving it.
+  if (rootPath) {
+    const targetRootPath = resolveWorkspaceRootPath(rootPath);
+    const existingRegistry = await findWorkspaceByRootPath(roots, targetRootPath);
+    if (existingRegistry) {
+      return existingRegistry;
+    }
+
+    const existingManifest = await readWorkspaceManifest(targetRootPath);
+    const now = new Date().toISOString();
+    const workspaceName = normalizeWorkspaceName(
+      title ?? name ?? existingManifest?.name ?? path.basename(targetRootPath),
+    );
+    const workspaceId = sanitizeWorkspaceId(
+      existingManifest?.id ?? id ?? createWorkspaceId(workspaceName),
+    );
+    const current = await readWorkspace(roots, workspaceId);
+    if (current && current.rootPath !== targetRootPath) {
+      throw new Error("workspace_id_conflict");
+    }
+
+    const manifest = {
+      version: WORKSPACE_VERSION,
+      id: workspaceId,
+      name: workspaceName,
+      title: workspaceName,
+      rootPath: targetRootPath,
+      createdAt: existingManifest?.createdAt ?? now,
+      updatedAt: now,
+      folders: createManifestFolders(),
+    };
+
+    await createWorkspaceDirectories(targetRootPath);
+    await writeWorkspaceManifest(targetRootPath, manifest);
+    await writeWorkspaceRegistryEntry(roots, manifest);
+    return hydrateWorkspace(manifest);
   }
 
-  const existingManifest = await readWorkspaceManifest(targetRootPath);
+  // New workspace: generate the ID first, use it as the folder name.
+  const workspaceName = normalizeWorkspaceName(title ?? name);
+  const workspaceId = sanitizeWorkspaceId(id ?? createWorkspaceId(workspaceName));
+  const existing = await readWorkspace(roots, workspaceId);
+  if (existing) {
+    return existing;
+  }
+
+  const targetRootPath = await resolveNewWorkspaceRootPath({
+    workspaceRoot,
+    folderName: workspaceId,
+  });
   const now = new Date().toISOString();
-  const workspaceName = normalizeWorkspaceName(
-    title ?? name ?? existingManifest?.name ?? path.basename(targetRootPath),
-  );
-  const workspaceId = sanitizeWorkspaceId(
-    existingManifest?.id ?? id ?? createWorkspaceId(workspaceName),
-  );
-  const current = await readWorkspace(roots, workspaceId);
-
-  if (current && current.rootPath !== targetRootPath) {
-    throw new Error("workspace_id_conflict");
-  }
-
   const manifest = {
     version: WORKSPACE_VERSION,
     id: workspaceId,
     name: workspaceName,
     title: workspaceName,
     rootPath: targetRootPath,
-    createdAt: existingManifest?.createdAt ?? now,
+    createdAt: now,
     updatedAt: now,
     folders: createManifestFolders(),
   };
@@ -203,7 +231,6 @@ export async function createWorkspace({
   await createWorkspaceDirectories(targetRootPath);
   await writeWorkspaceManifest(targetRootPath, manifest);
   await writeWorkspaceRegistryEntry(roots, manifest);
-
   return hydrateWorkspace(manifest);
 }
 
@@ -256,37 +283,20 @@ export async function renameWorkspace(roots, workspaceId, nextTitle) {
     return null;
   }
 
-  const newFolderName = createWorkspaceFolderName(nextTitle);
-  const parentDir = path.dirname(workspace.rootPath);
-  let newRootPath = path.join(parentDir, newFolderName);
-  let counter = 1;
-
-  while (newRootPath !== workspace.rootPath && (await pathExists(newRootPath))) {
-    const existingManifest = await readWorkspaceManifest(newRootPath);
-    if (!existingManifest || existingManifest.id === workspace.id) break;
-    counter += 1;
-    newRootPath = path.join(
-      parentDir,
-      `${newFolderName}-${String(counter).padStart(2, "0")}`,
-    );
-  }
-
-  if (newRootPath !== workspace.rootPath) {
-    await fs.rename(workspace.rootPath, newRootPath);
-  }
-
+  // Keep the folder path stable — only update the display title in the manifest
+  // and registry. Moving the folder would invalidate all stored run/artifact paths.
   const updated = {
     version: workspace.version,
     id: workspace.id,
     name: normalizeWorkspaceName(nextTitle),
     title: normalizeWorkspaceName(nextTitle),
-    rootPath: newRootPath,
+    rootPath: workspace.rootPath,
     createdAt: workspace.createdAt,
     updatedAt: new Date().toISOString(),
     folders: createManifestFolders(),
   };
 
-  await writeWorkspaceManifest(newRootPath, updated);
+  await writeWorkspaceManifest(workspace.rootPath, updated);
   await writeWorkspaceRegistryEntry(roots, updated);
 
   return hydrateWorkspace(updated);
@@ -597,7 +607,9 @@ async function resolveNewWorkspaceRootPath(input) {
   const workspaceRoot = resolveWorkspaceRootPath(input.workspaceRoot);
   await fs.mkdir(workspaceRoot, { recursive: true });
 
-  const baseFolderName = createWorkspaceFolderName(input.workspaceName);
+  // Accept a pre-computed folderName (ID-based) or fall back to title-slug for
+  // legacy callers.
+  const baseFolderName = input.folderName ?? createWorkspaceFolderName(input.workspaceName);
   let candidatePath = path.join(workspaceRoot, baseFolderName);
   let counter = 1;
 

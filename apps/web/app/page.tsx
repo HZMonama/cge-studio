@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import {
   ChartBarIcon,
   FilesIcon,
@@ -26,9 +26,7 @@ import { SectionSurface } from "@/components/section-surface";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogBody,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -117,6 +115,7 @@ const HEADER_SECTIONS: AppHeaderSection[] = [
 
 const ACTIVE_WORKSPACE_STORAGE_KEY = "cge.active-workspace-id";
 const ACTIVE_SECTION_STORAGE_KEY = "cge.active-section";
+const runnerClearedKey = (id: string) => `cge.runner-cleared.${id}`;
 
 export default function Page() {
   const { openHistory } = usePluginPanel();
@@ -131,12 +130,16 @@ export default function Page() {
   const [selectedRunEvents, setSelectedRunEvents] = useState<RunnerRunEvent[]>([]);
   const [runEventsPending, setRunEventsPending] = useState(false);
   const [runnerSurfaceCleared, setRunnerSurfaceCleared] = useState(false);
+  // Ref used to invalidate in-flight run-events fetches when the surface is cleared
+  const runEventsFetchIdRef = useRef(0);
   const [artifacts, setArtifacts] = useState<RunnerArtifactSummary[]>([]);
   const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(
     null,
   );
   const [selectedArtifact, setSelectedArtifact] =
     useState<RunnerArtifactDetail | null>(null);
+  const [artifactLoading, setArtifactLoading] = useState(false);
+  const [artifactError, setArtifactError] = useState<string | null>(null);
   const [findings, setFindings] = useState<RunnerFindingSummary[]>([]);
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
   const [selectedFinding, setSelectedFinding] = useState<RunnerFindingDetail | null>(null);
@@ -317,6 +320,8 @@ export default function Page() {
       setArtifacts([]);
       setSelectedArtifactId(null);
       setSelectedArtifact(null);
+      setArtifactLoading(false);
+      setArtifactError(null);
       setFindings([]);
       setSelectedFindingId(null);
       setSelectedFinding(null);
@@ -325,6 +330,11 @@ export default function Page() {
     }
 
     const controller = new AbortController();
+
+    const cleared = localStorage.getItem(runnerClearedKey(activeWorkspaceId)) === "true";
+    if (cleared) {
+      setRunnerSurfaceCleared(true);
+    }
 
     Promise.all([
       fetchRuns(activeWorkspaceId, controller.signal),
@@ -338,12 +348,14 @@ export default function Page() {
 
       setRuns(nextRuns);
       setSelectedRunId((current) =>
-        current && nextRuns.some((run) => run.id === current)
+        cleared ? null : current && nextRuns.some((run) => run.id === current)
           ? current
-          : (runnerSurfaceCleared ? null : (nextRuns[0]?.id ?? null)),
+          : (nextRuns[0]?.id ?? null),
       );
       setArtifacts(nextArtifacts);
       setSelectedArtifact(null);
+      setArtifactLoading(false);
+      setArtifactError(null);
       setSelectedArtifactId((current) =>
         current && nextArtifacts.some((artifact) => artifact.id === current)
           ? current
@@ -362,25 +374,39 @@ export default function Page() {
   }, [activeWorkspaceId]);
 
   useEffect(() => {
+    // If there's no active workspace or no selected run, or the surface has been cleared,
+    // ensure we don't show events and invalidate any in-flight fetch.
     if (!activeWorkspaceId || !selectedRunId || runnerSurfaceCleared) {
+      runEventsFetchIdRef.current += 1; // invalidate pending fetches
       setSelectedRunEvents([]);
       setRunEventsPending(false);
       return;
     }
 
     const controller = new AbortController();
+    const fetchId = ++runEventsFetchIdRef.current;
     setRunEventsPending(true);
 
-    fetchRunEvents(activeWorkspaceId, selectedRunId, controller.signal).then(
-      (events) => {
-        if (!controller.signal.aborted) {
-          setSelectedRunEvents(events);
+    fetchRunEvents(activeWorkspaceId, selectedRunId, controller.signal)
+      .then((events) => {
+        // ignore if aborted or superseded by a newer fetch/clear
+        if (controller.signal.aborted) return;
+        if (fetchId !== runEventsFetchIdRef.current) return;
+
+        setSelectedRunEvents(events);
+        setRunEventsPending(false);
+      })
+      .catch(() => {
+        // on error, clear pending flag if this is the latest request
+        if (fetchId === runEventsFetchIdRef.current) {
           setRunEventsPending(false);
         }
-      },
-    );
+      });
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      runEventsFetchIdRef.current += 1; // invalidate this fetch
+    };
   }, [activeWorkspaceId, runnerSurfaceCleared, selectedRunId]);
 
   useEffect(() => {
@@ -403,18 +429,35 @@ export default function Page() {
   useEffect(() => {
     if (!activeWorkspaceId || !selectedArtifactId) {
       setSelectedArtifact(null);
+      setArtifactLoading(false);
+      setArtifactError(null);
       return;
     }
 
     const controller = new AbortController();
+    setArtifactLoading(true);
+    setArtifactError(null);
 
-    fetchArtifactDetail(activeWorkspaceId, selectedArtifactId, controller.signal).then(
-      (artifact) => {
+    fetchArtifactDetail(activeWorkspaceId, selectedArtifactId, controller.signal)
+      .then((artifact) => {
         if (!controller.signal.aborted) {
           setSelectedArtifact(artifact);
+          if (artifact === null) {
+            setArtifactError("Artifact not found or no longer available.");
+          }
         }
-      },
-    );
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) {
+          setSelectedArtifact(null);
+          setArtifactError(error instanceof Error ? error.message : "Failed to load artifact");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setArtifactLoading(false);
+        }
+      });
 
     return () => controller.abort();
   }, [activeWorkspaceId, selectedArtifactId]);
@@ -442,9 +485,6 @@ export default function Page() {
   }, [activeWorkspaceId, selectedFindingId]);
 
   const visibleArtifact = selectedArtifactId ? selectedArtifact : null;
-  const artifactLoading =
-    selectedArtifactId !== null &&
-    (selectedArtifact === null || selectedArtifact.id !== selectedArtifactId);
 
   function insertComposerCommand(path: string) {
     setActiveSection("chat");
@@ -618,6 +658,8 @@ export default function Page() {
       setArtifacts([]);
       setSelectedArtifactId(null);
       setSelectedArtifact(null);
+      setArtifactLoading(false);
+      setArtifactError(null);
       setFindings([]);
       setSelectedFindingId(null);
       setSelectedFinding(null);
@@ -633,14 +675,14 @@ export default function Page() {
       fetchConnectors(),
     ]);
 
+    const refreshCleared = localStorage.getItem(runnerClearedKey(workspaceId)) === "true";
     setRuns(nextRuns);
     setSelectedRunId((current) =>
-      current && nextRuns.some((run) => run.id === current)
+      refreshCleared ? null : current && nextRuns.some((run) => run.id === current)
         ? current
-        : (runnerSurfaceCleared ? null : (nextRuns[0]?.id ?? null)),
+        : (nextRuns[0]?.id ?? null),
     );
     setArtifacts(nextArtifacts);
-    setSelectedArtifact(null);
     setSelectedArtifactId((current) =>
       current && nextArtifacts.some((artifact) => artifact.id === current)
         ? current
@@ -678,6 +720,7 @@ export default function Page() {
     try {
       run = await createRun(activeWorkspaceId, prompt, redactedPrompt);
       setRunnerSurfaceCleared(false);
+      localStorage.removeItem(runnerClearedKey(activeWorkspaceId));
       setSelectedRunId(run?.id ?? null);
       setSelectedRunEvents([]);
       setActiveSection("chat");
@@ -690,6 +733,26 @@ export default function Page() {
       setRunPending(false);
     }
 
+    if (run?.artifacts?.[0]?.id) {
+      setSelectedArtifactId(run.artifacts[0].id);
+    }
+  }
+
+  async function runPipeline(pipelinePath: string) {
+    if (!activeWorkspaceId) return;
+    setRunPending(true);
+    let run: RunnerRun | null = null;
+    try {
+      run = await createRun(activeWorkspaceId, pipelinePath, pipelinePath);
+      setRunnerSurfaceCleared(false);
+      localStorage.removeItem(runnerClearedKey(activeWorkspaceId));
+      setSelectedRunId(run?.id ?? null);
+      setSelectedRunEvents([]);
+      setActiveSection("chat");
+      await refreshRunnerData(activeWorkspaceId);
+    } finally {
+      setRunPending(false);
+    }
     if (run?.artifacts?.[0]?.id) {
       setSelectedArtifactId(run.artifacts[0].id);
     }
@@ -912,8 +975,13 @@ export default function Page() {
               setSelectedRunEvents([]);
               setSelectedArtifactId(null);
               setSelectedArtifact(null);
+              setArtifactLoading(false);
+              setArtifactError(null);
               clearSelectedCommand();
               setComposerPrompt("");
+              if (activeWorkspaceId) {
+                localStorage.setItem(runnerClearedKey(activeWorkspaceId), "true");
+              }
             }}
             onClearSelectedCommand={clearSelectedCommand}
             onCommandFormChange={updateSelectedCommandForm}
@@ -954,6 +1022,7 @@ export default function Page() {
               }
             }}
             onRun={runComposerCommand}
+            onRunPipeline={runPipeline}
             onSelectCommand={insertComposerCommand}
             plugins={plugins}
             prompt={composerPrompt}
@@ -982,6 +1051,7 @@ export default function Page() {
           <ArtifactsSurface
             artifact={visibleArtifact}
             loading={artifactLoading}
+            error={artifactError}
           />
         )}
 
@@ -1030,25 +1100,21 @@ export default function Page() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{modalState.type === "closed" ? "" : modalState.title}</DialogTitle>
-            {modalState.type !== "closed" ? (
-              <DialogDescription>{modalState.description}</DialogDescription>
-            ) : null}
           </DialogHeader>
           {modalState.type === "prompt" ? (
-            <DialogBody>
-              <Input
-                autoFocus
-                value={modalInputValue}
-                onChange={(event) => setModalInputValue(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault()
-                    void handleModalConfirm()
-                  }
-                }}
-                placeholder={modalState.placeholder}
-              />
-            </DialogBody>
+            <Input
+              autoFocus
+              className="border-x-0 border-b-0 border-t border-border/60 px-6 py-5 h-auto rounded-none"
+              value={modalInputValue}
+              onChange={(event) => setModalInputValue(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault()
+                  void handleModalConfirm()
+                }
+              }}
+              placeholder={modalState.placeholder}
+            />
           ) : null}
           <DialogFooter>
             {modalState.type === "alert" ? null : (

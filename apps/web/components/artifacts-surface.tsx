@@ -680,9 +680,11 @@ function OverviewArtifactView({
 export function ArtifactsSurface({
   artifact,
   loading,
+  error,
 }: {
   artifact: RunnerArtifactDetail | null
   loading: boolean
+  error?: string | null
 }) {
   const presentation = artifact ? getArtifactPresentation(artifact) : null
   const tabs = useMemo(
@@ -712,6 +714,17 @@ export function ArtifactsSurface({
     return (
       <div className="flex flex-1 items-center justify-center bg-(--editor-bg) p-8">
         <p className="text-sm text-muted-foreground">Loading artifact…</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-1 items-center justify-center bg-(--editor-bg) p-8">
+        <div className="max-w-md text-center">
+          <h2 className="text-sm font-medium text-rose-400">Failed to load artifact</h2>
+          <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+        </div>
       </div>
     )
   }
