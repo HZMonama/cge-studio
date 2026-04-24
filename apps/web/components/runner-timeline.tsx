@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { motion } from "motion/react";
 import {
   CaretDownIcon,
   ClockCounterClockwiseIcon,
@@ -12,6 +13,13 @@ import {
 
 import { type RunnerRun, type RunnerRunEvent } from "@/lib/runner";
 import { cn } from "@/lib/utils";
+
+const INSPECTOR_SHORTCUTS = [
+  { id: "github-inspector", label: "GitHub Inspector", icon: "/github_dark.svg" },
+  { id: "aws-inspector",    label: "AWS Inspector",    icon: "/aws_dark.svg" },
+  { id: "gcp-inspector",    label: "GCP Inspector",    icon: "/google_cloud.svg" },
+  { id: "okta-inspector",   label: "Okta Inspector",   icon: "/okta_dark.png" },
+];
 
 function statusTone(status: RunnerRun["status"]) {
   if (status === "completed") return "bg-emerald-500/10 text-emerald-400";
@@ -284,24 +292,77 @@ function PromptForm({
       </div>
       {fields.map((field) => {
         const id = coerceString(field.id);
+        const fieldType = coerceString(field.type) || "textarea";
+        const options = Array.isArray(field.options)
+          ? (field.options as Array<Record<string, unknown>>)
+          : [];
         return (
-          <label key={id} className="block">
-            <span className="mb-1 block text-xs font-medium text-foreground">
+          <div key={id} className="block">
+            <span className="mb-1.5 block text-xs font-medium text-foreground">
               {coerceString(field.label)}
             </span>
-            <textarea
-              value={values[id] ?? ""}
-              onChange={(event) =>
-                setValues((current) => ({
-                  ...current,
-                  [id]: event.target.value,
-                }))
-              }
-              placeholder={coerceString(field.placeholder)}
-              rows={3}
-              className="w-full resize-y border border-border/60 bg-transparent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-border"
-            />
-          </label>
+            {fieldType === "select" ? (
+              <select
+                value={values[id] ?? ""}
+                onChange={(event) =>
+                  setValues((current) => ({
+                    ...current,
+                    [id]: event.target.value,
+                  }))
+                }
+                className="w-full border border-border/60 bg-transparent px-3 py-2 text-sm text-foreground outline-none focus:border-border"
+              >
+                <option value="" disabled>
+                  {coerceString(field.placeholder) || "Select…"}
+                </option>
+                {options.map((opt) => (
+                  <option key={coerceString(opt.value)} value={coerceString(opt.value)}>
+                    {coerceString(opt.label)}
+                  </option>
+                ))}
+              </select>
+            ) : fieldType === "checkboxes" ? (
+              <div className="grid grid-cols-2 gap-1.5">
+                {options.map((opt) => {
+                  const val = coerceString(opt.value);
+                  const checked = (values[id] ?? "").split(",").filter(Boolean).includes(val);
+                  return (
+                    <label
+                      key={val}
+                      className="flex cursor-pointer items-center gap-2 border border-border/40 px-2.5 py-1.5 text-xs text-foreground transition-colors hover:bg-accent/40 has-[:checked]:border-primary/40 has-[:checked]:bg-primary/10"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {
+                          setValues((current) => {
+                            const prev = (current[id] ?? "").split(",").filter(Boolean);
+                            const next = checked ? prev.filter((v) => v !== val) : [...prev, val];
+                            return { ...current, [id]: next.join(",") };
+                          });
+                        }}
+                        className="accent-primary size-3 shrink-0"
+                      />
+                      {coerceString(opt.label)}
+                    </label>
+                  );
+                })}
+              </div>
+            ) : (
+              <textarea
+                value={values[id] ?? ""}
+                onChange={(event) =>
+                  setValues((current) => ({
+                    ...current,
+                    [id]: event.target.value,
+                  }))
+                }
+                placeholder={coerceString(field.placeholder)}
+                rows={3}
+                className="w-full resize-y border border-border/60 bg-transparent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-border"
+              />
+            )}
+          </div>
         );
       })}
       <button
@@ -320,12 +381,14 @@ export function RunnerTimeline({
   loading,
   onSubmitPrompt,
   onSelectArtifact,
+  onQuickRun,
   run,
 }: {
   events: RunnerRunEvent[];
   loading: boolean;
   onSubmitPrompt: (promptId: string, answers: Record<string, string>) => Promise<void>;
   onSelectArtifact: (artifactId: string) => void;
+  onQuickRun?: (commandPath: string) => void;
   run: RunnerRun | null;
 }) {
   const [collapsedItems, setCollapsedItems] = useState<Record<string, boolean>>({});
@@ -333,11 +396,36 @@ export function RunnerTimeline({
   if (!run) {
     return (
       <div className="flex min-h-full items-center justify-center px-6 py-16">
-        <div className="max-w-lg text-center">
-          <p className="text-sm font-medium text-foreground">No run selected</p>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Start with `/github-inspector:collect`, then run `/grc-engineer:gap-assessment` to build the first tracked pipeline path.
+        <div className="w-full max-w-lg text-center">
+          <p className="text-[48pt] font-semibold leading-none tracking-tight text-foreground">
+            CGE Studio
           </p>
+          <p
+            className="mt-2 text-2xl font-normal italic text-muted-foreground/60"
+            style={{ fontFamily: "var(--font-instrument-serif)" }}
+          >
+            alpha
+          </p>
+          <div className="mt-14">
+            <div className="flex items-center gap-3">
+              <div className="flex-1 border-t border-dashed border-border/40" />
+              <span className="font-mono text-[11px] text-muted-foreground/40">Start here</span>
+              <div className="flex-1 border-t border-dashed border-border/40" />
+            </div>
+            <div className="mt-6 flex items-center justify-center gap-3">
+              {INSPECTOR_SHORTCUTS.map((inspector) => (
+                <button
+                  key={inspector.id}
+                  type="button"
+                  onClick={() => onQuickRun?.(`/${inspector.id}:setup`)}
+                  className="flex items-center gap-2.5 border border-border/60 bg-card/60 p-2.5 text-sm text-muted-foreground transition-colors hover:border-border hover:text-foreground whitespace-nowrap"
+                >
+                  <img src={inspector.icon} alt="" className="size-4 shrink-0 object-contain" />
+                  {inspector.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -433,7 +521,12 @@ export function RunnerTimeline({
             );
 
             return item.kind === "stream" ? (
-              <div key={itemId}>
+              <motion.div
+                key={itemId}
+                initial={{ opacity: 0, filter: "blur(6px)" }}
+                animate={{ opacity: 1, filter: "blur(0px)" }}
+                transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+              >
                 {collapsible ? (
                   <button
                     type="button"
@@ -463,9 +556,14 @@ export function RunnerTimeline({
                     {item.text}
                   </pre>
                 ) : null}
-              </div>
+              </motion.div>
             ) : (
-              <div key={itemId}>
+              <motion.div
+                key={itemId}
+                initial={{ opacity: 0, filter: "blur(6px)" }}
+                animate={{ opacity: 1, filter: "blur(0px)" }}
+                transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+              >
                 {collapsible ? (
                   <button
                     type="button"
@@ -492,7 +590,7 @@ export function RunnerTimeline({
                     />
                   </div>
                 ) : null}
-              </div>
+              </motion.div>
             );
           })}
         </div>
