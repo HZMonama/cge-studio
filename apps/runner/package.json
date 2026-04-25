@@ -10,5 +10,9 @@
     "lint": "node --check src/server.js",
     "typecheck": "node --check src/server.js",
     "smoke": "node scripts/runner-smoke.mjs"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.0.0",
+    "hono": "^4.12.15"
   }
 }

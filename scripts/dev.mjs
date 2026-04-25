@@ -16,6 +16,7 @@ const tasks = [
 const children = tasks.map((task) => {
   const child = spawn(task.cmd, task.args, {
     stdio: ["inherit", "pipe", "pipe"],
+    detached: true,
   });
 
   child.stdout.on("data", (data) => {
@@ -35,10 +36,21 @@ const children = tasks.map((task) => {
   return child;
 });
 
+let shuttingDown = false;
+
 const shutdown = () => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+
   for (const child of children) {
-    child.kill("SIGTERM");
+    try {
+      process.kill(-child.pid, "SIGTERM");
+    } catch {}
   }
+
+  setTimeout(() => {
+    process.exit(0);
+  }, 3000);
 };
 
 process.on("SIGINT", shutdown);

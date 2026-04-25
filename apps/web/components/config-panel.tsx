@@ -51,22 +51,20 @@ const CLAUDE_MODELS = [
 
 export function ConfigPanel({
   claudeCodeStatus,
-  claudeCodeSavePending,
   config,
   connectors,
   health,
   savePending,
   onSave,
-  onSaveClaudeCode,
+  onSaveModel,
 }: {
   claudeCodeStatus: ClaudeCodeStatus | null;
-  claudeCodeSavePending: boolean;
   config: RunnerConfigSnapshot | null;
   connectors: ConnectorSummary[];
   health: RunnerHealthSnapshot | null;
   savePending: boolean;
   onSave: (input: { toolkitPath: string }) => Promise<void>;
-  onSaveClaudeCode: (input: { model: string }) => Promise<void>;
+  onSaveModel: (input: { model: string }) => Promise<void>;
 }) {
   const { configOpen, closeConfig } = usePluginPanel();
   const [toolkitPath, setToolkitPath] = useState("");
@@ -190,6 +188,12 @@ export function ConfigPanel({
 
           <Section title="Claude Code">
             <div className="space-y-3">
+              {claudeCodeStatus?.settingsPath && (
+                <p className="break-all text-[10px] leading-4 text-sidebar-foreground/45">
+                  {claudeCodeStatus.settingsPath}
+                </p>
+              )}
+
               <div className="flex items-center justify-between border border-sidebar-border px-3 py-2">
                 <span className="text-xs">CLI</span>
                 <span
@@ -212,16 +216,27 @@ export function ConfigPanel({
                 <span className="text-xs">API key</span>
                 <span
                   className={cn(
-                    "inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.12em]",
+                    "text-[10px] uppercase tracking-[0.12em]",
                     claudeCodeStatus?.apiKeyConfigured
                       ? "text-emerald-400"
                       : "text-amber-400",
                   )}
                 >
-                  {!claudeCodeStatus?.apiKeyConfigured && (
-                    <WarningCircleIcon className="size-3.5" weight="fill" />
-                  )}
                   {claudeCodeStatus?.apiKeyConfigured ? "Configured" : "Not set"}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between border border-sidebar-border px-3 py-2">
+                <span className="text-xs">Subscription</span>
+                <span
+                  className={cn(
+                    "text-[10px] uppercase tracking-[0.12em]",
+                    claudeCodeStatus?.subscriptionLoginConfigured
+                      ? "text-emerald-400"
+                      : "text-amber-400",
+                  )}
+                >
+                  {claudeCodeStatus?.subscriptionLoginConfigured ? "Active" : "Inactive"}
                 </span>
               </div>
 
@@ -231,7 +246,11 @@ export function ConfigPanel({
                 </p>
                 <select
                   value={claudeModel}
-                  onChange={(event) => setClaudeModel(event.target.value)}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setClaudeModel(value);
+                    void onSaveModel({ model: value });
+                  }}
                   className="w-full border border-sidebar-border bg-sidebar px-2 py-1.5 text-xs text-sidebar-foreground focus:border-sidebar-ring focus:outline-none"
                 >
                   {CLAUDE_MODELS.map((m) => (
@@ -241,21 +260,6 @@ export function ConfigPanel({
                   ))}
                 </select>
               </div>
-
-              {claudeCodeStatus?.settingsPath && (
-                <p className="break-all text-[10px] leading-4 text-sidebar-foreground/45">
-                  {claudeCodeStatus.settingsPath}
-                </p>
-              )}
-
-              <button
-                onClick={() => void onSaveClaudeCode({ model: claudeModel })}
-                disabled={claudeCodeSavePending}
-                className="sidebar-fade-item flex w-full items-center justify-center gap-2 border border-sidebar-border px-3 py-2 text-xs transition-colors hover:text-sidebar-accent-foreground disabled:cursor-wait disabled:opacity-60"
-              >
-                <FloppyDiskIcon className="size-3.5" />
-                {claudeCodeSavePending ? "Saving..." : "Save Claude Code config"}
-              </button>
             </div>
           </Section>
 

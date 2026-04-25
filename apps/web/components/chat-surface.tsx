@@ -28,7 +28,7 @@ import {
 } from "@/lib/plugins";
 import { type RunnerRun, type RunnerRunEvent } from "@/lib/runner";
 import { cn } from "@/lib/utils";
-import { RunnerTimeline } from "./runner-timeline";
+import { RunnerTimeline } from "./timeline";
 
 function commandScore(command: SlashCommand, query: string) {
   const normalizedQuery = query.trim().toLowerCase();
@@ -784,7 +784,7 @@ export function ChatSurface({
               </span>
               Pipelines
               <motion.span
-                animate={{ rotate: pipelinesOpen ? 180 : 0 }}
+                animate={{ rotate: pipelinesOpen ? 0 : 180 }}
                 transition={{ duration: 0.2 }}
                 className="flex items-center justify-center"
               >
@@ -810,7 +810,7 @@ export function ChatSurface({
                       aria-label={composerCollapsed ? "Expand composer" : "Collapse composer"}
                     >
                       <motion.span
-                        animate={{ rotate: composerCollapsed ? 180 : 0 }}
+                        animate={{ rotate: composerCollapsed ? 0 : 180 }}
                         transition={{ duration: 0.2 }}
                         className="flex items-center justify-center"
                       >

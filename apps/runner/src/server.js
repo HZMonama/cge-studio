@@ -1,4 +1,6 @@
-import { createServer } from "node:http";
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { serve } from "@hono/node-server";
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -120,6 +122,9 @@ const scriptCommandFactories = new Map([
   ["/fedramp-ssp:convert", (input) =>
     buildShellScriptExecution(input, {
       scriptPathSegments: ["plugins", "fedramp-ssp", "scripts", "convert.sh"],
+      args: ensureOption(input.parsed.argumentTokens, "--output",
+        path.join(input.runArtifactsDir ?? input.workspace.folders.artifactsGenerated, "ssp-output.json")),
+      extra: { outputDir: input.runArtifactsDir ?? null },
     })],
   ["/fedramp-ssp:setup", (input) =>
     buildShellScriptExecution(input, {
@@ -130,6 +135,10 @@ const scriptCommandFactories = new Map([
   ["/oscal:convert", (input) =>
     buildShellScriptExecution(input, {
       scriptPathSegments: ["plugins", "oscal", "scripts", "convert.sh"],
+      args: readOptionValue(input.parsed.argumentTokens, "--output") != null
+        ? input.parsed.argumentTokens
+        : [...input.parsed.argumentTokens, "--output", path.join(input.runArtifactsDir ?? input.workspace.folders.artifactsGenerated, "oscal-converted")],
+      extra: { outputDir: input.runArtifactsDir ?? null },
     })],
   ["/oscal:setup", (input) =>
     buildShellScriptExecution(input, {
@@ -179,6 +188,14 @@ const scriptCommandFactories = new Map([
   ["/grc-engineer:record-automation-metrics", (input) =>
     buildNodeScriptExecution(input, {
       scriptPathSegments: ["plugins", "grc-engineer", "scripts", "record-automation-metrics.js"],
+      args: ensureOption(
+        input.parsed.argumentTokens,
+        "--out-dir",
+        input.workspace.folders.programMetrics,
+      ),
+      extra: {
+        outDir: input.workspace.folders.programMetrics,
+      },
     })],
   ["/grc-engineer:review-pr", (input) =>
     buildNodeScriptExecution(input, {
@@ -218,492 +235,583 @@ const workflowRuntime = createWorkflowRuntime({
   writeRun,
 });
 
-const server = createServer(async (request, response) => {
+
+
+const app = new Hono();
+
+app.use("*", cors({
+  origin: "*",
+  allowHeaders: ["Content-Type", "X-Workspace-Id"],
+  allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+}));
+
+app.use("*", async (c, next) => {
+  await ensureWorkspaceSystem(roots);
+  await next();
+});
+
+async function getRunnerContext() {
+  const runnerConfig = await readRunnerConfig();
+  const toolkitPath = getToolkitPath(runnerConfig);
+  const toolkitAvailable = toolkitPath ? await pathExists(toolkitPath) : false;
+  return { runnerConfig, toolkitPath, toolkitAvailable };
+}
+
+async function readBody(c) {
   try {
-    setCorsHeaders(response);
-    const runnerConfig = await readRunnerConfig();
-    const toolkitPath = getToolkitPath(runnerConfig);
-    const toolkitAvailable = toolkitPath
-      ? await pathExists(toolkitPath)
-      : false;
-    await ensureWorkspaceSystem(roots);
+    return await c.req.json();
+  } catch {
+    return {};
+  }
+}
 
-    if (request.method === "OPTIONS") {
-      response.writeHead(204);
-      response.end();
-      return;
+app.get("/health", async (c) => {
+  const { runnerConfig, toolkitPath, toolkitAvailable } = await getRunnerContext();
+  return c.json({
+    ok: true,
+    runnerVersion: "0.1.0",
+    toolkitPath,
+    toolkitConfigured: toolkitAvailable,
+    runnerConfigPath: runnerConfig.path,
+    appDataRoot: roots.appDataRoot,
+    cacheRoot: roots.cacheRoot,
+    configRoot: roots.configRoot,
+    workspacesRoot: getWorkspacesRoot(roots),
+  });
+});
+
+app.get("/config", async (c) => {
+  const runnerConfig = await readRunnerConfig();
+  return c.json({
+    toolkitPath: runnerConfig.value.toolkitPath ?? "",
+    workspaceRoot: getWorkspaceRoot(),
+    runnerConfigPath: getWritableRunnerConfigPath(),
+  });
+});
+
+app.patch("/config", async (c) => {
+  const body = await readBody(c);
+  const nextConfig = await writeRunnerConfig({
+    toolkitPath:
+      typeof body.toolkitPath === "string" ? body.toolkitPath : undefined,
+  });
+
+  return c.json({
+    toolkitPath: nextConfig.toolkitPath ?? "",
+    workspaceRoot: getWorkspaceRoot(),
+    runnerConfigPath: getWritableRunnerConfigPath(),
+  });
+});
+
+app.get("/registry/plugins", async (c) => {
+  const { toolkitPath, toolkitAvailable } = await getRunnerContext();
+  const plugins = toolkitAvailable
+    ? await discoverPlugins(toolkitPath)
+    : [];
+
+  return c.json({
+    plugins,
+    source: toolkitAvailable ? "toolkit" : "unconfigured",
+    toolkitPath,
+  });
+});
+
+app.post("/diagnostics/resolve-command", async (c) => {
+  const body = await readBody(c);
+  if (typeof body.prompt !== "string" || !body.prompt.trim()) {
+    return c.json({ error: "prompt is required" }, 400);
+  }
+
+  const workspace = await resolveWorkspaceFromBody(roots, body);
+  if (!workspace) {
+    return c.json({ error: "workspaceId is required" }, 400);
+  }
+
+  const { toolkitAvailable, toolkitPath } = await getRunnerContext();
+
+  return c.json(
+    await resolveCommandDiagnostics({
+      workspace,
+      prompt: body.prompt,
+      toolkitAvailable,
+      toolkitPath,
+    }),
+  );
+});
+
+app.get("/frameworks", (c) => c.json(frameworkCatalog));
+
+app.get("/connectors", async (c) => c.json(await readConnectorSummaries()));
+
+app.get("/workspaces", async (c) => {
+  return c.json(
+    await listWorkspaces(roots, {
+      workspaceRoot: getWorkspaceRoot(),
+    }),
+  );
+});
+
+app.post("/workspaces", async (c) => {
+  const body = await readBody(c);
+  const workspace = await createWorkspace({
+    roots,
+    title: typeof body.title === "string" ? body.title : null,
+    rootPath: typeof body.rootPath === "string" ? body.rootPath : null,
+    workspaceRoot: getWorkspaceRoot(),
+  });
+  return c.json(workspace, 201);
+});
+
+app.get("/workspaces/:workspaceId", async (c) => {
+  const workspaceId = decodeURIComponent(c.req.param("workspaceId"));
+  const workspace = await readWorkspace(roots, workspaceId);
+
+  if (!workspace) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  return c.json(workspace);
+});
+
+app.patch("/workspaces/:workspaceId", async (c) => {
+  const workspaceId = decodeURIComponent(c.req.param("workspaceId"));
+  const workspace = await readWorkspace(roots, workspaceId);
+
+  if (!workspace) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  const body = await readBody(c);
+  if (typeof body.title !== "string" || !body.title.trim()) {
+    return c.json({ error: "title is required" }, 400);
+  }
+
+  const updated = await renameWorkspace(roots, workspaceId, body.title);
+  return c.json(updated);
+});
+
+app.delete("/workspaces/:workspaceId", async (c) => {
+  const workspaceId = decodeURIComponent(c.req.param("workspaceId"));
+
+  try {
+    const deleted = await deleteWorkspace(roots, workspaceId);
+    if (!deleted) {
+      return c.json({ error: "workspace_not_found" }, 404);
     }
 
-    const url = new URL(request.url ?? "/", `http://${request.headers.host}`);
-    const pathSegments = url.pathname.split("/").filter(Boolean);
-
-    if (request.method === "GET" && url.pathname === "/health") {
-      return json(response, 200, {
-        ok: true,
-        runnerVersion: "0.1.0",
-        toolkitPath,
-        toolkitConfigured: toolkitAvailable,
-        runnerConfigPath: runnerConfig.path,
-        appDataRoot: roots.appDataRoot,
-        cacheRoot: roots.cacheRoot,
-        configRoot: roots.configRoot,
-        workspacesRoot: getWorkspacesRoot(roots),
-      });
-    }
-
-    if (request.method === "GET" && url.pathname === "/config") {
-      return json(response, 200, {
-        toolkitPath: runnerConfig.value.toolkitPath ?? "",
-        workspaceRoot: getWorkspaceRoot(),
-        runnerConfigPath: getWritableRunnerConfigPath(),
-      });
-    }
-
-    if (request.method === "PATCH" && url.pathname === "/config") {
-      const body = await readJsonBody(request);
-      const nextConfig = await writeRunnerConfig({
-        toolkitPath:
-          typeof body.toolkitPath === "string" ? body.toolkitPath : undefined,
-      });
-
-      return json(response, 200, {
-        toolkitPath: nextConfig.toolkitPath ?? "",
-        workspaceRoot: getWorkspaceRoot(),
-        runnerConfigPath: getWritableRunnerConfigPath(),
-      });
-    }
-
-    if (request.method === "GET" && url.pathname === "/registry/plugins") {
-      const plugins = toolkitAvailable
-        ? await discoverPlugins(toolkitPath)
-        : [];
-
-      return json(response, 200, {
-        plugins,
-        source: toolkitAvailable ? "toolkit" : "unconfigured",
-        toolkitPath,
-      });
-    }
-
-    if (request.method === "POST" && url.pathname === "/diagnostics/resolve-command") {
-      const body = await readJsonBody(request);
-      if (typeof body.prompt !== "string" || !body.prompt.trim()) {
-        return json(response, 400, { error: "prompt is required" });
-      }
-
-      const workspace = await resolveWorkspaceFromBody(roots, body);
-      if (!workspace) {
-        return json(response, 400, { error: "workspaceId is required" });
-      }
-
-      return json(
-        response,
-        200,
-        await resolveCommandDiagnostics({
-          workspace,
-          prompt: body.prompt,
-          toolkitAvailable,
-          toolkitPath,
-        }),
-      );
-    }
-
-    if (request.method === "GET" && url.pathname === "/frameworks") {
-      return json(response, 200, frameworkCatalog);
-    }
-
-    if (request.method === "GET" && url.pathname === "/connectors") {
-      return json(response, 200, await readConnectorSummaries());
-    }
-
-    if (request.method === "GET" && url.pathname === "/workspaces") {
-      return json(
-        response,
-        200,
-        await listWorkspaces(roots, {
-          workspaceRoot: getWorkspaceRoot(),
-        }),
-      );
-    }
-
-    if (request.method === "POST" && url.pathname === "/workspaces") {
-      const body = await readJsonBody(request);
-      const workspace = await createWorkspace({
-        roots,
-        title: typeof body.title === "string" ? body.title : null,
-        rootPath: typeof body.rootPath === "string" ? body.rootPath : null,
-        workspaceRoot: getWorkspaceRoot(),
-      });
-      return json(response, 201, workspace);
-    }
-
-    if (pathSegments[0] === "workspaces" && typeof pathSegments[1] === "string") {
-      const workspaceId = decodeURIComponent(pathSegments[1]);
-      const workspace = await readWorkspace(roots, workspaceId);
-
-      if (!workspace) {
-        return json(response, 404, { error: "workspace_not_found" });
-      }
-
-      if (request.method === "GET" && pathSegments.length === 2) {
-        return json(response, 200, workspace);
-      }
-
-      if (request.method === "PATCH" && pathSegments.length === 2) {
-        const body = await readJsonBody(request);
-        if (typeof body.title !== "string" || !body.title.trim()) {
-          return json(response, 400, { error: "title is required" });
-        }
-
-        const updated = await renameWorkspace(roots, workspaceId, body.title);
-        return json(response, 200, updated);
-      }
-
-      if (request.method === "DELETE" && pathSegments.length === 2) {
-        try {
-          const deleted = await deleteWorkspace(roots, workspaceId);
-          if (!deleted) {
-            return json(response, 404, { error: "workspace_not_found" });
-          }
-
-          return json(response, 200, { ok: true });
-        } catch (error) {
-          if (error instanceof Error && error.message === "cannot_delete_last_workspace") {
-            return json(response, 400, { error: error.message });
-          }
-
-          throw error;
-        }
-      }
-
-      if (
-        request.method === "POST" &&
-        pathSegments.length === 3 &&
-        pathSegments[2] === "refresh"
-      ) {
-        const refreshed = await refreshWorkspace(roots, workspaceId);
-        return json(response, 200, refreshed);
-      }
-
-      if (
-        request.method === "GET" &&
-        pathSegments.length === 3 &&
-        pathSegments[2] === "export"
-      ) {
-        const summary = await exportWorkspaceSummary(roots, workspaceId);
-        if (!summary) {
-          return json(response, 404, { error: "workspace_not_found" });
-        }
-
-        return json(response, 200, summary);
-      }
-
-      if (
-        request.method === "GET" &&
-        pathSegments.length === 3 &&
-        pathSegments[2] === "runs"
-      ) {
-        return json(response, 200, await readRuns(workspace));
-      }
-
-      if (
-        request.method === "POST" &&
-        pathSegments.length === 3 &&
-        pathSegments[2] === "runs"
-      ) {
-        const body = await readJsonBody(request);
-        if (typeof body.prompt !== "string" || !body.prompt.trim()) {
-          return json(response, 400, { error: "prompt is required" });
-        }
-
-        if (!parsePrompt(body.prompt)) {
-          return json(response, 400, { error: "invalid_command_prompt" });
-        }
-
-        const run = await createCommandRun({
-          workspace,
-          prompt: body.prompt,
-          redactedPrompt:
-            typeof body.redactedPrompt === "string" ? body.redactedPrompt : null,
-          toolkitAvailable,
-          toolkitPath,
-        });
-
-        return json(response, 201, run);
-      }
-
-      if (
-        request.method === "GET" &&
-        pathSegments.length === 4 &&
-        pathSegments[2] === "runs"
-      ) {
-        const runId = decodeURIComponent(pathSegments[3]);
-        const run = await readRun(workspace, runId);
-
-        if (!run) {
-          return json(response, 404, { error: "not_found" });
-        }
-
-        return json(response, 200, run);
-      }
-
-      if (
-        request.method === "GET" &&
-        pathSegments.length === 5 &&
-        pathSegments[2] === "runs" &&
-        pathSegments[4] === "events"
-      ) {
-        const runId = decodeURIComponent(pathSegments[3]);
-        const run = await readRun(workspace, runId);
-
-        if (!run) {
-          return json(response, 404, { error: "not_found" });
-        }
-
-        return json(response, 200, await readRunEvents(workspace, runId));
-      }
-
-      if (
-        request.method === "POST" &&
-        pathSegments.length === 5 &&
-        pathSegments[2] === "runs" &&
-        pathSegments[4] === "respond"
-      ) {
-        const runId = decodeURIComponent(pathSegments[3]);
-        const run = await readRun(workspace, runId);
-
-        if (!run) {
-          return json(response, 404, { error: "not_found" });
-        }
-
-        const body = await readJsonBody(request);
-        const answered = await respondToWorkflowRun({
-          response: body,
-          run,
-          workspace,
-        });
-
-        if (!answered) {
-          return json(response, 400, { error: "run_not_waiting_for_input" });
-        }
-
-        return json(response, 200, answered);
-      }
-
-      if (
-        request.method === "GET" &&
-        pathSegments.length === 3 &&
-        pathSegments[2] === "artifacts"
-      ) {
-        return json(response, 200, await readArtifacts(workspace));
-      }
-
-      if (
-        request.method === "GET" &&
-        pathSegments.length >= 4 &&
-        pathSegments[2] === "artifacts"
-      ) {
-        const artifactId = decodeURIComponent(pathSegments[3]);
-        const artifact = await readArtifact(workspace, artifactId);
-
-        if (!artifact) {
-          return json(response, 404, { error: "not_found" });
-        }
-
-        if (pathSegments.length === 5 && pathSegments[4] === "content") {
-          const content = await fs.readFile(artifact.path, "utf8");
-          return json(response, 200, { ...artifact, content });
-        }
-
-        return json(response, 200, artifact);
-      }
-
-      if (
-        request.method === "GET" &&
-        pathSegments.length === 3 &&
-        pathSegments[2] === "findings"
-      ) {
-        return json(response, 200, await readWorkspaceFindings(workspace));
-      }
-
-      if (
-        request.method === "GET" &&
-        pathSegments.length === 4 &&
-        pathSegments[2] === "findings"
-      ) {
-        const findingId = decodeURIComponent(pathSegments[3]);
-        const findings = await readWorkspaceFindings(workspace);
-        const finding = findings.find((f) => f.id === findingId);
-
-        if (!finding) {
-          return json(response, 404, { error: "not_found" });
-        }
-
-        return json(response, 200, finding);
-      }
-
-      if (
-        request.method === "GET" &&
-        pathSegments.length === 3 &&
-        pathSegments[2] === "program"
-      ) {
-        return json(response, 200, await readWorkspaceProgram(workspace));
-      }
-    }
-
-    if (request.method === "GET" && url.pathname === "/runs") {
-      const workspace = await resolveWorkspaceFromRequest(roots, request, url);
-      if (!workspace) {
-        return json(response, 404, { error: "workspace_not_found" });
-      }
-
-      return json(response, 200, await readRuns(workspace));
-    }
-
-    if (request.method === "POST" && url.pathname === "/runs") {
-      const body = await readJsonBody(request);
-      if (typeof body.prompt !== "string" || !body.prompt.trim()) {
-        return json(response, 400, { error: "prompt is required" });
-      }
-
-      if (!parsePrompt(body.prompt)) {
-        return json(response, 400, { error: "invalid_command_prompt" });
-      }
-
-      const workspace = await resolveWorkspaceFromBody(roots, body);
-      if (!workspace) {
-        return json(response, 400, { error: "workspaceId is required" });
-      }
-
-      const run = await createCommandRun({
-        workspace,
-        prompt: body.prompt,
-        redactedPrompt:
-          typeof body.redactedPrompt === "string" ? body.redactedPrompt : null,
-        toolkitAvailable,
-        toolkitPath,
-      });
-
-      return json(response, 201, run);
-    }
-
-    if (request.method === "GET" && url.pathname.startsWith("/runs/")) {
-      const runPath = url.pathname.slice("/runs/".length);
-      const separatorIndex = runPath.indexOf("/");
-      const runId = decodeURIComponent(
-        separatorIndex === -1 ? runPath : runPath.slice(0, separatorIndex),
-      );
-      const workspace = await resolveWorkspaceFromRequest(roots, request, url);
-      if (!workspace) {
-        return json(response, 404, { error: "workspace_not_found" });
-      }
-
-      const run = await readRun(workspace, runId);
-
-      if (!run) {
-        return json(response, 404, { error: "not_found" });
-      }
-
-      if (
-        separatorIndex !== -1 &&
-        runPath.slice(separatorIndex + 1) === "events"
-      ) {
-        return json(response, 200, await readRunEvents(workspace, runId));
-      }
-
-      return json(response, 200, run);
-    }
-
-    if (request.method === "GET" && url.pathname === "/artifacts") {
-      const workspace = await resolveWorkspaceFromRequest(roots, request, url);
-      if (!workspace) {
-        return json(response, 404, { error: "workspace_not_found" });
-      }
-
-      return json(response, 200, await readArtifacts(workspace));
-    }
-
-    if (request.method === "GET" && url.pathname.startsWith("/artifacts/")) {
-      const artifactPath = url.pathname.slice("/artifacts/".length);
-      const separatorIndex = artifactPath.indexOf("/");
-      const artifactId = decodeURIComponent(
-        separatorIndex === -1
-          ? artifactPath
-          : artifactPath.slice(0, separatorIndex),
-      );
-      const workspace = await resolveWorkspaceFromRequest(roots, request, url);
-      if (!workspace) {
-        return json(response, 404, { error: "workspace_not_found" });
-      }
-
-      const artifact = await readArtifact(workspace, artifactId);
-
-      if (!artifact) {
-        return json(response, 404, { error: "not_found" });
-      }
-
-      if (
-        separatorIndex !== -1 &&
-        artifactPath.slice(separatorIndex + 1) === "content"
-      ) {
-        const content = await fs.readFile(artifact.path, "utf8");
-        return json(response, 200, { ...artifact, content });
-      }
-
-      return json(response, 200, artifact);
-    }
-
-    if (request.method === "GET" && url.pathname === "/claude-code/status") {
-      return json(response, 200, await readClaudeCodeStatus());
-    }
-
-    if (request.method === "PATCH" && url.pathname === "/claude-code/config") {
-      const body = await readJsonBody(request);
-      const updated = await writeClaudeCodeSettings(body);
-      return json(response, 200, await readClaudeCodeStatus(updated));
-    }
-
-    if (request.method === "POST" && url.pathname === "/gap-assessment") {
-      const body = await readJsonBody(request);
-      const frameworks = coerceArray(body.frameworks);
-      const sources = coerceArray(body.sources);
-
-      if (!frameworks.length || !sources.length) {
-        return json(response, 400, {
-          error: "frameworks and sources are required",
-        });
-      }
-
-      const workspace = await readWorkspace(
-        roots,
-        typeof body.workspaceId === "string" ? body.workspaceId : "",
-      );
-      if (!workspace) {
-        return json(response, 400, { error: "workspaceId is required" });
-      }
-
-      const run = await createPlannedRun({
-        workspace,
-        frameworks,
-        sources,
-        toolkitPath,
-      });
-      return json(response, 202, run);
-    }
-
-    return json(response, 404, { error: "not_found" });
+    return c.json({ ok: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "unknown_error";
-    if (
-      message === "workspace_root_path_required" ||
-      message === "workspace_id_conflict"
-    ) {
-      return json(response, 400, { error: message });
+    if (error instanceof Error && error.message === "cannot_delete_last_workspace") {
+      return c.json({ error: error.message }, 400);
     }
 
-    return json(response, 500, { error: message });
+    throw error;
   }
 });
+
+app.post("/workspaces/:workspaceId/refresh", async (c) => {
+  const workspaceId = decodeURIComponent(c.req.param("workspaceId"));
+  const workspace = await readWorkspace(roots, workspaceId);
+
+  if (!workspace) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  const refreshed = await refreshWorkspace(roots, workspaceId);
+  return c.json(refreshed);
+});
+
+app.get("/workspaces/:workspaceId/export", async (c) => {
+  const workspaceId = decodeURIComponent(c.req.param("workspaceId"));
+  const workspace = await readWorkspace(roots, workspaceId);
+
+  if (!workspace) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  const summary = await exportWorkspaceSummary(roots, workspaceId);
+  if (!summary) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  return c.json(summary);
+});
+
+app.get("/workspaces/:workspaceId/runs", async (c) => {
+  const workspaceId = decodeURIComponent(c.req.param("workspaceId"));
+  const workspace = await readWorkspace(roots, workspaceId);
+
+  if (!workspace) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  return c.json(await readRuns(workspace));
+});
+
+app.post("/workspaces/:workspaceId/runs", async (c) => {
+  const workspaceId = decodeURIComponent(c.req.param("workspaceId"));
+  const workspace = await readWorkspace(roots, workspaceId);
+
+  if (!workspace) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  const body = await readBody(c);
+  if (typeof body.prompt !== "string" || !body.prompt.trim()) {
+    return c.json({ error: "prompt is required" }, 400);
+  }
+
+  if (!parsePrompt(body.prompt)) {
+    return c.json({ error: "invalid_command_prompt" }, 400);
+  }
+
+  const { toolkitAvailable, toolkitPath } = await getRunnerContext();
+  const run = await createCommandRun({
+    workspace,
+    prompt: body.prompt,
+    redactedPrompt:
+      typeof body.redactedPrompt === "string" ? body.redactedPrompt : null,
+    toolkitAvailable,
+    toolkitPath,
+  });
+
+  return c.json(run, 201);
+});
+
+app.get("/workspaces/:workspaceId/runs/:runId", async (c) => {
+  const workspaceId = decodeURIComponent(c.req.param("workspaceId"));
+  const workspace = await readWorkspace(roots, workspaceId);
+
+  if (!workspace) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  const runId = decodeURIComponent(c.req.param("runId"));
+  const run = await readRun(workspace, runId);
+
+  if (!run) {
+    return c.json({ error: "not_found" }, 404);
+  }
+
+  return c.json(run);
+});
+
+app.get("/workspaces/:workspaceId/runs/:runId/events", async (c) => {
+  const workspaceId = decodeURIComponent(c.req.param("workspaceId"));
+  const workspace = await readWorkspace(roots, workspaceId);
+
+  if (!workspace) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  const runId = decodeURIComponent(c.req.param("runId"));
+  const run = await readRun(workspace, runId);
+
+  if (!run) {
+    return c.json({ error: "not_found" }, 404);
+  }
+
+  return c.json(await readRunEvents(workspace, runId));
+});
+
+app.post("/workspaces/:workspaceId/runs/:runId/respond", async (c) => {
+  const workspaceId = decodeURIComponent(c.req.param("workspaceId"));
+  const workspace = await readWorkspace(roots, workspaceId);
+
+  if (!workspace) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  const runId = decodeURIComponent(c.req.param("runId"));
+  const run = await readRun(workspace, runId);
+
+  if (!run) {
+    return c.json({ error: "not_found" }, 404);
+  }
+
+  const body = await readBody(c);
+  const answered = await respondToWorkflowRun({
+    response: body,
+    run,
+    workspace,
+  });
+
+  if (!answered) {
+    return c.json({ error: "run_not_waiting_for_input" }, 400);
+  }
+
+  return c.json(answered);
+});
+
+app.get("/workspaces/:workspaceId/artifacts", async (c) => {
+  const workspaceId = decodeURIComponent(c.req.param("workspaceId"));
+  const workspace = await readWorkspace(roots, workspaceId);
+
+  if (!workspace) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  return c.json(await readArtifacts(workspace));
+});
+
+app.get("/workspaces/:workspaceId/artifacts/:artifactId", async (c) => {
+  const workspaceId = decodeURIComponent(c.req.param("workspaceId"));
+  const workspace = await readWorkspace(roots, workspaceId);
+
+  if (!workspace) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  const artifactId = decodeURIComponent(c.req.param("artifactId"));
+  const artifact = await readArtifact(workspace, artifactId);
+
+  if (!artifact) {
+    return c.json({ error: "not_found" }, 404);
+  }
+
+  return c.json(artifact);
+});
+
+app.get("/workspaces/:workspaceId/artifacts/:artifactId/content", async (c) => {
+  const workspaceId = decodeURIComponent(c.req.param("workspaceId"));
+  const workspace = await readWorkspace(roots, workspaceId);
+
+  if (!workspace) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  const artifactId = decodeURIComponent(c.req.param("artifactId"));
+  const artifact = await readArtifact(workspace, artifactId);
+
+  if (!artifact) {
+    return c.json({ error: "not_found" }, 404);
+  }
+
+  const content = await fs.readFile(artifact.path, "utf8");
+  return c.json({ ...artifact, content });
+});
+
+app.get("/workspaces/:workspaceId/findings", async (c) => {
+  const workspaceId = decodeURIComponent(c.req.param("workspaceId"));
+  const workspace = await readWorkspace(roots, workspaceId);
+
+  if (!workspace) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  return c.json(await readWorkspaceFindings(workspace));
+});
+
+app.get("/workspaces/:workspaceId/findings/:findingId", async (c) => {
+  const workspaceId = decodeURIComponent(c.req.param("workspaceId"));
+  const workspace = await readWorkspace(roots, workspaceId);
+
+  if (!workspace) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  const findingId = decodeURIComponent(c.req.param("findingId"));
+  const findings = await readWorkspaceFindings(workspace);
+  const finding = findings.find((f) => f.id === findingId);
+
+  if (!finding) {
+    return c.json({ error: "not_found" }, 404);
+  }
+
+  return c.json(finding);
+});
+
+app.get("/workspaces/:workspaceId/program", async (c) => {
+  const workspaceId = decodeURIComponent(c.req.param("workspaceId"));
+  const workspace = await readWorkspace(roots, workspaceId);
+
+  if (!workspace) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  return c.json(await readWorkspaceProgram(workspace));
+});
+
+app.get("/runs", async (c) => {
+  const workspace = await resolveWorkspaceFromRequest(
+    roots,
+    c.req.query("workspaceId"),
+    c.req.header("x-workspace-id"),
+  );
+  if (!workspace) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  return c.json(await readRuns(workspace));
+});
+
+app.post("/runs", async (c) => {
+  const body = await readBody(c);
+  if (typeof body.prompt !== "string" || !body.prompt.trim()) {
+    return c.json({ error: "prompt is required" }, 400);
+  }
+
+  if (!parsePrompt(body.prompt)) {
+    return c.json({ error: "invalid_command_prompt" }, 400);
+  }
+
+  const workspace = await resolveWorkspaceFromBody(roots, body);
+  if (!workspace) {
+    return c.json({ error: "workspaceId is required" }, 400);
+  }
+
+  const { toolkitAvailable, toolkitPath } = await getRunnerContext();
+  const run = await createCommandRun({
+    workspace,
+    prompt: body.prompt,
+    redactedPrompt:
+      typeof body.redactedPrompt === "string" ? body.redactedPrompt : null,
+    toolkitAvailable,
+    toolkitPath,
+  });
+
+  return c.json(run, 201);
+});
+
+app.get("/runs/:runId", async (c) => {
+  const runId = decodeURIComponent(c.req.param("runId"));
+  const workspace = await resolveWorkspaceFromRequest(
+    roots,
+    c.req.query("workspaceId"),
+    c.req.header("x-workspace-id"),
+  );
+  if (!workspace) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  const run = await readRun(workspace, runId);
+
+  if (!run) {
+    return c.json({ error: "not_found" }, 404);
+  }
+
+  return c.json(run);
+});
+
+app.get("/runs/:runId/events", async (c) => {
+  const runId = decodeURIComponent(c.req.param("runId"));
+  const workspace = await resolveWorkspaceFromRequest(
+    roots,
+    c.req.query("workspaceId"),
+    c.req.header("x-workspace-id"),
+  );
+  if (!workspace) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  return c.json(await readRunEvents(workspace, runId));
+});
+
+app.get("/artifacts", async (c) => {
+  const workspace = await resolveWorkspaceFromRequest(
+    roots,
+    c.req.query("workspaceId"),
+    c.req.header("x-workspace-id"),
+  );
+  if (!workspace) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  return c.json(await readArtifacts(workspace));
+});
+
+app.get("/artifacts/:artifactId", async (c) => {
+  const artifactId = decodeURIComponent(c.req.param("artifactId"));
+  const workspace = await resolveWorkspaceFromRequest(
+    roots,
+    c.req.query("workspaceId"),
+    c.req.header("x-workspace-id"),
+  );
+  if (!workspace) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  const artifact = await readArtifact(workspace, artifactId);
+
+  if (!artifact) {
+    return c.json({ error: "not_found" }, 404);
+  }
+
+  return c.json(artifact);
+});
+
+app.get("/artifacts/:artifactId/content", async (c) => {
+  const artifactId = decodeURIComponent(c.req.param("artifactId"));
+  const workspace = await resolveWorkspaceFromRequest(
+    roots,
+    c.req.query("workspaceId"),
+    c.req.header("x-workspace-id"),
+  );
+  if (!workspace) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  const artifact = await readArtifact(workspace, artifactId);
+
+  if (!artifact) {
+    return c.json({ error: "not_found" }, 404);
+  }
+
+  const content = await fs.readFile(artifact.path, "utf8");
+  return c.json({ ...artifact, content });
+});
+
+app.get("/claude-code/status", async (c) => {
+  return c.json(await readClaudeCodeStatus());
+});
+
+app.patch("/claude-code/config", async (c) => {
+  const body = await readBody(c);
+  const updated = await writeClaudeCodeSettings(body);
+  return c.json(await readClaudeCodeStatus(updated));
+});
+
+app.post("/gap-assessment", async (c) => {
+  const body = await readBody(c);
+  const frameworks = coerceArray(body.frameworks);
+  const sources = coerceArray(body.sources);
+
+  if (!frameworks.length || !sources.length) {
+    return c.json({ error: "frameworks and sources are required" }, 400);
+  }
+
+  const workspace = await readWorkspace(
+    roots,
+    typeof body.workspaceId === "string" ? body.workspaceId : "",
+  );
+  if (!workspace) {
+    return c.json({ error: "workspaceId is required" }, 400);
+  }
+
+  const { toolkitPath } = await getRunnerContext();
+  const run = await createPlannedRun({
+    workspace,
+    frameworks,
+    sources,
+    toolkitPath,
+  });
+  return c.json(run, 202);
+});
+
+app.notFound((c) => c.json({ error: "not_found" }, 404));
+
+app.onError((error, c) => {
+  const message = error instanceof Error ? error.message : "unknown_error";
+  if (
+    message === "workspace_root_path_required" ||
+    message === "workspace_id_conflict"
+  ) {
+    return c.json({ error: message }, 400);
+  }
+
+  return c.json({ error: message }, 500);
+});
+
 
 function getClaudeSettingsPath() {
   return path.join(os.homedir(), ".claude", "settings.json");
@@ -738,10 +846,13 @@ async function writeClaudeCodeSettings(input) {
 
 function getClaudeVersion() {
   return new Promise((resolve) => {
-    const proc = spawn("claude", ["--version"], { shell: false });
     let output = "";
 
+    const proc = spawn("claude", ["--version"], { shell: true });
     proc.stdout.on("data", (chunk) => {
+      output += chunk.toString();
+    });
+    proc.stderr.on("data", (chunk) => {
       output += chunk.toString();
     });
 
@@ -791,6 +902,27 @@ async function readClaudeCodeStatus(settings) {
   };
 }
 
+
+
+const server = serve(
+  {
+    fetch: app.fetch,
+    port,
+    hostname: "127.0.0.1",
+  },
+  (info) => {
+    console.log(`[runner] listening on http://127.0.0.1:${info.port}`);
+  },
+);
+
+server.on("error", (error) => {
+  if (error.code === "EADDRINUSE") {
+    console.error(`[runner] Port ${port} already in use. Kill the existing process or set CGE_RUNNER_PORT.`);
+    process.exit(1);
+  }
+  throw error;
+});
+
 let shuttingDown = false;
 
 function gracefulShutdown(signal) {
@@ -809,10 +941,6 @@ function gracefulShutdown(signal) {
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGHUP", () => gracefulShutdown("SIGHUP"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
-
-server.listen(port, "127.0.0.1", () => {
-  console.log(`[runner] listening on http://127.0.0.1:${port}`);
-});
 
 async function readRunnerConfig() {
   const configPaths = [
@@ -2024,6 +2152,18 @@ async function executeStep({ commandPath, args, stepIndex, runId, runDirectory, 
             })];
           }
 
+          // Collect program data artifacts (grc-data/ files modified during this step)
+          if (isSuccess) {
+            const programArtifacts = await collectProgramDataArtifacts({
+              commandId: parsed.commandId,
+              commandPath,
+              startedAt,
+              runId,
+              workspace,
+            });
+            artifacts = [...artifacts, ...programArtifacts];
+          }
+
           await appendRunEvent(runDirectory, {
             type: "tool.completed",
             data: { exitCode: isSuccess ? 0 : 1, status: isSuccess ? "completed" : "failed" },
@@ -2087,6 +2227,19 @@ async function finalizeCommandRun(input) {
           workspace: input.workspace,
         })
       : [];
+
+  // Collect program data artifacts (grc-data/ files modified during this run)
+  if (input.status === "completed") {
+    const programArtifacts = await collectProgramDataArtifacts({
+      commandId: input.run.commandId,
+      commandPath: input.run.commandPath,
+      execution: input.execution,
+      runId: input.run.id,
+      startedAt: input.run.createdAt,
+      workspace: input.workspace,
+    });
+    artifacts = [...artifacts, ...programArtifacts];
+  }
 
   // When a script produces no files but has stdout output, capture it as a text artifact
   if (artifacts.length === 0 && input.status === "completed" && input.stdoutText?.trim()) {
@@ -2260,6 +2413,16 @@ async function executeAgentRun(input) {
           })];
         }
 
+        // Collect program data artifacts (grc-data/ files modified during this run)
+        const programArtifacts = await collectProgramDataArtifacts({
+          commandId: run.commandId,
+          commandPath: run.commandPath,
+          startedAt,
+          runId: run.id,
+          workspace,
+        });
+        artifacts = [...artifacts, ...programArtifacts];
+
         const nextRun = {
           ...run,
           artifacts,
@@ -2357,9 +2520,13 @@ async function executeAgentRun(input) {
 
 async function collectAgentArtifacts(input) {
   const { run, workspace, startedAt } = input;
-  const reportsDir = path.join(workspace.rootPath, "grc-reports");
   const artifacts = [];
   const completedAt = new Date().toISOString();
+
+  const scanDirs = [
+    path.join(workspace.rootPath, "grc-reports"),
+    path.join(workspace.rootPath, "evidence"),
+  ];
 
   const walk = async (dir) => {
     let entries;
@@ -2406,7 +2573,9 @@ async function collectAgentArtifacts(input) {
     }
   };
 
-  await walk(reportsDir);
+  for (const dir of scanDirs) {
+    await walk(dir);
+  }
   return artifacts;
 }
 
@@ -2830,6 +2999,62 @@ function humanizeArtifactTitle(filePath) {
   return humanizeId(path.basename(filePath, path.extname(filePath)));
 }
 
+const PROGRAM_ENTITY_KINDS = ["risks", "metrics", "exceptions", "vendors", "policies"];
+
+const PROGRAM_KIND_LABELS = {
+  risks: "Risk Record",
+  metrics: "Metric Snapshot",
+  exceptions: "Exception Record",
+  vendors: "Vendor Record",
+  policies: "Policy Record",
+};
+
+async function collectProgramDataArtifacts(input) {
+  const { workspace, runId, commandId, commandPath, startedAt } = input;
+  const startTime = startedAt ? new Date(startedAt).getTime() : 0;
+  const artifacts = [];
+
+  for (const kind of PROGRAM_ENTITY_KINDS) {
+    const dirPath = workspace.folders[`program${kind.charAt(0).toUpperCase()}${kind.slice(1)}`];
+    if (!dirPath) continue;
+
+    let entries;
+    try {
+      entries = await fs.readdir(dirPath, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const entry of entries) {
+      if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+
+      const filePath = path.join(dirPath, entry.name);
+      let stat;
+      try {
+        stat = await fs.stat(filePath);
+      } catch {
+        continue;
+      }
+
+      if (stat.mtimeMs < startTime) continue;
+
+      artifacts.push(createArtifactSummary({
+        commandId,
+        commandPath,
+        createdAt: stat.mtime.toISOString(),
+        format: "json",
+        kind: "program",
+        path: filePath,
+        pluginId: input.execution?.pluginId ?? null,
+        runId,
+        title: PROGRAM_KIND_LABELS[kind] ?? "Program Record",
+      }));
+    }
+  }
+
+  return artifacts;
+}
+
 function ensureOption(tokens, flag, value) {
   const existing = readOptionValue(tokens, flag);
   if (existing !== null) {
@@ -2919,37 +3144,20 @@ async function countJsonFiles(targetPath) {
   }
 }
 
-async function readJsonBody(request) {
-  const chunks = [];
 
-  for await (const chunk of request) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-  }
-
-  if (!chunks.length) {
-    return {};
-  }
-
-  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
-}
-
-async function resolveWorkspaceFromRequest(roots, request, url) {
-  const workspaceId = url.searchParams.get("workspaceId");
+async function resolveWorkspaceFromRequest(roots, workspaceId, xWorkspaceId) {
   if (workspaceId) {
     return readWorkspace(roots, workspaceId);
   }
 
-  if (
-    request.method === "GET" &&
-    request.headers["x-workspace-id"] &&
-    typeof request.headers["x-workspace-id"] === "string"
-  ) {
-    return readWorkspace(roots, request.headers["x-workspace-id"]);
+  if (xWorkspaceId) {
+    return readWorkspace(roots, xWorkspaceId);
   }
 
   const workspaces = await listWorkspaces(roots);
   return workspaces.length === 1 ? workspaces[0] : null;
 }
+
 
 async function resolveWorkspaceFromBody(roots, body) {
   if (typeof body.workspaceId !== "string" || !body.workspaceId.trim()) {
@@ -3115,12 +3323,16 @@ function normalizeGapAssessmentDoc(doc, filePath) {
 }
 
 async function readWorkspaceProgram(workspace) {
-  const grcDataRoot = path.join(workspace.rootPath, "grc-data");
-  const entityKinds = ["risks", "metrics", "exceptions", "vendors", "policies"];
+  const dirs = {
+    risks: workspace.folders.programRisks,
+    metrics: workspace.folders.programMetrics,
+    exceptions: workspace.folders.programExceptions,
+    vendors: workspace.folders.programVendors,
+    policies: workspace.folders.programPolicies,
+  };
 
   const entityGroups = await Promise.all(
-    entityKinds.map(async (kind) => {
-      const dir = path.join(grcDataRoot, kind);
+    Object.entries(dirs).map(async ([kind, dir]) => {
       try {
         const files = await fs.readdir(dir);
         const records = await Promise.all(
@@ -3206,21 +3418,4 @@ function deriveFindingTitle(message, resourceId, controlId) {
   return resourceId ?? controlId ?? "Finding";
 }
 
-function setCorsHeaders(response) {
-  response.setHeader("Access-Control-Allow-Origin", "*");
-  response.setHeader(
-    "Access-Control-Allow-Headers",
-    "Content-Type, X-Workspace-Id",
-  );
-  response.setHeader(
-    "Access-Control-Allow-Methods",
-    "GET,POST,PATCH,DELETE,OPTIONS",
-  );
-}
 
-function json(response, statusCode, payload) {
-  response.writeHead(statusCode, {
-    "Content-Type": "application/json; charset=utf-8",
-  });
-  response.end(JSON.stringify(payload));
-}

@@ -168,7 +168,6 @@ export default function Page() {
   const [connectors, setConnectors] = useState<ConnectorSummary[]>([]);
   const [configSavePending, setConfigSavePending] = useState(false);
   const [claudeCodeStatus, setClaudeCodeStatus] = useState<ClaudeCodeStatus | null>(null);
-  const [claudeCodeSavePending, setClaudeCodeSavePending] = useState(false);
   const [modalState, setModalState] = useState<AppModalState>({ type: "closed" });
   const [modalInputValue, setModalInputValue] = useState("");
   const [modalPending, setModalPending] = useState(false);
@@ -905,8 +904,6 @@ export default function Page() {
   }
 
   async function saveClaudeCodeConfiguration(input: { model: string }) {
-    setClaudeCodeSavePending(true);
-
     try {
       const next = await updateClaudeCodeConfig({ model: input.model });
       if (!next) {
@@ -915,8 +912,8 @@ export default function Page() {
       }
 
       setClaudeCodeStatus(next);
-    } finally {
-      setClaudeCodeSavePending(false);
+    } catch {
+      openAlert("Claude Code save failed", "The Claude Code configuration could not be saved.");
     }
   }
 
@@ -1088,12 +1085,11 @@ export default function Page() {
       />
       <ConfigPanel
         claudeCodeStatus={claudeCodeStatus}
-        claudeCodeSavePending={claudeCodeSavePending}
         config={runnerConfig}
         connectors={connectors}
         health={runnerHealth}
         onSave={saveRunnerConfiguration}
-        onSaveClaudeCode={saveClaudeCodeConfiguration}
+        onSaveModel={saveClaudeCodeConfiguration}
         savePending={configSavePending}
       />
       <Dialog open={modalState.type !== "closed"} onOpenChange={(open) => !open && closeModal()}>
