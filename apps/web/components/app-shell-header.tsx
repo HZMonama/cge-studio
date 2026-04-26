@@ -155,19 +155,17 @@ function SyncIndicator({
                   </div>
                 </li>
               </ul>
-              <div className="border-t px-3 py-2">
-                <button
-                  onClick={() => {
-                    setOpen(false);
-                    onRefresh();
-                  }}
-                  disabled={pending ? true : false}
-                  className="flex w-full items-center justify-center gap-1.5 text-[10px] uppercase tracking-[0.1em] text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-                >
-                  <ArrowClockwiseIcon className="size-3" />
-                  Refresh
-                </button>
-              </div>
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  onRefresh();
+                }}
+                disabled={pending ? true : false}
+                className="group flex w-full items-center justify-center gap-1.5 border-t px-3 py-2 text-[10px] uppercase tracking-[0.1em] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+              >
+                <ArrowClockwiseIcon className="size-3 transition-transform group-active:rotate-180" />
+                Refresh
+              </button>
             </PopoverContent>
           </PopoverPositioner>
         </PopoverPortal>

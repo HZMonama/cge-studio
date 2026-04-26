@@ -1787,6 +1787,7 @@ function buildAgentExecution(input) {
     args: input.parsed.argumentTokens,
     pluginId: input.parsed.pluginId,
     commandId: input.parsed.commandId,
+    outputDir: input.runArtifactsDir,
   };
 }
 
@@ -2070,10 +2071,14 @@ async function executeStep({ commandPath, args, stepIndex, runId, runDirectory, 
       data: { command: "claude", args: [commandPath, ...args], cwd: execution.cwd },
     });
 
+    // Read command documentation to include in system prompt
+    const commandDoc = await readCommandDoc(toolkitPath, parsed.pluginId, parsed.commandId);
+
     const claudeArgs = buildClaudeArgs({
       commandPath: execution.commandPath,
       workspacePath: workspace.rootPath,
       args: execution.args,
+      commandDoc,
     });
 
     const startedAt = new Date();
@@ -2125,35 +2130,40 @@ async function executeStep({ commandPath, args, stepIndex, runId, runDirectory, 
           resolved = true;
           await flushPendingText();
           const isSuccess = event.subtype === "success" && !event.is_error;
-          let artifacts = isSuccess
-            ? await collectAgentArtifacts({ run: { id: runId, commandId: parsed.commandId, commandPath }, workspace, startedAt })
-            : [];
+          const completedAt = new Date().toISOString();
 
-          if (isSuccess && artifacts.length === 0 && conversationLog.length > 0) {
-            const stepArtifactsDir = path.join(
-              workspace.folders.artifactsGenerated,
-              `${runId}-step-${stepIndex}`,
-            );
-            await fs.mkdir(stepArtifactsDir, { recursive: true });
-            const artifactPath = path.join(stepArtifactsDir, "conversation.md");
-            const content = conversationLog.join("\n\n---\n\n");
-            await fs.writeFile(artifactPath, content, "utf8");
-
-            artifacts = [createArtifactSummary({
+          let artifacts = [];
+          if (isSuccess) {
+            // Ensure output directory exists and collect artifacts
+            await fs.mkdir(execution.outputDir, { recursive: true });
+            artifacts = await collectAgentOutputArtifacts({
               commandId: parsed.commandId,
               commandPath,
-              createdAt: new Date().toISOString(),
-              format: "markdown",
-              kind: "report",
-              path: artifactPath,
-              pluginId: parsed.pluginId,
+              execution,
               runId,
-              title: `${commandPath} Response`,
-            })];
-          }
+              workspace,
+              startedAt,
+            });
 
-          // Collect program data artifacts (grc-data/ files modified during this step)
-          if (isSuccess) {
+            if (artifacts.length === 0 && conversationLog.length > 0) {
+              const artifactPath = path.join(execution.outputDir, "output.md");
+              const content = conversationLog.join("\n\n---\n\n");
+              await fs.writeFile(artifactPath, content, "utf8");
+
+              artifacts = [createArtifactSummary({
+                commandId: parsed.commandId,
+                commandPath,
+                createdAt: completedAt,
+                format: "markdown",
+                kind: "report",
+                path: artifactPath,
+                pluginId: parsed.pluginId,
+                runId,
+                title: `${commandPath} Output`,
+              })];
+            }
+
+            // Collect program data artifacts (grc-data/ files modified during this step)
             const programArtifacts = await collectProgramDataArtifacts({
               commandId: parsed.commandId,
               commandPath,
@@ -2195,11 +2205,62 @@ async function executeStep({ commandPath, args, stepIndex, runId, runDirectory, 
         await flushPendingText();
         if (!resolved) {
           resolved = true;
-          await appendRunEvent(runDirectory, {
-            type: "tool.completed",
-            data: { exitCode, status: "failed" },
-          });
-          resolve({ status: "failed", artifacts: [], exitCode: exitCode ?? 1 });
+          const isSuccess = exitCode === 0;
+          const completedAt = new Date().toISOString();
+
+          if (isSuccess) {
+            // Process exited successfully but no result event was received
+            await fs.mkdir(execution.outputDir, { recursive: true });
+
+            let artifacts = await collectAgentOutputArtifacts({
+              commandId: parsed.commandId,
+              commandPath,
+              execution,
+              runId,
+              workspace,
+              startedAt,
+            });
+
+            if (artifacts.length === 0 && conversationLog.length > 0) {
+              const artifactPath = path.join(execution.outputDir, "output.md");
+              const content = conversationLog.join("\n\n---\n\n");
+              await fs.writeFile(artifactPath, content, "utf8");
+
+              artifacts = [createArtifactSummary({
+                commandId: parsed.commandId,
+                commandPath,
+                createdAt: completedAt,
+                format: "markdown",
+                kind: "report",
+                path: artifactPath,
+                pluginId: parsed.pluginId,
+                runId,
+                title: `${commandPath} Output`,
+              })];
+            }
+
+            // Collect program data artifacts
+            const programArtifacts = await collectProgramDataArtifacts({
+              commandId: parsed.commandId,
+              commandPath,
+              startedAt,
+              runId,
+              workspace,
+            });
+            artifacts = [...artifacts, ...programArtifacts];
+
+            await appendRunEvent(runDirectory, {
+              type: "tool.completed",
+              data: { exitCode: 0, status: "completed" },
+            });
+            resolve({ status: "completed", artifacts, exitCode: 0 });
+          } else {
+            await appendRunEvent(runDirectory, {
+              type: "tool.completed",
+              data: { exitCode, status: "failed" },
+            });
+            resolve({ status: "failed", artifacts: [], exitCode: exitCode ?? 1 });
+          }
         }
       });
     });
@@ -2326,11 +2387,23 @@ async function executeAgentRun(input) {
     data: { commandPreview: run.commandPreview },
   });
 
+  // Read command documentation to include in system prompt
+  const commandDoc = await readCommandDoc(execution.cwd, execution.pluginId, execution.commandId);
+  console.log('[DEBUG] executeAgentRun commandDoc:', { 
+    pluginId: execution.pluginId, 
+    commandId: execution.commandId, 
+    hasDoc: !!commandDoc, 
+    docLength: commandDoc?.length 
+  });
+
   const claudeArgs = buildClaudeArgs({
     commandPath: execution.commandPath,
     workspacePath: workspace.rootPath,
     args: execution.args,
+    commandDoc,
   });
+  console.log('[DEBUG] commandDoc truthy:', !!commandDoc, 'length:', commandDoc?.length);
+  console.log('[DEBUG] userPrompt starts with:', claudeArgs[claudeArgs.length - 1].substring(0, 50));
 
   const child = spawn("claude", claudeArgs, {
     cwd: execution.cwd,
@@ -2388,15 +2461,21 @@ async function executeAgentRun(input) {
       const isSuccess = event.subtype === "success" && !event.is_error;
 
       if (isSuccess) {
-        let artifacts = await collectAgentArtifacts({
-          run,
+        // Ensure output directory exists
+        await fs.mkdir(execution.outputDir, { recursive: true });
+
+        // Collect artifacts from both outputDir and workspace directories
+        let artifacts = await collectAgentOutputArtifacts({
+          commandId: run.commandId,
+          commandPath: run.commandPath,
+          execution,
+          runId: run.id,
           workspace,
           startedAt,
         });
 
         if (artifacts.length === 0 && conversationLog.length > 0) {
-          await fs.mkdir(run.outputDir, { recursive: true });
-          const artifactPath = path.join(run.outputDir, "conversation.md");
+          const artifactPath = path.join(execution.outputDir, "output.md");
           const content = conversationLog.join("\n\n---\n\n");
           await fs.writeFile(artifactPath, content, "utf8");
 
@@ -2409,7 +2488,7 @@ async function executeAgentRun(input) {
             path: artifactPath,
             pluginId: run.pluginId,
             runId: run.id,
-            title: run.commandPath ? `${run.commandPath} Response` : "Agent Response",
+            title: run.commandPath ? `${run.commandPath} Output` : "Command Output",
           })];
         }
 
@@ -2500,83 +2579,93 @@ async function executeAgentRun(input) {
 
     if (!completedAt) {
       completedAt = new Date().toISOString();
-      const message = code === 0
-        ? "Agent completed without a result event."
-        : `Agent process exited with code ${code}.`;
+      const isSuccess = code === 0;
 
-      await appendRunEvent(runDirectory, {
-        type: "run.failed",
-        data: { message },
-      });
+      if (isSuccess) {
+        // Process exited successfully but no result event was received
+        // Use outputDir pattern to collect artifacts
+        await fs.mkdir(execution.outputDir, { recursive: true });
 
-      await writeRun(runDirectory, {
-        ...run,
-        completedAt,
-        status: "failed",
-      });
+        let artifacts = await collectAgentOutputArtifacts({
+          commandId: run.commandId,
+          commandPath: run.commandPath,
+          execution,
+          runId: run.id,
+          workspace,
+          startedAt,
+        });
+
+        if (artifacts.length === 0 && conversationLog.length > 0) {
+          const artifactPath = path.join(execution.outputDir, "output.md");
+          const content = conversationLog.join("\n\n---\n\n");
+          await fs.writeFile(artifactPath, content, "utf8");
+
+          artifacts = [createArtifactSummary({
+            commandId: run.commandId,
+            commandPath: run.commandPath,
+            createdAt: completedAt,
+            format: "markdown",
+            kind: "report",
+            path: artifactPath,
+            pluginId: run.pluginId,
+            runId: run.id,
+            title: run.commandPath ? `${run.commandPath} Output` : "Command Output",
+          })];
+        }
+
+        // Collect program data artifacts (grc-data/ files modified during this run)
+        const programArtifacts = await collectProgramDataArtifacts({
+          commandId: run.commandId,
+          commandPath: run.commandPath,
+          startedAt,
+          runId: run.id,
+          workspace,
+        });
+        artifacts = [...artifacts, ...programArtifacts];
+
+        const nextRun = {
+          ...run,
+          artifacts,
+          artifactCount: artifacts.length,
+          completedAt,
+          status: "completed",
+        };
+
+        for (const artifact of artifacts) {
+          await appendRunEvent(runDirectory, {
+            type: "artifact.created",
+            data: {
+              artifactId: artifact.id,
+              title: artifact.title,
+              kind: artifact.kind,
+              format: artifact.format,
+              path: artifact.path,
+            },
+          });
+        }
+
+        await appendRunEvent(runDirectory, {
+          type: "run.completed",
+          data: { artifactCount: artifacts.length, exitCode: 0 },
+        });
+
+        await writeRun(runDirectory, nextRun);
+      } else {
+        const message = `Agent process exited with code ${code}.`;
+
+        await appendRunEvent(runDirectory, {
+          type: "run.failed",
+          data: { message },
+        });
+
+        await writeRun(runDirectory, {
+          ...run,
+          completedAt,
+          status: "failed",
+        });
+      }
     }
   });
-}
-
-async function collectAgentArtifacts(input) {
-  const { run, workspace, startedAt } = input;
-  const artifacts = [];
-  const completedAt = new Date().toISOString();
-
-  const scanDirs = [
-    path.join(workspace.rootPath, "grc-reports"),
-    path.join(workspace.rootPath, "evidence"),
-  ];
-
-  const walk = async (dir) => {
-    let entries;
-    try {
-      entries = await fs.readdir(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      const filePath = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        await walk(filePath);
-        continue;
-      }
-      if (!entry.isFile()) continue;
-
-      const stats = await fs.stat(filePath);
-      if (stats.mtime < startedAt) continue;
-
-      const ext = path.extname(entry.name).toLowerCase();
-      const format = ext === ".md" ? "markdown" : ext === ".json" ? "json" : "text";
-      const baseName = entry.name.toLowerCase();
-      const kind = baseName.includes("policy") ? "document"
-        : baseName.includes("gap") ? "report"
-        : baseName.includes("assess") ? "report"
-        : "report";
-      const title = entry.name
-        .replace(/\.[^.]+$/, "")
-        .split(/[-_]/)
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(" ");
-
-      artifacts.push(createArtifactSummary({
-        commandId: run.commandId,
-        commandPath: run.commandPath,
-        createdAt: completedAt,
-        format,
-        kind,
-        path: filePath,
-        pluginId: run.pluginId,
-        runId: run.id,
-        title,
-      }));
-    }
-  };
-
-  for (const dir of scanDirs) {
-    await walk(dir);
-  }
-  return artifacts;
 }
 
 function classifyRunStatus(execution, exitCode) {
@@ -2668,6 +2757,90 @@ async function collectOutputDirArtifacts(input) {
   return artifacts;
 }
 
+async function collectAgentOutputArtifacts(input) {
+  const { execution, workspace, startedAt, runId, commandId, commandPath } = input;
+  const artifacts = [];
+  const completedAt = new Date().toISOString();
+  const knownExtensions = new Set([".md", ".json", ".yaml", ".yml", ".txt", ".rego", ".sentinel", ".py", ".tf"]);
+  const seenPaths = new Set();
+
+  const scanDir = async (dir) => {
+    let entries;
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      const filePath = path.join(dir, entry.name);
+
+      if (entry.isDirectory()) {
+        await scanDir(filePath);
+        continue;
+      }
+
+      if (!entry.isFile()) continue;
+      if (seenPaths.has(filePath)) continue;
+
+      const ext = path.extname(entry.name).toLowerCase();
+      if (!knownExtensions.has(ext)) continue;
+
+      // For workspace directories, only include files modified after run started
+      if (dir !== execution.outputDir && startedAt) {
+        try {
+          const stats = await fs.stat(filePath);
+          if (stats.mtime < startedAt) continue;
+        } catch {
+          continue;
+        }
+      }
+
+      seenPaths.add(filePath);
+
+      const format = ext === ".md" ? "markdown"
+        : ext === ".json" ? "json"
+        : ext === ".yaml" || ext === ".yml" ? "yaml"
+        : "text";
+
+      const baseName = entry.name.toLowerCase();
+      const kind = baseName.includes("policy") || ext === ".rego" || ext === ".sentinel" || ext === ".tf" ? "code"
+        : baseName.includes("review") || baseName.includes("report") ? "report"
+        : baseName.includes("risk") ? "document"
+        : "document";
+
+      const title = entry.name
+        .replace(/\.[^.]+$/, "")
+        .split(/[-_]/)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
+
+      artifacts.push(createArtifactSummary({
+        commandId,
+        commandPath,
+        createdAt: completedAt,
+        format,
+        kind,
+        path: filePath,
+        pluginId: input.execution.pluginId,
+        runId,
+        title,
+      }));
+    }
+  };
+
+  // Scan run-specific outputDir first
+  if (execution.outputDir) {
+    await scanDir(execution.outputDir);
+  }
+
+  // Scan workspace directories where Claude is instructed to write
+  await scanDir(path.join(workspace.rootPath, "grc-reports"));
+  await scanDir(path.join(workspace.rootPath, "evidence"));
+
+  return artifacts;
+}
+
 function buildGapAssessmentCommand(input) {
   const toolkitPathValue = JSON.stringify(input.toolkitPath);
   const outputDirValue = JSON.stringify(input.outputDir);
@@ -2707,27 +2880,52 @@ function buildCommandPreview(input) {
   return input.prompt;
 }
 
+async function readCommandDoc(toolkitPath, pluginId, commandId) {
+  const commandPath = path.join(toolkitPath, "plugins", pluginId, "commands", `${commandId}.md`);
+  try {
+    return await fs.readFile(commandPath, "utf8");
+  } catch {
+    return null;
+  }
+}
+
 function buildClaudeArgs(input) {
+  const systemPrompt = buildAgentWorkspaceContext(input.workspacePath, input.commandDoc);
+  const userPrompt = buildAgentPrompt(input.commandPath, input.args, input.commandDoc);
   return [
     "--print",
     "--output-format", "stream-json",
     "--verbose",
     "--dangerously-skip-permissions",
     "--add-dir", input.workspacePath,
-    "--append-system-prompt", buildAgentWorkspaceContext(input.workspacePath),
-    buildAgentPrompt(input.commandPath, input.args),
+    "--append-system-prompt", systemPrompt,
+    userPrompt,
   ];
 }
 
-function buildAgentWorkspaceContext(workspacePath) {
-  return (
+function buildAgentWorkspaceContext(workspacePath, commandDoc) {
+  let context = (
     `Active CGE workspace: ${workspacePath}. ` +
     `Write all output files (reports, assessments, analyses, policies) to paths inside this workspace directory. ` +
     `Use ${workspacePath}/grc-reports/ for generated reports.`
   );
+
+  if (commandDoc) {
+    context += `\n\nYou have been given a specific task. Follow the instructions provided in the user prompt precisely.`;
+  }
+
+  return context;
 }
 
-function buildAgentPrompt(commandPath, args) {
+function buildAgentPrompt(commandPath, args, commandDoc) {
+  // If we have command documentation, construct a natural language prompt
+  // instead of using the slash command syntax (which Claude doesn't recognize)
+  if (commandDoc) {
+    const argsText = (args ?? []).join(" ");
+    return `Please execute the following task:\n\nCommand: ${commandPath} ${argsText}\n\nInstructions:\n${commandDoc}`;
+  }
+
+  // Fallback to slash command syntax for backward compatibility
   return [commandPath, ...(args ?? [])].join(" ");
 }
 
