@@ -74,40 +74,87 @@ export async function readCommandReadme(toolkitPath, pluginId, commandId) {
  */
 export async function discoverCommandsWithSchemas(toolkitPath) {
   const pluginsRoot = path.join(toolkitPath, "plugins");
+  const customPluginsRoot = path.join(os.homedir(), ".config", "claude-grc", "custom-plugins");
   
+  // Collect official plugin IDs to prevent collisions
+  const officialPluginIds = new Set();
+  const plugins = [];
+  
+  // First: discover official plugins from toolkit
   try {
     await fs.access(pluginsRoot);
-  } catch {
-    return [];
-  }
+    const pluginDirs = await findPluginDirectories(pluginsRoot);
 
-  const plugins = [];
-  const pluginDirs = await findPluginDirectories(pluginsRoot);
+    for (const pluginDir of pluginDirs) {
+      const pluginId = path.relative(pluginsRoot, pluginDir);
+      const commandsDir = path.join(pluginDir, "commands");
+      
+      try {
+        await fs.access(commandsDir);
+      } catch {
+        continue;
+      }
 
-  for (const pluginDir of pluginDirs) {
-    // Use relative path from plugins root as pluginId to handle nested plugins (e.g., frameworks/soc2)
-    const pluginId = path.relative(pluginsRoot, pluginDir);
-    const commandsDir = path.join(pluginDir, "commands");
-    
-    try {
-      await fs.access(commandsDir);
-    } catch {
-      continue;
+      const commands = await discoverCommandsInPlugin(toolkitPath, pluginId, commandsDir);
+      
+      if (commands.length > 0) {
+        const metadata = inferPluginMetadata(pluginDir, pluginId);
+        const baseId = path.basename(pluginId);
+        
+        officialPluginIds.add(baseId);
+        plugins.push({
+          id: baseId,
+          label: humanizeId(baseId),
+          ...metadata,
+          isCustom: false,
+          commands: commands.sort((a, b) => a.id.localeCompare(b.id)),
+        });
+      }
     }
-
-    const commands = await discoverCommandsInPlugin(toolkitPath, pluginId, commandsDir);
+  } catch {
+    // Toolkit not available
+  }
+  
+  // Second: discover custom plugins from filesystem
+  try {
+    await fs.access(customPluginsRoot);
+    const customPluginDirs = await findPluginDirectories(customPluginsRoot);
     
-    if (commands.length > 0) {
-      const metadata = inferPluginMetadata(pluginDir, pluginId);
+    for (const pluginDir of customPluginDirs) {
+      const pluginId = path.relative(customPluginsRoot, pluginDir);
       const baseId = path.basename(pluginId);
       
-      plugins.push({
-        id: baseId,
-        label: humanizeId(baseId),
-        ...metadata,
-        commands: commands.sort((a, b) => a.id.localeCompare(b.id)),
-      });
+      // Skip if name collides with official plugin
+      if (officialPluginIds.has(baseId)) {
+        console.warn(`[schema-reader] Skipping custom plugin "${baseId}" - name collision with official plugin`);
+        continue;
+      }
+      
+      const commandsDir = path.join(pluginDir, "commands");
+      
+      try {
+        await fs.access(commandsDir);
+      } catch {
+        continue;
+      }
+
+      // Custom plugins don't use toolkitPath for schema reading
+      const commands = await discoverCommandsInPlugin(pluginDir, pluginId, commandsDir);
+      
+      if (commands.length > 0) {
+        const metadata = inferPluginMetadata(pluginDir, pluginId);
+        
+        plugins.push({
+          id: baseId,
+          label: humanizeId(baseId),
+          ...metadata,
+          isCustom: true,
+          commands: commands.sort((a, b) => a.id.localeCompare(b.id)),
+        });
+      }
     }
+  } catch {
+    // Custom plugins directory doesn't exist yet
   }
 
   return plugins.sort((a, b) => a.label.localeCompare(b.label));
@@ -660,6 +707,7 @@ function humanizeId(value) {
     "okta-inspector": "Okta Inspector",
     "oscal": "OSCAL",
     "pbmm": "PBMM",
+    "poam-automation": "POA&M Automation",
     "pci-dss": "PCI DSS",
     "singapore-pdpa": "Singapore PDPA",
     "soc2": "SOC 2",
