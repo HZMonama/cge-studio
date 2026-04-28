@@ -47,6 +47,7 @@ import {
   fetchConnectors,
   createRun,
   createWorkspace,
+  cancelRun,
   deleteWorkspace,
   exportWorkspace,
   fetchArtifactDetail,
@@ -66,6 +67,7 @@ import {
   refreshWorkspace,
   renameWorkspace,
   respondToRunPrompt,
+  RunnerPromptError,
   updateClaudeCodeConfig,
   updateRunnerConfig,
   type ClaudeCodeStatus,
@@ -398,12 +400,20 @@ export default function Page() {
         return;
       }
 
-      setRuns(nextRuns);
-      setSelectedRunId((current) =>
-        cleared ? null : current && nextRuns.some((run) => run.id === current)
+      setRuns((currentRuns) => nextRuns ?? currentRuns);
+      setSelectedRunId((current) => {
+        if (cleared) {
+          return null;
+        }
+
+        if (nextRuns == null) {
+          return current;
+        }
+
+        return current && nextRuns.some((run) => run.id === current)
           ? current
-          : (nextRuns[0]?.id ?? null),
-      );
+          : (nextRuns[0]?.id ?? null);
+      });
       setArtifacts(nextArtifacts);
       setSelectedArtifact(null);
       setArtifactLoading(false);
@@ -757,10 +767,31 @@ export default function Page() {
     ]);
 
     const refreshCleared = localStorage.getItem(runnerClearedKey(workspaceId)) === "true";
-    setRuns(nextRuns);
-    setSelectedRunId((current) =>
-      refreshCleared ? null : current ?? nextRuns[0]?.id ?? null,
-    );
+    setRuns((currentRuns) => {
+      if (nextRuns == null) {
+        return currentRuns;
+      }
+
+      const preserveRuns = nextRuns.length === 0 && currentRuns.length > 0;
+      return preserveRuns ? currentRuns : nextRuns;
+    });
+    setSelectedRunId((current) => {
+      if (refreshCleared) {
+        return null;
+      }
+
+      if (nextRuns == null) {
+        return current;
+      }
+
+      if (nextRuns.length === 0) {
+        return current;
+      }
+
+      return current && nextRuns.some((run) => run.id === current)
+        ? current
+        : (nextRuns[0]?.id ?? null);
+    });
     setArtifacts(nextArtifacts);
     setSelectedArtifactId((current) =>
       current && nextArtifacts.some((artifact) => artifact.id === current)
@@ -1095,6 +1126,27 @@ export default function Page() {
               focusToken={composerFocusToken}
               loadingEvents={runEventsPending}
               onEditAndRerun={() => editAndRerunRun(selectedRun)}
+              onCancelRun={async () => {
+                if (!activeWorkspaceId || !selectedRunId) {
+                  return;
+                }
+
+                const canceled = await cancelRun(activeWorkspaceId, selectedRunId);
+                if (!canceled) {
+                  openAlert(
+                    "Cancel failed",
+                    "The run could not be canceled.",
+                  );
+                  return;
+                }
+
+                await refreshRunnerData(activeWorkspaceId);
+                const nextEvents = await fetchRunEvents(
+                  activeWorkspaceId,
+                  selectedRunId,
+                );
+                setSelectedRunEvents(nextEvents);
+              }}
               onClearRunner={() => {
                 setRunnerSurfaceCleared(true);
                 setSelectedRunId(null);
@@ -1121,30 +1173,39 @@ export default function Page() {
                   return;
                 }
 
-                const updated = await respondToRunPrompt(
-                  activeWorkspaceId,
-                  selectedRunId,
-                  promptId,
-                  answers,
-                );
-
-                if (!updated) {
-                  openAlert(
-                    "Reply failed",
-                    "The workflow input could not be submitted.",
+                try {
+                  const updated = await respondToRunPrompt(
+                    activeWorkspaceId,
+                    selectedRunId,
+                    promptId,
+                    answers,
                   );
-                  return;
-                }
 
-                await refreshRunnerData(activeWorkspaceId);
-                const nextEvents = await fetchRunEvents(
-                  activeWorkspaceId,
-                  selectedRunId,
-                );
-                setSelectedRunEvents(nextEvents);
+                  if (!updated) {
+                    openAlert(
+                      "Reply failed",
+                      "The workflow input could not be submitted.",
+                    );
+                    return;
+                  }
 
-                if (updated.artifacts?.[0]?.id) {
-                  setSelectedArtifactId(updated.artifacts[0].id);
+                  await refreshRunnerData(activeWorkspaceId);
+                  const nextEvents = await fetchRunEvents(
+                    activeWorkspaceId,
+                    selectedRunId,
+                  );
+                  setSelectedRunEvents(nextEvents);
+
+                  if (updated.artifacts?.[0]?.id) {
+                    setSelectedArtifactId(updated.artifacts[0].id);
+                  }
+                } catch (error) {
+                  if (error instanceof RunnerPromptError && error.code === "run_not_waiting_for_input") {
+                    openAlert("Already answered", error.message);
+                    return;
+                  }
+                  const message = error instanceof Error ? error.message : "The workflow input could not be submitted.";
+                  openAlert("Reply failed", message);
                 }
               }}
               onRun={runComposerCommand}
@@ -1210,6 +1271,9 @@ export default function Page() {
         <RunnerHistoryPanel
           onSelectRun={(runId) => {
             setRunnerSurfaceCleared(false);
+            if (activeWorkspaceId) {
+              localStorage.removeItem(runnerClearedKey(activeWorkspaceId));
+            }
             setSelectedRunId(runId);
             setActiveSection("runner");
           }}

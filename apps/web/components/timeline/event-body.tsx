@@ -21,10 +21,14 @@ export function EventBody({
   event,
   onSubmitPrompt,
   onSelectArtifact,
+  answeredPromptIds,
+  runStatus,
 }: {
   event: RunnerRunEvent;
   onSubmitPrompt: (promptId: string, answers: Record<string, string>) => Promise<void>;
   onSelectArtifact: (artifactId: string) => void;
+  answeredPromptIds?: Set<string>;
+  runStatus?: string;
 }) {
   if (event.type === "run.created") {
     return (
@@ -109,6 +113,9 @@ export function EventBody({
     const fields = Array.isArray(event.data.fields)
       ? event.data.fields
       : [];
+    const isAnswered = answeredPromptIds?.has(promptId) ?? false;
+    const runDone = runStatus === "completed" || runStatus === "failed" || runStatus === "canceled";
+    const isDisabled = isAnswered || runDone;
 
     return (
       <PromptForm
@@ -117,11 +124,12 @@ export function EventBody({
         submitLabel={coerceString(event.data.submitLabel) || "Submit"}
         title={coerceString(event.data.title) || "Additional input required"}
         onSubmit={onSubmitPrompt}
+        disabled={isDisabled}
       />
     );
   }
 
-  if (event.type === "run.completed" || event.type === "run.failed") {
+  if (event.type === "run.completed" || event.type === "run.failed" || event.type === "run.canceled") {
     return (
       <div>
         <p className="text-sm leading-6 text-muted-foreground">

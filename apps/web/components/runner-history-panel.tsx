@@ -8,6 +8,7 @@ import { usePluginPanel } from "@/stores/plugin-panel-store";
 
 function statusTone(status: RunnerRun["status"]) {
   if (status === "completed") return "bg-emerald-500/10 text-emerald-400";
+  if (status === "canceled") return "bg-slate-500/10 text-slate-400";
   if (status === "failed") return "bg-rose-500/10 text-rose-400";
   if (status === "running") return "bg-sky-500/10 text-sky-400";
   if (status === "pending") return "bg-amber-500/10 text-amber-400";
@@ -55,15 +56,28 @@ export function RunnerHistoryPanel({
             <ul>
               {runs.map((run) => (
                 <li key={run.id} className="border-b last:border-0">
-                  <div className="px-4 py-3">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => onSelectRun(run.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        onSelectRun(run.id);
+                      }
+                    }}
+                    className={cn(
+                      "group/run-history cursor-pointer px-4 py-3 transition-colors hover:bg-accent/35",
+                      selectedRunId === run.id ? "bg-accent/20" : null,
+                    )}
+                  >
                     <div className="flex items-start justify-between gap-3">
-                      <button
-                        onClick={() => onSelectRun(run.id)}
+                      <div
                         className={cn(
-                          "min-w-0 flex-1 text-left transition-colors hover:text-foreground",
+                          "min-w-0 flex-1 text-left transition-colors",
                           selectedRunId === run.id
                             ? "text-foreground"
-                            : "text-foreground/60",
+                            : "text-foreground/60 group-hover/run-history:text-foreground",
                         )}
                       >
                         <p className="truncate text-xs font-medium">
@@ -72,7 +86,7 @@ export function RunnerHistoryPanel({
                         <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-foreground/40">
                           {new Date(run.createdAt).toLocaleString()}
                         </p>
-                      </button>
+                      </div>
                       <span
                         className={cn(
                           "shrink-0 px-1.5 py-0.5 text-[10px] font-medium capitalize",
@@ -94,7 +108,10 @@ export function RunnerHistoryPanel({
                         {run.artifacts.map((artifact) => (
                           <button
                             key={artifact.id}
-                            onClick={() => onSelectArtifact(artifact.id)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onSelectArtifact(artifact.id);
+                            }}
                             className="sidebar-fade-item flex w-full items-center gap-2 border border-border/70 px-2.5 py-2 text-left text-foreground/60 transition-colors hover:text-sidebar-accent-foreground"
                           >
                             <ClockCounterClockwiseIcon className="size-3.5 shrink-0 text-foreground/50" />

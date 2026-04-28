@@ -88,6 +88,7 @@ export interface RunnerRunEvent {
     | "tool.completed"
     | "artifact.created"
     | "run.completed"
+    | "run.canceled"
     | "run.failed"
   createdAt: string
   data: Record<string, unknown>
@@ -95,7 +96,7 @@ export interface RunnerRunEvent {
 
 export interface RunnerRun {
   id: string
-  status: "planned" | "pending" | "running" | "completed" | "failed"
+  status: "planned" | "pending" | "running" | "completed" | "failed" | "canceled"
   createdAt: string
   completedAt?: string | null
   prompt?: string
@@ -390,7 +391,7 @@ export async function exportWorkspace(workspaceId: string): Promise<WorkspaceExp
   }
 }
 
-export async function fetchRuns(workspaceId: string, signal?: AbortSignal): Promise<RunnerRun[]> {
+export async function fetchRuns(workspaceId: string, signal?: AbortSignal): Promise<RunnerRun[] | null> {
   try {
     const response = await fetch(`${RUNNER_BASE_URL}/workspaces/${workspaceId}/runs`, {
       cache: "no-store",
@@ -398,12 +399,12 @@ export async function fetchRuns(workspaceId: string, signal?: AbortSignal): Prom
     })
 
     if (!response.ok) {
-      return []
+      return null
     }
 
     return (await response.json()) as RunnerRun[]
   } catch {
-    return []
+    return null
   }
 }
 
@@ -472,6 +473,16 @@ export async function fetchRunEvents(
   }
 }
 
+export class RunnerPromptError extends Error {
+  code: string;
+
+  constructor(code: string, message: string) {
+    super(message);
+    this.code = code;
+    this.name = "RunnerPromptError";
+  }
+}
+
 export async function respondToRunPrompt(
   workspaceId: string,
   runId: string,
@@ -485,6 +496,39 @@ export async function respondToRunPrompt(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ promptId, answers }),
+    })
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({} as Record<string, unknown>));
+      const errorCode = typeof body.error === "string" ? body.error : "unknown_error";
+      const errorMessage = typeof body.message === "string" ? body.message : "The workflow input could not be submitted.";
+
+      if (response.status === 400 && errorCode === "run_not_waiting_for_input") {
+        throw new RunnerPromptError(errorCode, "This prompt was already answered and the workflow is running.");
+      }
+
+      throw new RunnerPromptError(errorCode, errorMessage);
+    }
+
+    return (await response.json()) as RunnerRun
+  } catch (error) {
+    if (error instanceof RunnerPromptError) {
+      throw error;
+    }
+    return null
+  }
+}
+
+export async function cancelRun(
+  workspaceId: string,
+  runId: string,
+): Promise<RunnerRun | null> {
+  try {
+    const response = await fetch(`${RUNNER_BASE_URL}/workspaces/${workspaceId}/runs/${runId}/cancel`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
     })
 
     if (!response.ok) {

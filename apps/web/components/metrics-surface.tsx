@@ -53,6 +53,10 @@ function getConnectorIcon(connectorId: string, theme: "dark" | "light"): string 
     "gcp-inspector": { dark: "/google_cloud.svg", light: "/google_cloud.svg" },
     "github-inspector": { dark: "/github_dark.svg", light: "/github_light.svg" },
     "okta-inspector": { dark: "/okta_dark.png", light: "/okta_light.svg" },
+    "nessus": { dark: "/tenable_dark.svg", light: "/tenable_light.svg" },
+    "tenable": { dark: "/tenable_dark.svg", light: "/tenable_light.svg" },
+    "qualys": { dark: "/qualys_logo.svg", light: "/qualys_logo.svg" },
+    "wiz": { dark: "/wiz_logo.svg", light: "/wiz_logo.svg" },
   }
 
   return icons[connectorId]?.[theme] ?? null

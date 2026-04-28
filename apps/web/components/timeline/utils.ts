@@ -3,6 +3,7 @@ import { type TimelineItem } from "./types";
 
 export function statusTone(status: RunnerRun["status"]) {
   if (status === "completed") return "bg-emerald-500/10 text-emerald-400";
+  if (status === "canceled") return "bg-slate-500/10 text-slate-400";
   if (status === "failed") return "bg-rose-500/10 text-rose-400";
   if (status === "running") return "bg-sky-500/10 text-sky-400";
   return "bg-muted text-muted-foreground";
@@ -23,6 +24,7 @@ export function isCollapsibleTimelineItem(_item: TimelineItem) {
 export function defaultCollapsedForItem(item: TimelineItem) {
   if (item.kind === "stream") return false;
   if (item.event.type === "run.failed") return false;
+  if (item.event.type === "run.canceled") return false;
   if (item.event.type === "message") return false;
   if (item.event.type === "prompt.required") return false;
   if (item.event.type === "tool.completed" && Number(item.event.data.exitCode ?? 0) !== 0) {
@@ -90,6 +92,8 @@ export function timelineItemLabel(item: TimelineItem) {
       return coerceString(item.event.data.title) || "Additional Input Required";
     case "run.completed":
       return "Run Completed";
+    case "run.canceled":
+      return "Run Canceled";
     case "run.failed":
       return "Run Failed";
     default:

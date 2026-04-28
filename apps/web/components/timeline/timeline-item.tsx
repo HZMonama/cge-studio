@@ -28,12 +28,16 @@ export function TimelineItemRow({
   onToggleCollapse,
   onSubmitPrompt,
   onSelectArtifact,
+  answeredPromptIds,
+  runStatus,
 }: {
   item: TimelineItem;
   collapsedItems: Record<string, boolean>;
   onToggleCollapse: (itemId: string, collapsed: boolean) => void;
   onSubmitPrompt: (promptId: string, answers: Record<string, string>) => Promise<void>;
   onSelectArtifact: (artifactId: string) => void;
+  answeredPromptIds?: Set<string>;
+  runStatus?: string;
 }) {
   const itemId = getTimelineItemId(item);
   const collapsible = isCollapsibleTimelineItem(item);
@@ -62,6 +66,10 @@ export function TimelineItemRow({
             <TerminalWindowIcon className="size-4 shrink-0" />
           </span>
         ) : item.event.type === "run.failed" ? (
+          <span className={iconContainerClassName}>
+            <WarningCircleIcon className="size-4 shrink-0" />
+          </span>
+        ) : item.event.type === "run.canceled" ? (
           <span className={iconContainerClassName}>
             <WarningCircleIcon className="size-4 shrink-0" />
           </span>
@@ -145,6 +153,8 @@ export function TimelineItemRow({
               event={item.event}
               onSelectArtifact={onSelectArtifact}
               onSubmitPrompt={onSubmitPrompt}
+              answeredPromptIds={answeredPromptIds}
+              runStatus={runStatus}
             />
           </div>
         )

@@ -235,10 +235,145 @@ const workflowRuntime = createWorkflowRuntime({
   createArtifactSummary,
   executeStep,
   findLatestJsonFile,
+  isRunCanceled,
   parsePrompt,
   readRuns,
+  recordRunCanceled,
   writeRun,
 });
+
+const activeRunChildren = new Map();
+const canceledRunIds = new Set();
+
+function isRunCanceled(runId) {
+  return canceledRunIds.has(runId);
+}
+
+function registerRunChild(runId, child) {
+  let children = activeRunChildren.get(runId);
+  if (!children) {
+    children = new Set();
+    activeRunChildren.set(runId, children);
+  }
+
+  children.add(child);
+
+  return () => {
+    const current = activeRunChildren.get(runId);
+    if (!current) {
+      return;
+    }
+
+    current.delete(child);
+    if (current.size === 0) {
+      activeRunChildren.delete(runId);
+    }
+  };
+}
+
+function terminateChildProcess(child) {
+  if (!child || typeof child.pid !== "number") {
+    return;
+  }
+
+  if (process.platform === "win32") {
+    child.kill("SIGTERM");
+    return;
+  }
+
+  try {
+    process.kill(-child.pid, "SIGTERM");
+  } catch {
+    child.kill("SIGTERM");
+    return;
+  }
+
+  setTimeout(() => {
+    try {
+      process.kill(-child.pid, "SIGKILL");
+    } catch {}
+  }, 4000).unref();
+}
+
+function terminateRunChildren(runId) {
+  const children = activeRunChildren.get(runId);
+  if (!children) {
+    return;
+  }
+
+  for (const child of children) {
+    terminateChildProcess(child);
+  }
+}
+
+async function readRunFromDirectory(runDirectory) {
+  try {
+    const contents = await fs.readFile(path.join(runDirectory, "run.json"), "utf8");
+    return JSON.parse(contents);
+  } catch {
+    return null;
+  }
+}
+
+async function readWorkflowStateFile(runDirectory) {
+  try {
+    const contents = await fs.readFile(
+      path.join(runDirectory, "workflow-state.json"),
+      "utf8",
+    );
+    return JSON.parse(contents);
+  } catch {
+    return null;
+  }
+}
+
+async function writeWorkflowStateFile(runDirectory, state) {
+  await fs.writeFile(
+    path.join(runDirectory, "workflow-state.json"),
+    JSON.stringify(state, null, 2),
+    "utf8",
+  );
+}
+
+async function recordRunCanceled({
+  run,
+  runDirectory,
+  message = "Run canceled by user.",
+}) {
+  canceledRunIds.add(run.id);
+
+  const currentRun = (await readRunFromDirectory(runDirectory)) ?? run;
+
+  if (currentRun.status === "canceled") {
+    return currentRun;
+  }
+
+  const workflowState = await readWorkflowStateFile(runDirectory);
+  if (workflowState && workflowState.phase !== "completed" && workflowState.phase !== "canceled") {
+    await writeWorkflowStateFile(runDirectory, {
+      ...workflowState,
+      phase: "canceled",
+      canceledAt: new Date().toISOString(),
+      cancelMessage: message,
+    });
+  }
+
+  const nextRun = {
+    ...currentRun,
+    status: "canceled",
+    completedAt: new Date().toISOString(),
+  };
+
+  await appendRunEvent(runDirectory, {
+    type: "run.canceled",
+    data: {
+      message,
+    },
+  });
+  await writeRun(runDirectory, nextRun);
+
+  return nextRun;
+}
 
 
 
@@ -548,10 +683,45 @@ app.post("/workspaces/:workspaceId/runs/:runId/respond", async (c) => {
   });
 
   if (!answered) {
-    return c.json({ error: "run_not_waiting_for_input" }, 400);
+    return c.json({ error: "run_not_waiting_for_input", message: "This run is no longer awaiting input." }, 400);
   }
 
   return c.json(answered);
+});
+
+app.post("/workspaces/:workspaceId/runs/:runId/cancel", async (c) => {
+  const workspaceId = decodeURIComponent(c.req.param("workspaceId"));
+  const workspace = await readWorkspace(roots, workspaceId);
+
+  if (!workspace) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  const runId = decodeURIComponent(c.req.param("runId"));
+  const run = await readRun(workspace, runId);
+
+  if (!run) {
+    return c.json({ error: "not_found" }, 404);
+  }
+
+  if (run.status === "completed" || run.status === "failed" || run.status === "canceled") {
+    return c.json(
+      {
+        error: "run_not_cancelable",
+        message: "This run has already finished.",
+      },
+      400,
+    );
+  }
+
+  const nextRun = await recordRunCanceled({
+    run,
+    runDirectory: run.runDirectory,
+  });
+
+  terminateRunChildren(run.id);
+
+  return c.json(nextRun);
 });
 
 app.get("/workspaces/:workspaceId/artifacts", async (c) => {
@@ -2036,10 +2206,13 @@ async function executeCommandRun(input) {
     [execution.scriptPath, ...execution.args],
     {
       cwd: execution.cwd,
+      detached: process.platform !== "win32",
       env: process.env,
       stdio: ["pipe", "pipe", "pipe"],
     },
   );
+  const unregisterChild = registerRunChild(run.id, child);
+  child.once("close", unregisterChild);
   child.stdin.end();
 
   const forwardStreamChunk = (streamName, targetPath, chunks) => async (chunk) => {
@@ -2086,12 +2259,12 @@ async function executeCommandRun(input) {
     finalized = true;
     void Promise.allSettled(streamWrites).then(() =>
       finalizeCommandRun({
-        errorMessage: error.message,
+        errorMessage: isRunCanceled(run.id) ? undefined : error.message,
         execution,
         exitCode: null,
         run,
         runDirectory,
-        status: "failed",
+        status: isRunCanceled(run.id) ? "canceled" : "failed",
         stdoutText: stdoutChunks.join(""),
         stderrText: stderrChunks.join(""),
         workspace,
@@ -2111,7 +2284,9 @@ async function executeCommandRun(input) {
         exitCode,
         run,
         runDirectory,
-        status: classifyRunStatus(execution, exitCode),
+        status: isRunCanceled(run.id)
+          ? "canceled"
+          : classifyRunStatus(execution, exitCode),
         stdoutText: stdoutChunks.join(""),
         stderrText: stderrChunks.join(""),
         workspace,
@@ -2168,9 +2343,12 @@ async function executeStep({ commandPath, args, stepIndex, runId, runDirectory, 
     return new Promise((resolve, reject) => {
       const child = spawn(execution.runtime, [execution.scriptPath, ...execution.args], {
         cwd: execution.cwd,
+        detached: process.platform !== "win32",
         env: process.env,
         stdio: ["pipe", "pipe", "pipe"],
       });
+      const unregisterChild = registerRunChild(runId, child);
+      child.once("close", unregisterChild);
       child.stdin.end();
 
       child.stdout.on("data", (chunk) => {
@@ -2189,7 +2367,9 @@ async function executeStep({ commandPath, args, stepIndex, runId, runDirectory, 
 
       child.on("close", async (exitCode) => {
         const stdoutText = stdoutChunks.join("");
-        const status = classifyRunStatus(execution, exitCode);
+        const status = isRunCanceled(runId)
+          ? "canceled"
+          : classifyRunStatus(execution, exitCode);
 
         await appendRunEvent(runDirectory, {
           type: "tool.completed",
@@ -2235,9 +2415,12 @@ async function executeStep({ commandPath, args, stepIndex, runId, runDirectory, 
     return new Promise((resolve) => {
       const child = spawn("claude", claudeArgs, {
         cwd: execution.cwd,
+        detached: process.platform !== "win32",
         env: process.env,
         stdio: ["ignore", "pipe", "pipe"],
       });
+      const unregisterChild = registerRunChild(runId, child);
+      child.once("close", unregisterChild);
 
       let stdoutBuffer = "";
       let pendingText = "";
@@ -2278,6 +2461,14 @@ async function executeStep({ commandPath, args, stepIndex, runId, runDirectory, 
         if (event.type === "result" && !resolved) {
           resolved = true;
           await flushPendingText();
+          if (isRunCanceled(runId)) {
+            await appendRunEvent(runDirectory, {
+              type: "tool.completed",
+              data: { exitCode: 130, status: "canceled" },
+            });
+            resolve({ status: "canceled", artifacts: [], exitCode: 130 });
+            return;
+          }
           const isSuccess = event.subtype === "success" && !event.is_error;
           const completedAt = new Date().toISOString();
 
@@ -2354,6 +2545,14 @@ async function executeStep({ commandPath, args, stepIndex, runId, runDirectory, 
         await flushPendingText();
         if (!resolved) {
           resolved = true;
+          if (isRunCanceled(runId)) {
+            await appendRunEvent(runDirectory, {
+              type: "tool.completed",
+              data: { exitCode: code ?? 130, status: "canceled" },
+            });
+            resolve({ status: "canceled", artifacts: [], exitCode: code ?? 130 });
+            return;
+          }
           const isSuccess = exitCode === 0;
           const completedAt = new Date().toISOString();
 
@@ -2425,6 +2624,21 @@ async function finalizeCommandRun(input) {
     status: input.status,
     completedAt: completionTime,
   };
+
+  if (input.status === "canceled") {
+    await appendRunEvent(input.runDirectory, {
+      type: "tool.completed",
+      data: {
+        exitCode: input.exitCode,
+        status: "canceled",
+      },
+    });
+    await recordRunCanceled({
+      run: nextRun,
+      runDirectory: input.runDirectory,
+    });
+    return;
+  }
 
   let artifacts =
     input.status === "completed"
@@ -2560,9 +2774,12 @@ async function executeAgentRun(input) {
 
   const child = spawn("claude", claudeArgs, {
     cwd: execution.cwd,
+    detached: process.platform !== "win32",
     env: process.env,
     stdio: ["ignore", "pipe", "pipe"],
   });
+  const unregisterChild = registerRunChild(run.id, child);
+  child.once("close", unregisterChild);
 
   let stdoutBuffer = "";
   let pendingText = "";
@@ -2609,6 +2826,14 @@ async function executeAgentRun(input) {
 
     if (event.type === "result") {
       await flushPendingText();
+      if (isRunCanceled(run.id)) {
+        completedAt = new Date().toISOString();
+        await recordRunCanceled({
+          run,
+          runDirectory,
+        });
+        return;
+      }
       completedAt = new Date().toISOString();
 
       const isSuccess = event.subtype === "success" && !event.is_error;
@@ -2737,6 +2962,13 @@ async function executeAgentRun(input) {
 
     if (!completedAt) {
       completedAt = new Date().toISOString();
+      if (isRunCanceled(run.id)) {
+        await recordRunCanceled({
+          run,
+          runDirectory,
+        });
+        return;
+      }
       const isSuccess = code === 0;
 
       if (isSuccess) {

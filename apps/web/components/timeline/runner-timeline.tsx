@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { type RunnerRun, type RunnerRunEvent } from "@/lib/runner";
 import { toTimelineItems } from "./utils";
 import { EmptyState } from "./empty-state";
@@ -22,6 +22,30 @@ export function RunnerTimeline({
   run: RunnerRun | null;
 }) {
   const [collapsedItems, setCollapsedItems] = useState<Record<string, boolean>>({});
+
+  const answeredPromptIds = useMemo(() => {
+    const answered = new Set<string>();
+    const promptIndices: number[] = [];
+
+    for (let i = 0; i < events.length; i++) {
+      if (events[i].type === "prompt.required") {
+        promptIndices.push(i);
+      }
+    }
+
+    for (const idx of promptIndices) {
+      for (let j = idx + 1; j < events.length; j++) {
+        const event = events[j];
+        if (event.type === "message" && event.data.role === "user") {
+          const id = typeof events[idx].data.promptId === "string" ? events[idx].data.promptId : "";
+          if (id) answered.add(id);
+          break;
+        }
+      }
+    }
+
+    return answered;
+  }, [events]);
 
   if (!run) {
     return <EmptyState onQuickRun={onQuickRun} />;
@@ -59,6 +83,8 @@ export function RunnerTimeline({
               }
               onSubmitPrompt={onSubmitPrompt}
               onSelectArtifact={onSelectArtifact}
+              answeredPromptIds={answeredPromptIds}
+              runStatus={run.status}
             />
           ))}
         </div>

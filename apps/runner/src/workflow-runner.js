@@ -145,11 +145,18 @@ export function createWorkflowRuntime(deps) {
         return;
       }
 
-      return definition.start({
-        ...input,
-        ...deps,
-        definition,
-      });
+      try {
+        return await definition.start({
+          ...input,
+          ...deps,
+          definition,
+        });
+      } catch (error) {
+        if (isRunCanceledError(error)) {
+          return null;
+        }
+        throw error;
+      }
     },
 
     async respondToWorkflowRun(input) {
@@ -183,15 +190,32 @@ export function createWorkflowRuntime(deps) {
       };
       await writeWorkflowState(runDirectory, runningState);
 
-      return definition.respond({
-        ...input,
-        ...deps,
-        definition,
-        runDirectory,
-        workflowState: runningState,
-      });
+      try {
+        return await definition.respond({
+          ...input,
+          ...deps,
+          definition,
+          runDirectory,
+          workflowState: runningState,
+        });
+      } catch (error) {
+        if (isRunCanceledError(error)) {
+          return null;
+        }
+        throw error;
+      }
     },
   };
+}
+
+function createRunCanceledError() {
+  const error = new Error("run_canceled");
+  error.code = "run_canceled";
+  return error;
+}
+
+function isRunCanceledError(error) {
+  return Boolean(error && typeof error === "object" && error.code === "run_canceled");
 }
 
 function defineWorkflow(definition) {
@@ -1449,6 +1473,11 @@ function renderProgramHealthReport({ answers, asOf, context, excludedSet }) {
 // ─── Pipeline helpers ─────────────────────────────────────────────────────────
 
 async function runPipelineStep(input, { stepIndex, commandPath, args, label }) {
+  if (typeof input.isRunCanceled === "function" && input.isRunCanceled(input.run.id)) {
+    await cancelPipeline(input);
+    throw createRunCanceledError();
+  }
+
   await input.appendRunEvent(input.runDirectory, {
     type: "message",
     data: { role: "assistant", text: `Step ${stepIndex + 1}: ${label}` },
@@ -1464,19 +1493,38 @@ async function runPipelineStep(input, { stepIndex, commandPath, args, label }) {
     toolkitPath: input.toolkitPath,
   });
 
+  if (result?.status === "canceled" || (typeof input.isRunCanceled === "function" && input.isRunCanceled(input.run.id))) {
+    await cancelPipeline(input);
+    throw createRunCanceledError();
+  }
+
   return result;
 }
 
+async function cancelPipeline(input) {
+  await writeWorkflowState(input.runDirectory, {
+    ...input.workflowState,
+    phase: "canceled",
+    canceledAt: new Date().toISOString(),
+  });
+  return input.recordRunCanceled({
+    run: input.run,
+    runDirectory: input.runDirectory,
+  });
+}
+
 async function failPipeline(input, { message, completedAt }) {
+  const nextRun = {
+    ...input.run,
+    completedAt,
+    status: "failed",
+  };
   await input.appendRunEvent(input.runDirectory, {
     type: "run.failed",
     data: { message },
   });
-  await input.writeRun(input.runDirectory, {
-    ...input.run,
-    completedAt,
-    status: "failed",
-  });
+  await input.writeRun(input.runDirectory, nextRun);
+  return nextRun;
 }
 
 async function completePipeline(input, { artifacts, completedAt }) {
@@ -1497,13 +1545,15 @@ async function completePipeline(input, { artifacts, completedAt }) {
     type: "run.completed",
     data: { artifactCount, exitCode: 0 },
   });
-  await input.writeRun(input.runDirectory, {
+  const nextRun = {
     ...input.run,
     artifacts,
     artifactCount,
     completedAt,
     status: "completed",
-  });
+  };
+  await input.writeRun(input.runDirectory, nextRun);
+  return nextRun;
 }
 
 // ─── Pipeline: evidence-to-gap ───────────────────────────────────────────────
@@ -1512,6 +1562,11 @@ async function startEvidenceToGapPipeline(input) {
   await input.appendRunEvent(input.runDirectory, {
     type: "run.started",
     data: { commandPreview: input.run.commandPreview },
+  });
+  await writeWorkflowState(input.runDirectory, {
+    handlerId: input.definition.handlerId,
+    type: input.execution.workflowType,
+    phase: "awaiting_input",
   });
   await input.appendRunEvent(input.runDirectory, {
     type: "prompt.required",
@@ -1553,11 +1608,6 @@ async function startEvidenceToGapPipeline(input) {
         },
       ],
     },
-  });
-  await writeWorkflowState(input.runDirectory, {
-    handlerId: input.definition.handlerId,
-    type: input.execution.workflowType,
-    phase: "awaiting_input",
   });
 }
 
@@ -1623,6 +1673,11 @@ async function startIacCompliancePipeline(input) {
     type: "run.started",
     data: { commandPreview: input.run.commandPreview },
   });
+  await writeWorkflowState(input.runDirectory, {
+    handlerId: input.definition.handlerId,
+    type: input.execution.workflowType,
+    phase: "awaiting_input",
+  });
   await input.appendRunEvent(input.runDirectory, {
     type: "prompt.required",
     data: {
@@ -1642,11 +1697,6 @@ async function startIacCompliancePipeline(input) {
         },
       ],
     },
-  });
-  await writeWorkflowState(input.runDirectory, {
-    handlerId: input.definition.handlerId,
-    type: input.execution.workflowType,
-    phase: "awaiting_input",
   });
 }
 
@@ -1712,6 +1762,11 @@ async function startMultiCloudCollectPipeline(input) {
     type: "run.started",
     data: { commandPreview: input.run.commandPreview },
   });
+  await writeWorkflowState(input.runDirectory, {
+    handlerId: input.definition.handlerId,
+    type: input.execution.workflowType,
+    phase: "awaiting_input",
+  });
   await input.appendRunEvent(input.runDirectory, {
     type: "prompt.required",
     data: {
@@ -1731,11 +1786,6 @@ async function startMultiCloudCollectPipeline(input) {
         },
       ],
     },
-  });
-  await writeWorkflowState(input.runDirectory, {
-    handlerId: input.definition.handlerId,
-    type: input.execution.workflowType,
-    phase: "awaiting_input",
   });
 }
 
@@ -1817,6 +1867,11 @@ async function startFedRampPackagePipeline(input) {
     type: "run.started",
     data: { commandPreview: input.run.commandPreview },
   });
+  await writeWorkflowState(input.runDirectory, {
+    handlerId: input.definition.handlerId,
+    type: input.execution.workflowType,
+    phase: "awaiting_input",
+  });
   await input.appendRunEvent(input.runDirectory, {
     type: "prompt.required",
     data: {
@@ -1840,11 +1895,6 @@ async function startFedRampPackagePipeline(input) {
         },
       ],
     },
-  });
-  await writeWorkflowState(input.runDirectory, {
-    handlerId: input.definition.handlerId,
-    type: input.execution.workflowType,
-    phase: "awaiting_input",
   });
 }
 
@@ -1930,6 +1980,11 @@ async function startNewFrameworkOnboardPipeline(input) {
     type: "run.started",
     data: { commandPreview: input.run.commandPreview },
   });
+  await writeWorkflowState(input.runDirectory, {
+    handlerId: input.definition.handlerId,
+    type: input.execution.workflowType,
+    phase: "awaiting_input",
+  });
   await input.appendRunEvent(input.runDirectory, {
     type: "prompt.required",
     data: {
@@ -1949,11 +2004,6 @@ async function startNewFrameworkOnboardPipeline(input) {
         },
       ],
     },
-  });
-  await writeWorkflowState(input.runDirectory, {
-    handlerId: input.definition.handlerId,
-    type: input.execution.workflowType,
-    phase: "awaiting_input",
   });
 }
 
@@ -2052,6 +2102,11 @@ async function startControlTestAndReportPipeline(input) {
     type: "run.started",
     data: { commandPreview: input.run.commandPreview },
   });
+  await writeWorkflowState(input.runDirectory, {
+    handlerId: input.definition.handlerId,
+    type: input.execution.workflowType,
+    phase: "awaiting_input",
+  });
   await input.appendRunEvent(input.runDirectory, {
     type: "prompt.required",
     data: {
@@ -2077,11 +2132,6 @@ async function startControlTestAndReportPipeline(input) {
         },
       ],
     },
-  });
-  await writeWorkflowState(input.runDirectory, {
-    handlerId: input.definition.handlerId,
-    type: input.execution.workflowType,
-    phase: "awaiting_input",
   });
 }
 
@@ -2173,6 +2223,11 @@ async function startTprmAssessmentPipeline(input) {
     type: "run.started",
     data: { commandPreview: input.run.commandPreview },
   });
+  await writeWorkflowState(input.runDirectory, {
+    handlerId: input.definition.handlerId,
+    type: input.execution.workflowType,
+    phase: "awaiting_input",
+  });
   await input.appendRunEvent(input.runDirectory, {
     type: "prompt.required",
     data: {
@@ -2192,11 +2247,6 @@ async function startTprmAssessmentPipeline(input) {
         },
       ],
     },
-  });
-  await writeWorkflowState(input.runDirectory, {
-    handlerId: input.definition.handlerId,
-    type: input.execution.workflowType,
-    phase: "awaiting_input",
   });
 }
 
@@ -2287,6 +2337,11 @@ async function startIncidentResponsePipeline(input) {
     type: "run.started",
     data: { commandPreview: input.run.commandPreview },
   });
+  await writeWorkflowState(input.runDirectory, {
+    handlerId: input.definition.handlerId,
+    type: input.execution.workflowType,
+    phase: "awaiting_input",
+  });
   await input.appendRunEvent(input.runDirectory, {
     type: "prompt.required",
     data: {
@@ -2310,11 +2365,6 @@ async function startIncidentResponsePipeline(input) {
         },
       ],
     },
-  });
-  await writeWorkflowState(input.runDirectory, {
-    handlerId: input.definition.handlerId,
-    type: input.execution.workflowType,
-    phase: "awaiting_input",
   });
 }
 
@@ -2402,6 +2452,11 @@ async function startAuditPrepPipeline(input) {
     type: "run.started",
     data: { commandPreview: input.run.commandPreview },
   });
+  await writeWorkflowState(input.runDirectory, {
+    handlerId: input.definition.handlerId,
+    type: input.execution.workflowType,
+    phase: "awaiting_input",
+  });
   await input.appendRunEvent(input.runDirectory, {
     type: "prompt.required",
     data: {
@@ -2421,11 +2476,6 @@ async function startAuditPrepPipeline(input) {
         },
       ],
     },
-  });
-  await writeWorkflowState(input.runDirectory, {
-    handlerId: input.definition.handlerId,
-    type: input.execution.workflowType,
-    phase: "awaiting_input",
   });
 }
 

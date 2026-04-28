@@ -9,6 +9,7 @@ import {
   LightningIcon,
   PipeIcon,
   SidebarSimpleIcon,
+  WarningCircleIcon,
   XIcon,
 } from "@phosphor-icons/react";
 
@@ -100,6 +101,13 @@ function getRunStatusTag(runStatus: RunnerRun["status"]) {
     return {
       label: "Failed",
       tone: "bg-rose-500/10 text-rose-400",
+    };
+  }
+
+  if (runStatus === "canceled") {
+    return {
+      label: "Canceled",
+      tone: "bg-slate-500/10 text-slate-400",
     };
   }
 
@@ -566,6 +574,7 @@ export function ChatSurface({
   onClearRunner,
   onClearSelectedCommand,
   onCommandFormChange,
+  onCancelRun,
   onOpenArtifact,
   onSelectCommand,
   onOpenHistory,
@@ -590,6 +599,7 @@ export function ChatSurface({
   onClearRunner: () => void;
   onClearSelectedCommand: () => void;
   onCommandFormChange: (values: CommandFormValues) => void;
+  onCancelRun: () => void;
   onOpenArtifact: (artifactId: string) => void;
   onSelectCommand: (path: string) => void;
   onOpenHistory: () => void;
@@ -794,6 +804,14 @@ export function ChatSurface({
           })() : null}
         </div>
         <div className="pointer-events-auto flex shrink-0 items-center gap-2">
+          <button
+            onClick={onCancelRun}
+            disabled={!run || (run.status !== "running" && run.status !== "pending")}
+            className="group flex h-8 items-center gap-2 border border-border/70 bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:text-muted-foreground/60"
+          >
+            <WarningCircleIcon className="size-3.5 text-muted-foreground transition-colors group-hover:text-foreground group-disabled:text-muted-foreground/60" />
+            Cancel
+          </button>
           <button
             onClick={onEditAndRerun}
             disabled={!run || !(run.prompt ?? run.commandPreview ?? run.commandPath)}
