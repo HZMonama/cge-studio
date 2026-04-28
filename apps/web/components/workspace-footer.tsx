@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { motion } from "motion/react"
 import {
   BroadcastIcon,
   CaretUpDownIcon,
@@ -19,6 +20,41 @@ import {
   PopoverPositioner,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import type { ElementType } from "react"
+
+interface FooterActionButtonProps {
+  onClick: () => void
+  disabled?: boolean
+  icon: ElementType
+  label: string
+}
+
+function FooterActionButton({ onClick, disabled, icon: Icon, label }: FooterActionButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        "group relative flex h-[4vh] min-w-0 shrink-0 items-center gap-1.5 rounded-none px-3 text-xs font-medium leading-none transition-colors",
+        disabled
+          ? "cursor-not-allowed text-muted-foreground/40"
+          : "bg-transparent text-muted-foreground hover:bg-background/52 hover:text-foreground"
+      )}
+    >
+      <span className="relative flex size-3.5 shrink-0 items-center justify-center">
+        <Icon
+          className={cn("size-3.5 transition-opacity", !disabled && "group-hover:opacity-0")}
+          weight="regular"
+        />
+        <Icon
+          className={cn("absolute inset-0 size-3.5 opacity-0 transition-opacity", !disabled && "group-hover:opacity-100")}
+          weight="fill"
+        />
+      </span>
+      {label && <span className="relative truncate leading-none">{label}</span>}
+    </button>
+  )
+}
 
 interface WorkspaceLike {
   id: string
@@ -71,15 +107,15 @@ export function WorkspaceFooter({
         <div className="flex items-center gap-1">
           <div className="flex h-[4vh] items-center gap-1.5 px-2.5 text-xs text-muted-foreground/40">
             <NotePencilIcon className="size-3.5" />
-            Rename workspace
+            Rename Workspace
           </div>
           <div className="flex h-[4vh] items-center gap-1.5 px-2.5 text-xs text-muted-foreground/40">
             <DownloadSimpleIcon className="size-3.5" />
-            Export workspace
+            Export Workspace
           </div>
           <div className="flex h-[4vh] items-center gap-1.5 px-2.5 text-xs text-muted-foreground/40">
             <TrashIcon className="size-3.5" />
-            Delete workspace
+            Delete Workspace
           </div>
           <div className="flex h-[4vh] items-center gap-1.5 rounded border border-transparent px-2.5 text-xs text-muted-foreground">
             <FolderSimplePlusIcon className="size-3.5" />
@@ -93,21 +129,12 @@ export function WorkspaceFooter({
   return (
     <footer className="flex h-(--row-h) shrink-0 items-center justify-between border-t border-border/70 bg-background/90 px-2">
       <div className="flex h-full min-w-0 items-center pr-2">
-        <button
+        <FooterActionButton
           onClick={onRefreshWorkspace}
           disabled={!activeWorkspace || refreshPending}
-          className="group mr-1 flex size-8 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-          aria-label="Refresh workspace"
-          title="Refresh workspace"
-        >
-          <span className={cn("relative flex size-3.5 items-center justify-center", refreshPending && "animate-spin")}>
-            <BroadcastIcon className="size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0" />
-            <BroadcastIcon
-              weight="fill"
-              className="absolute inset-0 size-3.5 opacity-0 transition-opacity group-hover:opacity-100 group-active:opacity-100"
-            />
-          </span>
-        </button>
+          icon={BroadcastIcon}
+          label=""
+        />
         <div className="flex h-full min-w-0 items-center border-r border-border/70 pr-2">
           <Popover open={selectorPopoverOpen} onOpenChange={setSelectorPopoverOpen}>
             <PopoverTrigger
@@ -181,62 +208,30 @@ export function WorkspaceFooter({
         </div>
       </div>
 
-      <div className="flex items-center gap-1">
-        <button
+      <div className="flex items-center gap-1.5 px-2">
+        <FooterActionButton
           onClick={onRenameWorkspace}
           disabled={!activeWorkspace}
-          className="group flex h-[4vh] items-center gap-1.5 rounded-none border border-transparent px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border/45 hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-        >
-          <span className="relative flex size-3.5 items-center justify-center">
-            <NotePencilIcon className="size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0" />
-            <NotePencilIcon
-              weight="fill"
-              className="absolute inset-0 size-3.5 opacity-0 transition-opacity group-hover:opacity-100 group-active:opacity-100"
-            />
-          </span>
-          Rename workspace
-        </button>
-        <button
+          icon={NotePencilIcon}
+          label="Rename Workspace"
+        />
+        <FooterActionButton
           onClick={onExportWorkspace}
           disabled={true}
-          className="group flex h-[4vh] items-center gap-1.5 rounded-none border border-transparent px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border/45 hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-        >
-          <span className="relative flex size-3.5 items-center justify-center">
-            <DownloadSimpleIcon className="size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0" />
-            <DownloadSimpleIcon
-              weight="fill"
-              className="absolute inset-0 size-3.5 opacity-0 transition-opacity group-hover:opacity-100 group-active:opacity-100"
-            />
-          </span>
-          Export workspace
-        </button>
-        <button
+          icon={DownloadSimpleIcon}
+          label="Export Workspace"
+        />
+        <FooterActionButton
           onClick={() => activeWorkspace && onCloseWorkspace(activeWorkspace.id)}
           disabled={!activeWorkspace}
-          className="group flex h-[4vh] items-center gap-1.5 rounded-none border border-transparent px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border/45 hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-        >
-          <span className="relative flex size-3.5 items-center justify-center">
-            <TrashIcon className="size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0" />
-            <TrashIcon
-              weight="fill"
-              className="absolute inset-0 size-3.5 opacity-0 transition-opacity group-hover:opacity-100 group-active:opacity-100"
-            />
-          </span>
-          Delete workspace
-        </button>
-        <button
+          icon={TrashIcon}
+          label="Delete Workspace"
+        />
+        <FooterActionButton
           onClick={onAddWorkspace}
-          className="group flex h-[4vh] items-center gap-1.5 rounded border border-transparent px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border/45 hover:bg-accent hover:text-foreground"
-        >
-          <span className="relative flex size-3.5 items-center justify-center">
-            <FolderSimplePlusIcon className="size-3.5 transition-opacity group-hover:opacity-0 group-active:opacity-0" />
-            <FolderSimplePlusIcon
-              weight="fill"
-              className="absolute inset-0 size-3.5 opacity-0 transition-opacity group-hover:opacity-100 group-active:opacity-100"
-            />
-          </span>
-          Add workspace
-        </button>
+          icon={FolderSimplePlusIcon}
+          label="Add Workspace"
+        />
       </div>
     </footer>
   )

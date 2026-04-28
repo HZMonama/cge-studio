@@ -12,6 +12,7 @@ import {
   createWorkflowRuntime,
   resolveWorkflowExecution,
 } from "./workflow-runner.js";
+import { discoverCommandsWithSchemas } from "./schema-reader.js";
 import {
   ensureWorkspaceSystem,
   exportWorkspaceSummary,
@@ -37,15 +38,19 @@ const repoRoot = path.resolve(runnerRoot, "..", "..");
 const embeddedToolkitPath = path.join(
   repoRoot,
   "cli",
-  "claude-grc-engineering",
+  "cool-grc-engineering",
 );
 const allPersonas = ["engineer", "auditor", "internal", "tprm"];
 
 const knownConnectors = [
-  { id: "github-inspector", label: "GitHub Inspector" },
   { id: "aws-inspector", label: "AWS Inspector" },
   { id: "gcp-inspector", label: "GCP Inspector" },
+  { id: "github-inspector", label: "GitHub Inspector" },
+  { id: "nessus", label: "Nessus", configFile: "poam-automation.yaml", cacheDir: "poam-automation" },
   { id: "okta-inspector", label: "Okta Inspector" },
+  { id: "qualys", label: "Qualys", configFile: "poam-automation.yaml", cacheDir: "poam-automation" },
+  { id: "tenable", label: "Tenable.io", configFile: "poam-automation.yaml", cacheDir: "poam-automation" },
+  { id: "wiz", label: "Wiz", configFile: "poam-automation.yaml", cacheDir: "poam-automation" },
 ];
 
 const frameworkCatalog = [
@@ -306,13 +311,14 @@ app.patch("/config", async (c) => {
 app.get("/registry/plugins", async (c) => {
   const { toolkitPath, toolkitAvailable } = await getRunnerContext();
   const plugins = toolkitAvailable
-    ? await discoverPlugins(toolkitPath)
+    ? await discoverCommandsWithSchemas(toolkitPath)
     : [];
 
   return c.json({
     plugins,
     source: toolkitAvailable ? "toolkit" : "unconfigured",
     toolkitPath,
+    format: "v2",
   });
 });
 
@@ -418,6 +424,11 @@ app.post("/workspaces/:workspaceId/refresh", async (c) => {
   }
 
   const refreshed = await refreshWorkspace(roots, workspaceId);
+  if (refreshed) {
+    await materializeWorkspaceMetrics(refreshed, {
+      sourceRef: "workspace-refresh",
+    });
+  }
   return c.json(refreshed);
 });
 
@@ -632,6 +643,54 @@ app.get("/workspaces/:workspaceId/program", async (c) => {
   return c.json(await readWorkspaceProgram(workspace));
 });
 
+app.get("/workspaces/:workspaceId/metrics", async (c) => {
+  const workspaceId = decodeURIComponent(c.req.param("workspaceId"));
+  const workspace = await readWorkspace(roots, workspaceId);
+
+  if (!workspace) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  return c.json(await readWorkspaceMetrics(workspace));
+});
+
+app.post("/workspaces/:workspaceId/metrics/materialize", async (c) => {
+  const workspaceId = decodeURIComponent(c.req.param("workspaceId"));
+  const workspace = await readWorkspace(roots, workspaceId);
+
+  if (!workspace) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  await materializeWorkspaceMetrics(workspace, {
+    sourceRef: "manual",
+  });
+
+  return c.json(await readWorkspaceMetrics(workspace));
+});
+
+app.get("/workspaces/:workspaceId/metrics/snapshots/:snapshotId", async (c) => {
+  const workspaceId = decodeURIComponent(c.req.param("workspaceId"));
+  const workspace = await readWorkspace(roots, workspaceId);
+
+  if (!workspace) {
+    return c.json({ error: "workspace_not_found" }, 404);
+  }
+
+  const snapshotId = decodeURIComponent(c.req.param("snapshotId"));
+  const snapshots = await readMetricSnapshots(workspace);
+  const snapshot = snapshots.find((item) => item.snapshot_id === snapshotId);
+
+  if (!snapshot) {
+    return c.json({ error: "not_found" }, 404);
+  }
+
+  return c.json({
+    ...snapshot,
+    metric_count: snapshot.metrics.length,
+  });
+});
+
 app.get("/runs", async (c) => {
   const workspace = await resolveWorkspaceFromRequest(
     roots,
@@ -812,6 +871,88 @@ app.onError((error, c) => {
   return c.json({ error: message }, 500);
 });
 
+// ============================================================================
+// File System API for Path Picker
+// ============================================================================
+
+function isPathAllowed(targetPath) {
+  // Only allow paths under home directory or workspace folders
+  const home = os.homedir();
+  const allowedPrefixes = [
+    home,
+    roots.appDataRoot,
+    roots.configRoot,
+    roots.cacheRoot,
+  ];
+  return allowedPrefixes.some((prefix) => targetPath.startsWith(prefix));
+}
+
+function sanitizePath(inputPath) {
+  // Resolve and normalize the path
+  const resolved = path.resolve(inputPath);
+  // Prevent path traversal outside allowed directories
+  if (!isPathAllowed(resolved)) {
+    return null;
+  }
+  return resolved;
+}
+
+app.get("/fs/home", async (c) => {
+  return c.json({ path: os.homedir() });
+});
+
+app.get("/fs/ls", async (c) => {
+  const rawPath = c.req.query("path") || os.homedir();
+  const showHidden = c.req.query("showHidden") === "true";
+
+  const targetPath = sanitizePath(rawPath);
+  if (!targetPath) {
+    return c.json({ error: "path_not_allowed" }, 403);
+  }
+
+  try {
+    const entries = await fs.readdir(targetPath, { withFileTypes: true });
+    const result = entries
+      .filter((entry) => showHidden || !entry.name.startsWith("."))
+      .map((entry) => ({
+        name: entry.name,
+        type: entry.isDirectory() ? "directory" : "file",
+        size: entry.isFile() ? null : null, // Size would require async stat
+      }))
+      .sort((a, b) => {
+        // Directories first, then alphabetical
+        if (a.type === b.type) return a.name.localeCompare(b.name);
+        return a.type === "directory" ? -1 : 1;
+      });
+
+    return c.json({ path: targetPath, entries: result });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+    return c.json({ error: message }, 500);
+  }
+});
+
+app.post("/fs/mkdir", async (c) => {
+  const body = await readBody(c);
+  const rawPath = body.path;
+
+  if (!rawPath || typeof rawPath !== "string") {
+    return c.json({ error: "path_required" }, 400);
+  }
+
+  const targetPath = sanitizePath(rawPath);
+  if (!targetPath) {
+    return c.json({ error: "path_not_allowed" }, 403);
+  }
+
+  try {
+    await fs.mkdir(targetPath, { recursive: true });
+    return c.json({ success: true, path: targetPath });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+    return c.json({ error: message }, 500);
+  }
+});
 
 function getClaudeSettingsPath() {
   return path.join(os.homedir(), ".claude", "settings.json");
@@ -1400,9 +1541,9 @@ async function readConnectorSummaries() {
       const configPath = path.join(
         roots.configRoot,
         "connectors",
-        `${connector.id}.yaml`,
+        connector.configFile ?? `${connector.id}.yaml`,
       );
-      const cachePath = path.join(roots.cacheRoot, "findings", connector.id);
+      const cachePath = path.join(roots.cacheRoot, "findings", connector.cacheDir ?? connector.id);
 
       return {
         id: connector.id,
@@ -1980,7 +2121,15 @@ async function executeCommandRun(input) {
 }
 
 async function executeWorkflowRun(input) {
-  return workflowRuntime.executeWorkflowRun(input);
+  const result = await workflowRuntime.executeWorkflowRun(input);
+  const nextRun = await readRun(input.workspace, input.run.id);
+  if (nextRun?.status === "completed") {
+    await materializeWorkspaceMetrics(input.workspace, {
+      runId: input.run.id,
+      sourceRef: input.run.commandPath,
+    });
+  }
+  return result;
 }
 
 async function executeStep({ commandPath, args, stepIndex, runId, runDirectory, workspace, toolkitPath }) {
@@ -2356,6 +2505,10 @@ async function finalizeCommandRun(input) {
         exitCode: input.exitCode,
       },
     });
+    await materializeWorkspaceMetrics(input.workspace, {
+      runId: input.run.id,
+      sourceRef: input.run.commandPath,
+    });
   } else {
     await appendRunEvent(input.runDirectory, {
       type: "run.failed",
@@ -2528,6 +2681,11 @@ async function executeAgentRun(input) {
           data: { artifactCount: artifacts.length, exitCode: 0 },
         });
 
+        await materializeWorkspaceMetrics(workspace, {
+          runId: run.id,
+          sourceRef: run.commandPath,
+        });
+
         await writeRun(runDirectory, nextRun);
       } else {
         const message =
@@ -2647,6 +2805,11 @@ async function executeAgentRun(input) {
         await appendRunEvent(runDirectory, {
           type: "run.completed",
           data: { artifactCount: artifacts.length, exitCode: 0 },
+        });
+
+        await materializeWorkspaceMetrics(workspace, {
+          runId: run.id,
+          sourceRef: run.commandPath,
         });
 
         await writeRun(runDirectory, nextRun);
@@ -3197,7 +3360,7 @@ function humanizeArtifactTitle(filePath) {
   return humanizeId(path.basename(filePath, path.extname(filePath)));
 }
 
-const PROGRAM_ENTITY_KINDS = ["risks", "metrics", "exceptions", "vendors", "policies"];
+const PROGRAM_ENTITY_KINDS = ["risks", "metrics", "exceptions", "vendors", "policies", "controls"];
 
 const PROGRAM_KIND_LABELS = {
   risks: "Risk Record",
@@ -3205,6 +3368,7 @@ const PROGRAM_KIND_LABELS = {
   exceptions: "Exception Record",
   vendors: "Vendor Record",
   policies: "Policy Record",
+  controls: "Control Record",
 };
 
 async function collectProgramDataArtifacts(input) {
@@ -3520,6 +3684,276 @@ function normalizeGapAssessmentDoc(doc, filePath) {
   return findings;
 }
 
+const METRIC_SCHEMA_VERSION = "1";
+
+async function readWorkspaceMetrics(workspace) {
+  const [commandMetrics, snapshots] = await Promise.all([
+    readCommandMetricRecords(workspace),
+    readMetricSnapshots(workspace),
+  ]);
+  const latestSnapshot = snapshots[0] ?? null;
+  const workspaceMetrics = latestSnapshot?.metrics ?? [];
+
+  return {
+    current: resolveCurrentMetricRecords(workspaceMetrics, commandMetrics),
+    snapshots: snapshots.map((snapshot) => ({
+      snapshot_id: snapshot.snapshot_id,
+      recorded_at: snapshot.recorded_at,
+      metric_count: snapshot.metrics.length,
+    })),
+  };
+}
+
+async function materializeWorkspaceMetrics(workspace, options = {}) {
+  const recordedAt = new Date().toISOString();
+  const metrics = await deriveWorkspaceMetricRecords(workspace, {
+    recordedAt,
+    sourceRef: options.sourceRef,
+    runId: options.runId,
+  });
+  const snapshotId = toSnapshotId(recordedAt);
+  const snapshot = {
+    schema_version: METRIC_SCHEMA_VERSION,
+    snapshot_id: snapshotId,
+    workspace_id: workspace.id,
+    recorded_at: recordedAt,
+    metrics,
+  };
+
+  const snapshotsDir = workspace.folders.programMetricSnapshots;
+  await fs.mkdir(snapshotsDir, { recursive: true });
+  await fs.writeFile(
+    path.join(snapshotsDir, `${snapshotId}.json`),
+    JSON.stringify(snapshot, null, 2),
+    "utf8",
+  );
+
+  return snapshot;
+}
+
+async function deriveWorkspaceMetricRecords(workspace, options) {
+  const [program, findings, connectors] = await Promise.all([
+    readWorkspaceProgram(workspace),
+    readWorkspaceFindings(workspace),
+    readConnectorSummaries(),
+  ]);
+
+  const risks = program.risks ?? [];
+  const controls = program.controls ?? [];
+  const policies = program.policies ?? [];
+  const configuredConnectors = connectors.filter((connector) => connector.configured).length;
+  const cachedFindings = connectors.reduce((sum, connector) => sum + connector.findingsCached, 0);
+  const implementedControls = controls.filter((control) =>
+    ["active", "implemented", "passing", "pass", "monitored"].includes(
+      String(control.status ?? "").toLowerCase(),
+    ),
+  ).length;
+  const controlsWithEvidence = controls.filter((control) =>
+    Array.isArray(control.evidence_refs) && control.evidence_refs.length > 0,
+  ).length;
+  const openRisks = risks.filter((risk) => String(risk.status ?? "").toLowerCase() === "open").length;
+  const residualScores = risks
+    .map((risk) => risk.residual?.score ?? risk.inherent?.score)
+    .filter((score) => typeof score === "number" && Number.isFinite(score));
+  const activePolicies = policies.filter((policy) => String(policy.status ?? "").toLowerCase() === "active").length;
+  const severeFindings = findings.filter((finding) =>
+    finding.severity === "critical" || finding.severity === "high",
+  ).length;
+
+  const metrics = [
+    createWorkspaceMetric("connector.configured_count", configuredConnectors, "count", options),
+    createWorkspaceMetric("connector.configured_percent", percentValue(configuredConnectors, connectors.length), "percent", options),
+    createWorkspaceMetric("connector.cached_findings_count", cachedFindings, "count", options),
+    createWorkspaceMetric("findings.open_count", findings.length, "count", options),
+    createWorkspaceMetric("findings.severe_count", severeFindings, "count", options),
+    createWorkspaceMetric("risk.open_count", openRisks, "count", options),
+    createWorkspaceMetric("control.implemented_percent", percentValue(implementedControls, controls.length), "percent", options),
+    createWorkspaceMetric("evidence.coverage", percentValue(controlsWithEvidence, controls.length), "percent", options),
+    createWorkspaceMetric("policy.active_percent", percentValue(activePolicies, policies.length), "percent", options),
+  ];
+
+  if (residualScores.length > 0) {
+    metrics.push(
+      createWorkspaceMetric(
+        "risk.residual_score_avg",
+        averageValue(residualScores),
+        "score",
+        options,
+      ),
+    );
+  }
+
+  return metrics;
+}
+
+function createWorkspaceMetric(metricId, value, unit, options) {
+  return normalizeMetricRecord({
+    schema_version: METRIC_SCHEMA_VERSION,
+    metric_id: metricId,
+    value,
+    unit,
+    source: "workspace",
+    sourceRef: options.sourceRef,
+    runId: options.runId,
+    recorded_at: options.recordedAt,
+  });
+}
+
+async function readCommandMetricRecords(workspace) {
+  const metricsDir = workspace.folders.programMetrics;
+  let entries;
+  try {
+    entries = await fs.readdir(metricsDir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const groups = await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+      .map(async (entry) => {
+        const filePath = path.join(metricsDir, entry.name);
+        try {
+          const [content, stat] = await Promise.all([
+            fs.readFile(filePath, "utf8"),
+            fs.stat(filePath),
+          ]);
+          return extractMetricRecords(JSON.parse(content), {
+            recordedAt: stat.mtime.toISOString(),
+          });
+        } catch {
+          return [];
+        }
+      }),
+  );
+
+  return groups.flat();
+}
+
+async function readMetricSnapshots(workspace) {
+  const snapshotsDir = workspace.folders.programMetricSnapshots;
+  let entries;
+  try {
+    entries = await fs.readdir(snapshotsDir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const snapshots = await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+      .map(async (entry) => {
+        const filePath = path.join(snapshotsDir, entry.name);
+        try {
+          const content = await fs.readFile(filePath, "utf8");
+          const parsed = JSON.parse(content);
+          const recordedAt = parsed.recorded_at ?? parsed.recordedAt ?? "";
+          const metrics = extractMetricRecords(parsed.metrics ?? [], {
+            recordedAt,
+            defaultSource: "workspace",
+          });
+          return {
+            schema_version: parsed.schema_version ?? METRIC_SCHEMA_VERSION,
+            snapshot_id: parsed.snapshot_id ?? path.basename(entry.name, ".json"),
+            workspace_id: parsed.workspace_id ?? workspace.id,
+            recorded_at: recordedAt,
+            metrics,
+          };
+        } catch {
+          return null;
+        }
+      }),
+  );
+
+  return snapshots
+    .filter(Boolean)
+    .sort((left, right) => right.recorded_at.localeCompare(left.recorded_at));
+}
+
+function extractMetricRecords(value, options = {}) {
+  const candidates = Array.isArray(value)
+    ? value
+    : Array.isArray(value?.metrics)
+      ? value.metrics
+      : [value];
+
+  return candidates
+    .map((candidate) =>
+      normalizeMetricRecord(candidate, {
+        recordedAt: options.recordedAt,
+        defaultSource: options.defaultSource ?? "command",
+      }),
+    )
+    .filter(Boolean);
+}
+
+function normalizeMetricRecord(record, options = {}) {
+  if (!record || typeof record !== "object") return null;
+  if (typeof record.metric_id !== "string" || !record.metric_id.trim()) return null;
+  const value = Number(record.value);
+  if (!Number.isFinite(value)) return null;
+
+  const source = record.source === "workspace" || record.source === "command"
+    ? record.source
+    : options.defaultSource ?? "command";
+
+  return {
+    schema_version: String(record.schema_version ?? METRIC_SCHEMA_VERSION),
+    metric_id: record.metric_id.trim(),
+    value,
+    unit: typeof record.unit === "string" ? record.unit : null,
+    subject: typeof record.subject === "string" ? record.subject : null,
+    source,
+    sourceRef: typeof record.sourceRef === "string" ? record.sourceRef : null,
+    runId: typeof record.runId === "string" ? record.runId : null,
+    recorded_at: typeof record.recorded_at === "string"
+      ? record.recorded_at
+      : options.recordedAt ?? new Date().toISOString(),
+    dimensions: record.dimensions && typeof record.dimensions === "object"
+      ? record.dimensions
+      : null,
+    window: typeof record.window === "string" ? record.window : "point-in-time",
+  };
+}
+
+function resolveCurrentMetricRecords(workspaceMetrics, commandMetrics) {
+  const byId = new Map();
+
+  for (const metric of latestMetricsById(commandMetrics)) {
+    byId.set(metric.metric_id, metric);
+  }
+
+  for (const metric of latestMetricsById(workspaceMetrics)) {
+    byId.set(metric.metric_id, metric);
+  }
+
+  return [...byId.values()].sort((left, right) => left.metric_id.localeCompare(right.metric_id));
+}
+
+function latestMetricsById(metrics) {
+  const byId = new Map();
+  for (const metric of metrics) {
+    const current = byId.get(metric.metric_id);
+    if (!current || metric.recorded_at.localeCompare(current.recorded_at) > 0) {
+      byId.set(metric.metric_id, metric);
+    }
+  }
+  return [...byId.values()];
+}
+
+function percentValue(part, total) {
+  if (!total) return 0;
+  return Math.round((part / total) * 100);
+}
+
+function averageValue(values) {
+  return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10;
+}
+
+function toSnapshotId(value) {
+  return value.replace(/[:.]/g, "-");
+}
+
 async function readWorkspaceProgram(workspace) {
   const dirs = {
     risks: workspace.folders.programRisks,
@@ -3527,6 +3961,7 @@ async function readWorkspaceProgram(workspace) {
     exceptions: workspace.folders.programExceptions,
     vendors: workspace.folders.programVendors,
     policies: workspace.folders.programPolicies,
+    controls: workspace.folders.programControls,
   };
 
   const entityGroups = await Promise.all(
@@ -3615,5 +4050,3 @@ function deriveFindingTitle(message, resourceId, controlId) {
 
   return resourceId ?? controlId ?? "Finding";
 }
-
-

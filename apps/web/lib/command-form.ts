@@ -5,6 +5,7 @@ import {
   type CommandFormReadinessCondition,
   type CommandFormReadinessRule,
   type CommandFormSchema,
+  getCommandForm,
 } from "@/lib/plugins";
 
 export type CommandFormValue =
@@ -24,12 +25,19 @@ export interface BuildPromptOptions {
 export function createInitialFormValues(
   command: Command | null | undefined,
 ): CommandFormValues {
-  if (!command?.form?.fields?.length) {
+  if (!command) {
+    return {};
+  }
+  
+  // Phase 3: Use getCommandForm helper to work with both v1 and v2 formats
+  const form = getCommandForm(command);
+  
+  if (!form?.fields?.length) {
     return {};
   }
 
   return Object.fromEntries(
-    command.form.fields.map((field) => [
+    form.fields.map((field) => [
       field.name,
       getDefaultFieldValue(field),
     ]),
@@ -112,6 +120,7 @@ export function parsePromptToCommandFormValues(
     return null;
   }
 
+  // Phase 3: Use schema parameter directly (already converted by caller if needed)
   if (!schema?.fields?.length) {
     return {};
   }

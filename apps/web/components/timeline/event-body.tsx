@@ -1,9 +1,21 @@
 "use client";
 
 import { FileTextIcon } from "@phosphor-icons/react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { type RunnerRunEvent } from "@/lib/runner";
 import { coerceString } from "./utils";
 import { PromptForm } from "./prompt-form";
+
+function MarkdownContent({ content }: { content: string }) {
+  return (
+    <div className="prose">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
+}
 
 export function EventBody({
   event,
@@ -79,14 +91,15 @@ export function EventBody({
   }
 
   if (event.type === "message") {
+    const text = coerceString(event.data.text);
     return (
       <div>
         <p className="text-sm font-medium text-foreground">
           {coerceString(event.data.role) === "user" ? "Input captured" : "Runner message"}
         </p>
-        <pre className="mt-2 whitespace-pre-wrap wrap-break-word text-sm leading-6 text-muted-foreground">
-          {coerceString(event.data.text)}
-        </pre>
+        <div className="mt-2 text-sm leading-6 text-muted-foreground">
+          <MarkdownContent content={text} />
+        </div>
       </div>
     );
   }

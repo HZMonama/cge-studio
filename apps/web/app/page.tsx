@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState, useRef } from "react";
+import { motion } from "motion/react";
 import {
-  ChartBarIcon,
   FilesIcon,
   FolderNotchOpenIcon,
+  ChartBarIcon,
   LightningIcon,
   MagnifyingGlassIcon,
 } from "@phosphor-icons/react";
@@ -13,12 +14,14 @@ import { AppSidebar } from "@/components/app-sidebar";
 import {
   AppShellHeader,
   type AppHeaderSection,
-  type SyncStatus,
 } from "@/components/app-shell-header";
 import { ArtifactsSurface } from "@/components/artifacts-surface";
 import { ChatSurface } from "@/components/chat-surface";
 import { FindingsSurface } from "@/components/findings-surface";
+import { MetricsSurface } from "@/components/metrics-surface";
+import { MetricSnapshotsPanel } from "@/components/metric-snapshots-panel";
 import { ProgramSurface } from "@/components/program-surface";
+import { type ProgramTab } from "@/components/program-tabs";
 import { ConfigPanel } from "@/components/config-panel";
 import { PluginPanel } from "@/components/plugin-panel";
 import { RunnerHistoryPanel } from "@/components/runner-history-panel";
@@ -39,7 +42,7 @@ import {
   parsePromptToCommandFormValues,
   type CommandFormValues,
 } from "@/lib/command-form";
-import { FALLBACK_PLUGINS, type Command, type Plugin } from "@/lib/plugins";
+import { FALLBACK_PLUGINS, getCommandForm, type Command, type Plugin } from "@/lib/plugins";
 import {
   fetchConnectors,
   createRun,
@@ -51,6 +54,8 @@ import {
   fetchClaudeCodeStatus,
   fetchFindingDetail,
   fetchFindings,
+  fetchMetricSnapshot,
+  fetchMetrics,
   fetchProgram,
   fetchRunnerConfig,
   fetchPluginRegistry,
@@ -70,6 +75,8 @@ import {
   type RunnerArtifactSummary,
   type RunnerFindingDetail,
   type RunnerFindingSummary,
+  type RunnerMetricsResponse,
+  type RunnerMetricSnapshot,
   type RunnerHealthSnapshot,
   type RunnerRun,
   type RunnerRunEvent,
@@ -78,7 +85,7 @@ import {
 } from "@/lib/runner";
 import { usePluginPanel } from "@/stores/plugin-panel-store";
 
-type AppSection = "chat" | "dashboards" | "findings" | "program" | "artifacts";
+type AppSection = "runner" | "findings" | "program" | "metrics" | "artifacts";
 type AppModalState =
   | { type: "closed" }
   | {
@@ -106,10 +113,10 @@ type AppModalState =
     };
 
 const HEADER_SECTIONS: AppHeaderSection[] = [
-  { id: "chat", label: "Runner", Icon: LightningIcon },
-  { id: "dashboards", label: "Dashboards", Icon: ChartBarIcon, disabled: true },
   { id: "findings", label: "Findings", Icon: MagnifyingGlassIcon },
   { id: "program", label: "Program", Icon: FolderNotchOpenIcon },
+  { id: "runner", label: "Runner", Icon: LightningIcon },
+  { id: "metrics", label: "Metrics", Icon: ChartBarIcon },
   { id: "artifacts", label: "Artifacts", Icon: FilesIcon },
 ];
 
@@ -118,12 +125,12 @@ const ACTIVE_SECTION_STORAGE_KEY = "cge.active-section";
 const runnerClearedKey = (id: string) => `cge.runner-cleared.${id}`;
 
 export default function Page() {
-  const { openHistory } = usePluginPanel();
+  const { openHistory, openMetricHistory } = usePluginPanel();
   const [workspaces, setWorkspaces] = useState<RunnerWorkspace[]>([]);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(
     null,
   );
-  const [activeSection, setActiveSection] = useState<AppSection>("chat");
+  const [activeSection, setActiveSection] = useState<AppSection>("runner");
   const [plugins, setPlugins] = useState<Plugin[]>(FALLBACK_PLUGINS);
   const [runs, setRuns] = useState<RunnerRun[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -132,6 +139,9 @@ export default function Page() {
   const [runnerSurfaceCleared, setRunnerSurfaceCleared] = useState(false);
   // Ref used to invalidate in-flight run-events fetches when the surface is cleared
   const runEventsFetchIdRef = useRef(0);
+  // Ref to hold the most recently created run so the timeline can render
+  // optimistically before refreshRunnerData catches up.
+  const lastCreatedRunRef = useRef<RunnerRun | null>(null);
   const [artifacts, setArtifacts] = useState<RunnerArtifactSummary[]>([]);
   const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(
     null,
@@ -145,10 +155,18 @@ export default function Page() {
   const [selectedFinding, setSelectedFinding] = useState<RunnerFindingDetail | null>(null);
   const [findingLoading, setFindingLoading] = useState(false);
   const [program, setProgram] = useState<ProgramSummary | null>(null);
+  const [metrics, setMetrics] = useState<RunnerMetricsResponse | null>(null);
+  const [selectedMetricSnapshotId, setSelectedMetricSnapshotId] = useState<string | null>(null);
+  const [selectedMetricSnapshot, setSelectedMetricSnapshot] = useState<RunnerMetricSnapshot | null>(null);
   const [programLoading, setProgramLoading] = useState(false);
+  const [activeProgramTab, setActiveProgramTab] = useState<ProgramTab>(() => {
+    if (typeof window === "undefined") return "risks";
+    const stored = window.localStorage.getItem("cge.program-active-tab");
+    return isProgramTab(stored) ? stored : "risks";
+  });
+  const [selectedProgramItemId, setSelectedProgramItemId] = useState<string | null>(null);
   const [runPending, setRunPending] = useState(false);
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>("fallback");
-  const [syncPending, setSyncPending] = useState(true);
+  const [healthPending, setHealthPending] = useState(true);
   const [composerFocusToken, setComposerFocusToken] = useState(0);
   const [composerPrompt, setComposerPrompt] = useState("");
   const [selectedCommandPath, setSelectedCommandPath] = useState<string | null>(
@@ -158,6 +176,26 @@ export default function Page() {
     {},
   );
   const [sidebarFocusSearchToken, setSidebarFocusSearchToken] = useState(0);
+  const [mounted, setMounted] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("cge.sidebarOpen");
+      return stored ? stored === "true" : false;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Persist sidebar state to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("cge.sidebarOpen", String(sidebarOpen));
+    }
+  }, [sidebarOpen]);
+
   const [workspaceRefreshPending, setWorkspaceRefreshPending] = useState(false);
   const [runnerConfig, setRunnerConfig] = useState<RunnerConfigSnapshot | null>(
     null,
@@ -177,9 +215,19 @@ export default function Page() {
   const selectedRun =
     runnerSurfaceCleared
       ? null
-      : (runs.find((run) => run.id === selectedRunId) ?? null);
+      : (runs.find((run) => run.id === selectedRunId) ??
+         (lastCreatedRunRef.current?.id === selectedRunId ? lastCreatedRunRef.current : null));
   const selectedCommand = selectedCommandPath
     ? findCommandByPath(plugins, selectedCommandPath)
+    : null;
+  const visibleMetrics = selectedMetricSnapshot
+    ? {
+        current: selectedMetricSnapshot.metrics,
+        snapshots: metrics?.snapshots ?? [],
+      }
+    : metrics;
+  const selectedMetricSnapshotSummary = selectedMetricSnapshotId
+    ? metrics?.snapshots.find((snapshot) => snapshot.snapshot_id === selectedMetricSnapshotId) ?? null
     : null;
 
   useEffect(() => {
@@ -210,7 +258,8 @@ export default function Page() {
     }
 
     const storedSection = window.localStorage.getItem(ACTIVE_SECTION_STORAGE_KEY);
-    if (storedSection) {
+    const validSections: AppSection[] = ["runner", "findings", "program", "metrics", "artifacts"];
+    if (storedSection && validSections.includes(storedSection as AppSection)) {
       setActiveSection(storedSection as AppSection);
     }
   }, []);
@@ -224,7 +273,7 @@ export default function Page() {
       preservePending?: boolean;
     } = {}) => {
       if (!preservePending) {
-        setSyncPending(true);
+        setHealthPending(true);
       }
 
       try {
@@ -244,9 +293,6 @@ export default function Page() {
 
         if (registry) {
           setPlugins(registry);
-          setSyncStatus("synced");
-        } else {
-          setSyncStatus(health ? "fallback" : "offline");
         }
 
         setRunnerHealth(health);
@@ -275,7 +321,7 @@ export default function Page() {
         });
       } finally {
         if (!signal?.aborted) {
-          setSyncPending(false);
+          setHealthPending(false);
         }
       }
     },
@@ -325,8 +371,14 @@ export default function Page() {
       setSelectedFindingId(null);
       setSelectedFinding(null);
       setProgram(null);
+      setMetrics(null);
+      setSelectedMetricSnapshotId(null);
+      setSelectedMetricSnapshot(null);
       return;
     }
+
+    setSelectedMetricSnapshotId(null);
+    setSelectedMetricSnapshot(null);
 
     const controller = new AbortController();
 
@@ -340,7 +392,8 @@ export default function Page() {
       fetchArtifacts(activeWorkspaceId, controller.signal),
       fetchFindings(activeWorkspaceId, controller.signal),
       fetchProgram(activeWorkspaceId, controller.signal),
-    ]).then(([nextRuns, nextArtifacts, nextFindings, nextProgram]) => {
+      fetchMetrics(activeWorkspaceId, controller.signal),
+    ]).then(([nextRuns, nextArtifacts, nextFindings, nextProgram, nextMetrics]) => {
       if (controller.signal.aborted) {
         return;
       }
@@ -367,10 +420,34 @@ export default function Page() {
           : (nextFindings[0]?.id ?? null),
       );
       setProgram(nextProgram);
+      setMetrics(nextMetrics);
     });
 
     return () => controller.abort();
   }, [activeWorkspaceId]);
+
+  useEffect(() => {
+    if (!selectedMetricSnapshotId || !metrics) {
+      return;
+    }
+
+    if (!metrics.snapshots.some((snapshot) => snapshot.snapshot_id === selectedMetricSnapshotId)) {
+      setSelectedMetricSnapshotId(null);
+      setSelectedMetricSnapshot(null);
+    }
+  }, [metrics, selectedMetricSnapshotId]);
+
+  useEffect(() => {
+    if (!program) {
+      setSelectedProgramItemId(null);
+      return;
+    }
+
+    const ids = getProgramRecordIds(program, activeProgramTab);
+    setSelectedProgramItemId((current) =>
+      current && ids.includes(current) ? current : (ids[0] ?? null),
+    );
+  }, [activeProgramTab, program]);
 
   useEffect(() => {
     // If there's no active workspace or no selected run, or the surface has been cleared,
@@ -409,7 +486,7 @@ export default function Page() {
   }, [activeWorkspaceId, runnerSurfaceCleared, selectedRunId]);
 
   useEffect(() => {
-    if (!activeWorkspaceId || !runs.some((run) => run.status === "running")) {
+    if (!activeWorkspaceId || !runs.some((run) => run.status === "running" || run.status === "pending")) {
       return;
     }
 
@@ -486,7 +563,7 @@ export default function Page() {
   const visibleArtifact = selectedArtifactId ? selectedArtifact : null;
 
   function insertComposerCommand(path: string) {
-    setActiveSection("chat");
+    setActiveSection("runner");
     setSelectedCommandPath(path);
     const command = findCommandByPath(plugins, path);
     const nextFormValues = createInitialFormValues(command);
@@ -511,7 +588,7 @@ export default function Page() {
       "";
     const commandPath = run.commandPath ?? extractCommandPath(prompt);
 
-    setActiveSection("chat");
+    setActiveSection("runner");
     setRunnerSurfaceCleared(false);
     setSelectedRunId(run.id);
     setComposerFocusToken((prev) => prev + 1);
@@ -566,11 +643,12 @@ export default function Page() {
   function updateSelectedCommandForm(values: CommandFormValues) {
     setCommandFormValues(values);
 
-    if (selectedCommandPath && selectedCommand?.form) {
+    const form = getCommandForm(selectedCommand);
+    if (selectedCommandPath && form) {
       setComposerPrompt(
         buildPromptFromCommandForm(
           selectedCommandPath,
-          selectedCommand.form,
+          form,
           values,
         ),
       );
@@ -663,23 +741,25 @@ export default function Page() {
       setSelectedFindingId(null);
       setSelectedFinding(null);
       setProgram(null);
+      setMetrics(null);
+      setSelectedMetricSnapshotId(null);
+      setSelectedMetricSnapshot(null);
       return;
     }
 
-    const [nextRuns, nextArtifacts, nextFindings, nextProgram, nextConnectors] = await Promise.all([
+    const [nextRuns, nextArtifacts, nextFindings, nextProgram, nextMetrics, nextConnectors] = await Promise.all([
       fetchRuns(workspaceId),
       fetchArtifacts(workspaceId),
       fetchFindings(workspaceId),
       fetchProgram(workspaceId),
+      fetchMetrics(workspaceId),
       fetchConnectors(),
     ]);
 
     const refreshCleared = localStorage.getItem(runnerClearedKey(workspaceId)) === "true";
     setRuns(nextRuns);
     setSelectedRunId((current) =>
-      refreshCleared ? null : current && nextRuns.some((run) => run.id === current)
-        ? current
-        : (nextRuns[0]?.id ?? null),
+      refreshCleared ? null : current ?? nextRuns[0]?.id ?? null,
     );
     setArtifacts(nextArtifacts);
     setSelectedArtifactId((current) =>
@@ -694,16 +774,37 @@ export default function Page() {
         : (nextFindings[0]?.id ?? null),
     );
     setProgram(nextProgram);
+    setMetrics(nextMetrics);
     setConnectors(nextConnectors);
+  }
+
+  async function selectMetricSnapshot(snapshotId: string) {
+    if (!activeWorkspaceId) {
+      return;
+    }
+
+    setActiveSection("metrics");
+    setSelectedMetricSnapshotId(snapshotId);
+
+    const snapshot = await fetchMetricSnapshot(activeWorkspaceId, snapshotId);
+    if (!snapshot) {
+      openAlert("Snapshot unavailable", "The selected metric snapshot could not be loaded.");
+      setSelectedMetricSnapshotId(null);
+      setSelectedMetricSnapshot(null);
+      return;
+    }
+
+    setSelectedMetricSnapshot(snapshot);
   }
 
   async function runComposerCommand() {
     const prompt = composerPrompt.trim();
+    const form = getCommandForm(selectedCommand);
     const redactedPrompt =
-      selectedCommandPath && selectedCommand?.form
+      selectedCommandPath && form
         ? buildPromptFromCommandForm(
             selectedCommandPath,
-            selectedCommand.form,
+            form,
             commandFormValues,
             { redactSecrets: true },
           )
@@ -720,9 +821,17 @@ export default function Page() {
       run = await createRun(activeWorkspaceId, prompt, redactedPrompt);
       setRunnerSurfaceCleared(false);
       localStorage.removeItem(runnerClearedKey(activeWorkspaceId));
+      if (run) {
+        const createdRun = { ...run, artifacts: run.artifacts ?? [] };
+        lastCreatedRunRef.current = createdRun;
+        setRuns((prev) => {
+          if (prev.some((r) => r.id === createdRun.id)) return prev;
+          return [createdRun, ...prev];
+        });
+      }
       setSelectedRunId(run?.id ?? null);
       setSelectedRunEvents([]);
-      setActiveSection("chat");
+      setActiveSection("runner");
       if (run !== null) {
         clearSelectedCommand();
         setComposerPrompt("");
@@ -745,9 +854,17 @@ export default function Page() {
       run = await createRun(activeWorkspaceId, pipelinePath, pipelinePath);
       setRunnerSurfaceCleared(false);
       localStorage.removeItem(runnerClearedKey(activeWorkspaceId));
+      if (run) {
+        const createdRun = { ...run, artifacts: run.artifacts ?? [] };
+        lastCreatedRunRef.current = createdRun;
+        setRuns((prev) => {
+          if (prev.some((r) => r.id === createdRun.id)) return prev;
+          return [createdRun, ...prev];
+        });
+      }
       setSelectedRunId(run?.id ?? null);
       setSelectedRunEvents([]);
-      setActiveSection("chat");
+      setActiveSection("runner");
       await refreshRunnerData(activeWorkspaceId);
     } finally {
       setRunPending(false);
@@ -917,223 +1034,259 @@ export default function Page() {
     }
   }
 
+  const isSidebarVisible =
+    activeSection === "metrics" ? false : activeSection === "runner" ? sidebarOpen : true
+
   return (
-    <div className="flex h-svh overflow-hidden bg-sidebar">
-      <AppSidebar
+    <div className="grid h-screen grid-rows-[auto_1fr_auto] overflow-hidden bg-[var(--editor-bg)]">
+      {/* App Header - Full Width */}
+      <AppShellHeader
         activeSection={activeSection}
-        artifacts={artifacts}
-        findings={findings}
-        focusSearchToken={sidebarFocusSearchToken}
-        onSelectArtifact={(artifactId) => {
-          setActiveSection("artifacts");
-          setSelectedArtifactId(artifactId);
-        }}
-        onSelectFinding={(findingId) => {
-          setActiveSection("findings");
-          setSelectedFindingId(findingId);
-          setSelectedFinding(null);
-        }}
-        plugins={plugins}
-        selectedArtifactId={selectedArtifactId}
-        selectedFindingId={selectedFindingId}
+        onSelectSection={(section) => setActiveSection(section as AppSection)}
+        sections={HEADER_SECTIONS}
       />
-      <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
-        <AppShellHeader
-          activeSection={activeSection}
-          claudeCodeStatus={claudeCodeStatus}
-          health={runnerHealth}
-          onSelectSection={(section) => setActiveSection(section as AppSection)}
-          onRefreshSync={() => {
-            void Promise.all([
-              refreshRunnerConnection(),
-              refreshRunnerData(activeWorkspaceId),
-            ]);
+
+      {/* Main Content Area - Sidebar + Content */}
+      <div className="flex min-h-0 overflow-hidden">
+        <motion.div
+          initial={false}
+          animate={{
+            width: mounted && isSidebarVisible ? "var(--app-sidebar-w)" : 0,
+            opacity: mounted && isSidebarVisible ? 1 : 0,
           }}
-          sections={HEADER_SECTIONS}
-          syncPending={syncPending}
-          syncStatus={syncStatus}
-        />
-
-        {!activeWorkspace ? (
-          <SectionSurface
-            title="Create a workspace"
-            description="Choose a filesystem folder to initialize a .cge workspace before running commands or browsing artifacts."
-          />
-        ) : activeSection === "chat" ? (
-          <ChatSurface
-            commandFormValues={commandFormValues}
-            events={selectedRunEvents}
-            focusToken={composerFocusToken}
-            loadingEvents={runEventsPending}
-            onEditAndRerun={() => editAndRerunRun(selectedRun)}
-            onClearRunner={() => {
-              setRunnerSurfaceCleared(true);
-              setSelectedRunId(null);
-              setSelectedRunEvents([]);
-              setSelectedArtifactId(null);
-              setSelectedArtifact(null);
-              setArtifactLoading(false);
-              setArtifactError(null);
-              clearSelectedCommand();
-              setComposerPrompt("");
-              if (activeWorkspaceId) {
-                localStorage.setItem(runnerClearedKey(activeWorkspaceId), "true");
-              }
-            }}
-            onClearSelectedCommand={clearSelectedCommand}
-            onCommandFormChange={updateSelectedCommandForm}
-            onOpenArtifact={(artifactId) => {
-              setSelectedArtifactId(artifactId);
-              setActiveSection("artifacts");
-            }}
-            onOpenHistory={openHistory}
-            onSubmitPrompt={async (promptId, answers) => {
-              if (!activeWorkspaceId || !selectedRunId) {
-                return;
-              }
-
-              const updated = await respondToRunPrompt(
-                activeWorkspaceId,
-                selectedRunId,
-                promptId,
-                answers,
-              );
-
-              if (!updated) {
-                openAlert(
-                  "Reply failed",
-                  "The workflow input could not be submitted.",
-                );
-                return;
-              }
-
-              await refreshRunnerData(activeWorkspaceId);
-              const nextEvents = await fetchRunEvents(
-                activeWorkspaceId,
-                selectedRunId,
-              );
-              setSelectedRunEvents(nextEvents);
-
-              if (updated.artifacts?.[0]?.id) {
-                setSelectedArtifactId(updated.artifacts[0].id);
-              }
-            }}
-            onRun={runComposerCommand}
-            onRunPipeline={runPipeline}
-            onSelectCommand={insertComposerCommand}
-            plugins={plugins}
-            prompt={composerPrompt}
-            runPending={runPending}
-            run={selectedRun}
-            selectedCommand={selectedCommand}
-            selectedCommandPath={selectedCommandPath}
-            setPrompt={setComposerPrompt}
-          />
-        ) : activeSection === "dashboards" ? (
-          <SectionSurface
-            title="Dashboards"
-            description="Dashboard views will live here once the specialized monitoring surfaces are wired in."
-          />
-        ) : activeSection === "findings" ? (
-          <FindingsSurface
-            finding={selectedFindingId ? selectedFinding : null}
-            loading={findingLoading && selectedFindingId !== null}
-          />
-        ) : activeSection === "program" ? (
-          <ProgramSurface
-            program={program}
-            loading={programLoading}
-          />
-        ) : (
-          <ArtifactsSurface
-            artifact={visibleArtifact}
-            loading={artifactLoading}
-            error={artifactError}
-          />
-        )}
-
-        <WorkspaceFooter
-          activeWorkspaceId={activeWorkspaceId}
-          onAddWorkspace={addWorkspace}
-          onCloseWorkspace={closeWorkspace}
-          onExportWorkspace={exportActiveWorkspace}
-          onRefreshWorkspace={refreshActiveWorkspace}
-          onRenameWorkspace={renameActiveWorkspace}
-          refreshPending={workspaceRefreshPending}
-          setActiveWorkspaceId={setActiveWorkspaceId}
-          workspaces={workspaces}
-        />
-      </main>
-
-      <PluginPanel
-        onSelectCommand={(pluginId, command) => {
-          insertComposerCommand(`/${pluginId}:${command.id}`);
-        }}
-      />
-      <RunnerHistoryPanel
-        onSelectRun={(runId) => {
-          setRunnerSurfaceCleared(false);
-          setSelectedRunId(runId);
-          setActiveSection("chat");
-        }}
-        onSelectArtifact={(artifactId) => {
-          setSelectedArtifactId(artifactId);
-          setActiveSection("artifacts");
-        }}
-        runs={runs}
-        selectedRunId={selectedRunId}
-      />
-      <ConfigPanel
-        claudeCodeStatus={claudeCodeStatus}
-        config={runnerConfig}
-        connectors={connectors}
-        health={runnerHealth}
-        onSave={saveRunnerConfiguration}
-        onSaveModel={saveClaudeCodeConfiguration}
-        savePending={configSavePending}
-      />
-      <Dialog open={modalState.type !== "closed"} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{modalState.type === "closed" ? "" : modalState.title}</DialogTitle>
-          </DialogHeader>
-          {modalState.type === "prompt" ? (
-            <Input
-              autoFocus
-              className="border-x-0 border-b-0 border-t border-border/60 px-6 py-5 h-auto rounded-none"
-              value={modalInputValue}
-              onChange={(event) => setModalInputValue(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault()
-                  void handleModalConfirm()
+          transition={{ duration: 0.2 }}
+          className="h-full shrink-0 overflow-hidden"
+        >
+          <div className="h-full w-[var(--app-sidebar-w)]">
+            <AppSidebar
+                activeSection={activeSection}
+                activeProgramTab={activeProgramTab}
+                artifacts={artifacts}
+                findings={findings}
+                focusSearchToken={sidebarFocusSearchToken}
+                onSelectArtifact={(artifactId) => {
+                  setActiveSection("artifacts");
+                  setSelectedArtifactId(artifactId);
+                }}
+                onSelectFinding={(findingId) => {
+                  setActiveSection("findings");
+                  setSelectedFindingId(findingId);
+                  setSelectedFinding(null);
+                }}
+                onSelectProgramItem={(itemId) => setSelectedProgramItemId(itemId)}
+                plugins={plugins}
+                program={program}
+                selectedArtifactId={selectedArtifactId}
+                selectedFindingId={selectedFindingId}
+                selectedProgramItemId={selectedProgramItemId}
+              />
+            </div>
+          </motion.div>
+        <main className="relative flex min-h-0 min-w-0 flex-1 flex-col basis-0 overflow-hidden bg-background">
+          {!activeWorkspace ? (
+            <SectionSurface
+              title="Create a workspace"
+              description="Choose a filesystem folder to initialize a .cge workspace before running commands or browsing artifacts."
+            />
+          ) : activeSection === "runner" ? (
+            <ChatSurface
+              commandFormValues={commandFormValues}
+              events={selectedRunEvents}
+              focusToken={composerFocusToken}
+              loadingEvents={runEventsPending}
+              onEditAndRerun={() => editAndRerunRun(selectedRun)}
+              onClearRunner={() => {
+                setRunnerSurfaceCleared(true);
+                setSelectedRunId(null);
+                setSelectedRunEvents([]);
+                setSelectedArtifactId(null);
+                setSelectedArtifact(null);
+                setArtifactLoading(false);
+                setArtifactError(null);
+                clearSelectedCommand();
+                setComposerPrompt("");
+                if (activeWorkspaceId) {
+                  localStorage.setItem(runnerClearedKey(activeWorkspaceId), "true");
                 }
               }}
-              placeholder={modalState.placeholder}
+              onClearSelectedCommand={clearSelectedCommand}
+              onCommandFormChange={updateSelectedCommandForm}
+              onOpenArtifact={(artifactId) => {
+                setSelectedArtifactId(artifactId);
+                setActiveSection("artifacts");
+              }}
+              onOpenHistory={openHistory}
+              onSubmitPrompt={async (promptId, answers) => {
+                if (!activeWorkspaceId || !selectedRunId) {
+                  return;
+                }
+
+                const updated = await respondToRunPrompt(
+                  activeWorkspaceId,
+                  selectedRunId,
+                  promptId,
+                  answers,
+                );
+
+                if (!updated) {
+                  openAlert(
+                    "Reply failed",
+                    "The workflow input could not be submitted.",
+                  );
+                  return;
+                }
+
+                await refreshRunnerData(activeWorkspaceId);
+                const nextEvents = await fetchRunEvents(
+                  activeWorkspaceId,
+                  selectedRunId,
+                );
+                setSelectedRunEvents(nextEvents);
+
+                if (updated.artifacts?.[0]?.id) {
+                  setSelectedArtifactId(updated.artifacts[0].id);
+                }
+              }}
+              onRun={runComposerCommand}
+              onRunPipeline={runPipeline}
+              onSelectCommand={insertComposerCommand}
+              onToggleSidebar={() => setSidebarOpen((v) => !v)}
+              plugins={plugins}
+              prompt={composerPrompt}
+              runPending={runPending}
+              run={selectedRun}
+              selectedCommand={selectedCommand}
+              selectedCommandPath={selectedCommandPath}
+              setPrompt={setComposerPrompt}
+              sidebarOpen={sidebarOpen}
             />
-          ) : null}
-          <DialogFooter>
-            {modalState.type === "alert" ? null : (
-              <Button variant="ghost" onClick={closeModal} disabled={modalPending}>
-                Cancel
+          ) : activeSection === "findings" ? (
+            <FindingsSurface
+              finding={selectedFindingId ? selectedFinding : null}
+              loading={findingLoading && selectedFindingId !== null}
+            />
+          ) : activeSection === "program" ? (
+            <ProgramSurface
+              activeTab={activeProgramTab}
+              program={program}
+              loading={programLoading}
+              selectedItemId={selectedProgramItemId}
+              onSelectTab={(tab) => setActiveProgramTab(tab)}
+            />
+          ) : activeSection === "metrics" ? (
+            <MetricsSurface
+              connectors={connectors}
+              findings={findings}
+              metrics={visibleMetrics}
+              onClearSnapshot={() => {
+                setSelectedMetricSnapshotId(null);
+                setSelectedMetricSnapshot(null);
+              }}
+              onOpenHistory={openMetricHistory}
+              program={program}
+              loading={programLoading}
+              selectedSnapshotRecordedAt={
+                selectedMetricSnapshot?.recorded_at ??
+                selectedMetricSnapshotSummary?.recorded_at ??
+                null
+              }
+              selectedSnapshotId={selectedMetricSnapshotId}
+              workspaceName={activeWorkspace?.title}
+              plugins={plugins}
+            />
+          ) : (
+            <ArtifactsSurface
+              artifact={visibleArtifact}
+              loading={artifactLoading}
+              error={artifactError}
+            />
+          )}
+        </main>
+        <PluginPanel
+          onSelectCommand={(pluginId, command) => {
+            insertComposerCommand(`/${pluginId}:${command.id}`);
+          }}
+        />
+        <RunnerHistoryPanel
+          onSelectRun={(runId) => {
+            setRunnerSurfaceCleared(false);
+            setSelectedRunId(runId);
+            setActiveSection("runner");
+          }}
+          onSelectArtifact={(artifactId) => {
+            setSelectedArtifactId(artifactId);
+            setActiveSection("artifacts");
+          }}
+          runs={runs}
+          selectedRunId={selectedRunId}
+        />
+        <MetricSnapshotsPanel
+          onSelectSnapshot={(snapshotId) => void selectMetricSnapshot(snapshotId)}
+          selectedSnapshotId={selectedMetricSnapshotId}
+          snapshots={metrics?.snapshots ?? []}
+        />
+        <ConfigPanel
+          claudeCodeStatus={claudeCodeStatus}
+          config={runnerConfig}
+          health={runnerHealth}
+          onSaveModel={saveClaudeCodeConfiguration}
+        />
+        <Dialog open={modalState.type !== "closed"} onOpenChange={(open) => !open && closeModal()}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{modalState.type === "closed" ? "" : modalState.title}</DialogTitle>
+            </DialogHeader>
+            {modalState.type === "prompt" ? (
+              <Input
+                autoFocus
+                className="border-x-0 border-b-0 border-t border-border/60 px-6 py-5 h-auto rounded-none"
+                value={modalInputValue}
+                onChange={(event) => setModalInputValue(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault()
+                    void handleModalConfirm()
+                  }
+                }}
+                placeholder={modalState.placeholder}
+              />
+            ) : null}
+            <DialogFooter>
+              {modalState.type === "alert" ? null : (
+                <Button variant="ghost" onClick={closeModal} disabled={modalPending}>
+                  Cancel
+                </Button>
+              )}
+              <Button
+                variant={modalState.type === "confirm" ? modalState.confirmVariant ?? "default" : "default"}
+                onClick={() => void handleModalConfirm()}
+                disabled={modalPending}
+              >
+                {modalPending
+                  ? "Working..."
+                  : modalState.type === "closed"
+                    ? "Close"
+                    : modalState.type === "alert"
+                      ? modalState.confirmLabel ?? "Close"
+                      : modalState.confirmLabel}
               </Button>
-            )}
-            <Button
-              variant={modalState.type === "confirm" ? modalState.confirmVariant ?? "default" : "default"}
-              onClick={() => void handleModalConfirm()}
-              disabled={modalPending}
-            >
-              {modalPending
-                ? "Working..."
-                : modalState.type === "closed"
-                  ? "Close"
-                  : modalState.type === "alert"
-                    ? modalState.confirmLabel ?? "Close"
-                    : modalState.confirmLabel}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* App Footer - Full Width */}
+      <WorkspaceFooter
+        activeWorkspaceId={activeWorkspaceId}
+        onAddWorkspace={addWorkspace}
+        onCloseWorkspace={closeWorkspace}
+        onExportWorkspace={exportActiveWorkspace}
+        onRefreshWorkspace={refreshActiveWorkspace}
+        onRenameWorkspace={renameActiveWorkspace}
+        refreshPending={workspaceRefreshPending}
+        setActiveWorkspaceId={setActiveWorkspaceId}
+        workspaces={workspaces}
+      />
     </div>
   );
 }
@@ -1150,6 +1303,31 @@ function findCommandByPath(plugins: Plugin[], path: string): Command | null {
   const command = plugin?.commands.find((item) => item.id === commandId);
 
   return command ?? null;
+}
+
+function isProgramTab(value: string | null): value is ProgramTab {
+  return (
+    value === "risks" ||
+    value === "exceptions" ||
+    value === "vendors" ||
+    value === "policies" ||
+    value === "controls"
+  );
+}
+
+function getProgramRecordIds(program: ProgramSummary, tab: ProgramTab): string[] {
+  switch (tab) {
+    case "risks":
+      return program.risks.map((risk) => risk.risk_id);
+    case "exceptions":
+      return program.exceptions.map((exception) => exception.exception_id);
+    case "vendors":
+      return program.vendors.map((vendor) => vendor.vendor_id);
+    case "policies":
+      return program.policies.map((policy) => policy.policy_id);
+    case "controls":
+      return program.controls.map((control) => control.control_id);
+  }
 }
 
 function extractCommandPath(prompt: string | null | undefined): string | null {

@@ -2,28 +2,32 @@
 
 import { useEffect, useState } from "react";
 import {
-  CloudArrowUpIcon,
-  DatabaseIcon,
-  FloppyDiskIcon,
+  CheckCircleIcon,
+  CircleIcon,
+  MoonIcon,
+  SunIcon,
   WarningCircleIcon,
+  XCircleIcon,
   XIcon,
 } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 import {
   type ClaudeCodeStatus,
-  type ConnectorSummary,
   type RunnerConfigSnapshot,
   type RunnerHealthSnapshot,
 } from "@/lib/runner";
 import { usePluginPanel } from "@/stores/plugin-panel-store";
+import { useThemeStore } from "@/stores/theme-store";
 
-const CONNECTOR_ICONS: Record<string, string> = {
-  "aws-inspector": "/aws_dark.svg",
-  "gcp-inspector": "/google_cloud.svg",
-  "github-inspector": "/github_dark.svg",
-  "okta-inspector": "/okta_dark.png",
-};
+type SignalTone = "ok" | "warn" | "error" | "unknown";
+
+function signalDot(tone: SignalTone) {
+  if (tone === "ok") return <CheckCircleIcon className="size-3.5 text-emerald-600 dark:text-emerald-400" weight="fill" />;
+  if (tone === "warn") return <WarningCircleIcon className="size-3.5 text-amber-600 dark:text-amber-400" weight="fill" />;
+  if (tone === "error") return <XCircleIcon className="size-3.5 text-rose-600 dark:text-rose-400" weight="fill" />;
+  return <CircleIcon className="size-3.5 text-foreground/40" weight="fill" />;
+}
 
 function Section({
   title,
@@ -52,156 +56,167 @@ const CLAUDE_MODELS = [
 export function ConfigPanel({
   claudeCodeStatus,
   config,
-  connectors,
   health,
-  savePending,
-  onSave,
   onSaveModel,
 }: {
   claudeCodeStatus: ClaudeCodeStatus | null;
   config: RunnerConfigSnapshot | null;
-  connectors: ConnectorSummary[];
   health: RunnerHealthSnapshot | null;
-  savePending: boolean;
-  onSave: (input: { toolkitPath: string }) => Promise<void>;
   onSaveModel: (input: { model: string }) => Promise<void>;
 }) {
   const { configOpen, closeConfig } = usePluginPanel();
-  const [toolkitPath, setToolkitPath] = useState("");
+  const { theme, setTheme, mounted } = useThemeStore();
   const [claudeModel, setClaudeModel] = useState("");
-
-  useEffect(() => {
-    setToolkitPath(config?.toolkitPath ?? "");
-  }, [config]);
 
   useEffect(() => {
     setClaudeModel(claudeCodeStatus?.model ?? "");
   }, [claudeCodeStatus]);
 
-  const toolkitConnected = Boolean(health?.toolkitConfigured);
-
   return (
     <div
       className={cn(
-        "h-svh shrink-0 overflow-hidden transition-[width] duration-200",
+        "h-full shrink-0 overflow-hidden transition-all duration-300 ease-in-out",
         configOpen
-          ? "w-[var(--app-sidebar-w)] min-w-[var(--app-sidebar-w)] basis-[var(--app-sidebar-w)]"
-          : "w-0 min-w-0 basis-0",
+          ? "w-[var(--app-sidebar-w)] min-w-[var(--app-sidebar-w)] basis-[var(--app-sidebar-w)] opacity-100"
+          : "w-0 min-w-0 basis-0 opacity-0",
       )}
     >
-      <div className="flex h-full min-h-0 w-[var(--app-sidebar-w)] min-w-[var(--app-sidebar-w)] basis-[var(--app-sidebar-w)] flex-col border-l bg-sidebar text-sidebar-foreground">
+      <div className="flex h-full min-h-0 w-[var(--app-sidebar-w)] min-w-[var(--app-sidebar-w)] basis-[var(--app-sidebar-w)] flex-col border-l bg-background text-foreground overflow-hidden">
         <div className="flex h-[calc(var(--row-h)*2)] shrink-0 items-center justify-between border-b px-4">
           <div className="flex flex-col gap-0">
             <span className="text-sm font-medium">Configuration</span>
-            <span className="text-xs text-sidebar-foreground/50">settings</span>
+            <span className="text-xs text-foreground/50">settings</span>
           </div>
           <button
             onClick={closeConfig}
-            className="self-start pt-3 flex size-6 items-center justify-center text-sidebar-foreground/50 transition-colors hover:text-sidebar-foreground"
+            className="self-start pt-3 flex size-6 items-center justify-center text-foreground/50 transition-colors hover:text-foreground"
           >
             <XIcon className="size-3.5" />
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-color:var(--sidebar-border)_transparent] [scrollbar-width:thin]">
-          <Section title="Runner / CLI">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between border border-sidebar-border px-3 py-2">
-                <span className="text-xs">CLI sync</span>
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.12em]",
-                    toolkitConnected
-                      ? "text-emerald-400"
-                      : "text-amber-400",
-                  )}
-                >
-                  {!toolkitConnected && (
-                    <WarningCircleIcon className="size-3.5" weight="fill" />
-                  )}
-                  {toolkitConnected ? "Connected" : "Fallback"}
-                </span>
-              </div>
-
-              <div className="space-y-2 text-[10px] leading-4 text-sidebar-foreground/45">
-                <div>
-                  <p className="uppercase tracking-[0.12em] text-sidebar-foreground/35">
-                    Config root
-                  </p>
-                  <p>{health?.configRoot ?? "~/.config/claude-grc"}</p>
-                </div>
-                <div>
-                  <p className="uppercase tracking-[0.12em] text-sidebar-foreground/35">
-                    Cache root
-                  </p>
-                  <p>{health?.cacheRoot ?? "~/.cache/claude-grc"}</p>
-                </div>
-                <div>
-                  <p className="uppercase tracking-[0.12em] text-sidebar-foreground/35">
-                    Workspace location
-                  </p>
-                  <p>{config?.workspaceRoot ?? "~/Documents/CGE Workspaces"}</p>
-                </div>
-                <div>
-                  <p className="uppercase tracking-[0.12em] text-sidebar-foreground/35">
-                    Workspace registry
-                  </p>
-                  <p>{health?.workspacesRoot ?? "~/.local/share/cge-ui/workspaces/registry"}</p>
-                </div>
-              </div>
-            </div>
-          </Section>
-
-          <Section title="Toolkit Path">
-            <div className="space-y-2">
-              <input
-                value={toolkitPath}
-                onChange={(event) => setToolkitPath(event.target.value)}
-                placeholder="/path/to/claude-grc-engineering"
-                className="w-full border border-sidebar-border bg-transparent px-2 py-1.5 text-xs placeholder:text-sidebar-foreground/30 focus:border-sidebar-ring focus:outline-none"
-              />
-              <p className="text-[10px] leading-4 text-sidebar-foreground/45">
-                Path to the embedded or external `claude-grc-engineering` checkout.
-              </p>
-            </div>
-          </Section>
-
-          <Section title="Runner Config">
-            <div className="space-y-3">
-              <p className="break-all text-[10px] leading-4 text-sidebar-foreground/45">
-                {config?.runnerConfigPath ?? "No writable runner config path available."}
-              </p>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin]">
+          <Section title="Theme">
+            <div className="flex gap-2">
               <button
-                onClick={() =>
-                  void onSave({
-                    toolkitPath,
-                  })
-                }
-                disabled={savePending}
-                className="sidebar-fade-item flex w-full items-center justify-center gap-2 border border-sidebar-border px-3 py-2 text-xs transition-colors hover:text-sidebar-accent-foreground disabled:cursor-wait disabled:opacity-60"
+                onClick={() => setTheme("light")}
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-2 border px-3 py-2 text-xs transition-colors",
+                  mounted && theme === "light"
+                    ? "border-primary/50 bg-primary/10 text-primary"
+                    : "border-border/70 text-foreground/60 hover:text-foreground"
+                )}
               >
-                <FloppyDiskIcon className="size-3.5" />
-                {savePending ? "Saving configuration" : "Save configuration"}
+                <SunIcon className="size-4" />
+                Light
               </button>
+              <button
+                onClick={() => setTheme("dark")}
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-2 border px-3 py-2 text-xs transition-colors",
+                  mounted && theme === "dark"
+                    ? "border-primary/50 bg-primary/10 text-primary"
+                    : "border-border/70 text-foreground/60 hover:text-foreground"
+                )}
+              >
+                <MoonIcon className="size-4" />
+                Dark
+              </button>
+            </div>
+          </Section>
+
+          <Section title="System Health">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between border border-border/70 px-3 py-2">
+                <span className="text-xs">CLI</span>
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={cn(
+                      "text-[10px] uppercase tracking-[0.12em]",
+                      health?.toolkitConfigured ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"
+                    )}
+                  >
+                    {health?.toolkitConfigured ? "Connected" : "Fallback"}
+                  </span>
+                  {signalDot(health?.toolkitConfigured ? "ok" : "warn")}
+                </div>
+              </div>
+              <div className="flex items-center justify-between border border-border/70 px-3 py-2">
+                <span className="text-xs">Runner</span>
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={cn(
+                      "text-[10px] uppercase tracking-[0.12em]",
+                      health?.ok ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+                    )}
+                  >
+                    {health?.ok ? "Connected" : "Offline"}
+                  </span>
+                  {signalDot(health?.ok ? "ok" : "error")}
+                </div>
+              </div>
+              <div className="flex items-center justify-between border border-border/70 px-3 py-2">
+                <span className="text-xs">Agent</span>
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={cn(
+                      "text-[10px] uppercase tracking-[0.12em]",
+                      claudeCodeStatus?.installed
+                        ? claudeCodeStatus?.apiKeyConfigured || claudeCodeStatus?.subscriptionLoginConfigured
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : "text-amber-600 dark:text-amber-400"
+                        : "text-rose-600 dark:text-rose-400"
+                    )}
+                  >
+                    {claudeCodeStatus?.installed
+                      ? claudeCodeStatus?.apiKeyConfigured || claudeCodeStatus?.subscriptionLoginConfigured
+                        ? "Ready"
+                        : "No Auth"
+                      : "Not Installed"}
+                  </span>
+                  {signalDot(
+                    claudeCodeStatus?.installed
+                      ? claudeCodeStatus?.apiKeyConfigured || claudeCodeStatus?.subscriptionLoginConfigured
+                        ? "ok"
+                        : "warn"
+                      : "error"
+                  )}
+                </div>
+              </div>
+            </div>
+          </Section>
+
+          <Section title="Paths">
+            <div className="space-y-2 text-[10px] leading-4 text-foreground/45">
+              <div>
+                <p className="uppercase tracking-[0.12em] text-foreground/35">Config</p>
+                <p className="break-all">{health?.configRoot ?? "~/.config/claude-grc"}</p>
+              </div>
+              <div>
+                <p className="uppercase tracking-[0.12em] text-foreground/35">Cache</p>
+                <p className="break-all">{health?.cacheRoot ?? "~/.cache/claude-grc"}</p>
+              </div>
+              <div>
+                <p className="uppercase tracking-[0.12em] text-foreground/35">Workspaces</p>
+                <p className="break-all">{config?.workspaceRoot ?? "~/Documents/CGE Workspaces"}</p>
+              </div>
+              <div>
+                <p className="uppercase tracking-[0.12em] text-foreground/35">Registry</p>
+                <p className="break-all">{health?.workspacesRoot ?? "~/.local/share/cge-ui/workspaces/registry"}</p>
+              </div>
             </div>
           </Section>
 
           <Section title="Claude Code">
             <div className="space-y-3">
-              {claudeCodeStatus?.settingsPath && (
-                <p className="break-all text-[10px] leading-4 text-sidebar-foreground/45">
-                  {claudeCodeStatus.settingsPath}
-                </p>
-              )}
-
-              <div className="flex items-center justify-between border border-sidebar-border px-3 py-2">
+              <div className="flex items-center justify-between border border-border/70 px-3 py-2">
                 <span className="text-xs">CLI</span>
                 <span
                   className={cn(
                     "text-[10px] uppercase tracking-[0.12em]",
                     claudeCodeStatus?.installed
-                      ? "text-emerald-400"
-                      : "text-rose-400",
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-rose-600 dark:text-rose-400",
                   )}
                 >
                   {claudeCodeStatus === null
@@ -212,28 +227,28 @@ export function ConfigPanel({
                 </span>
               </div>
 
-              <div className="flex items-center justify-between border border-sidebar-border px-3 py-2">
+              <div className="flex items-center justify-between border border-border/70 px-3 py-2">
                 <span className="text-xs">API key</span>
                 <span
                   className={cn(
                     "text-[10px] uppercase tracking-[0.12em]",
                     claudeCodeStatus?.apiKeyConfigured
-                      ? "text-emerald-400"
-                      : "text-amber-400",
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-amber-600 dark:text-amber-400",
                   )}
                 >
                   {claudeCodeStatus?.apiKeyConfigured ? "Configured" : "Not set"}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between border border-sidebar-border px-3 py-2">
+              <div className="flex items-center justify-between border border-border/70 px-3 py-2">
                 <span className="text-xs">Subscription</span>
                 <span
                   className={cn(
                     "text-[10px] uppercase tracking-[0.12em]",
                     claudeCodeStatus?.subscriptionLoginConfigured
-                      ? "text-emerald-400"
-                      : "text-amber-400",
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-amber-600 dark:text-amber-400",
                   )}
                 >
                   {claudeCodeStatus?.subscriptionLoginConfigured ? "Active" : "Inactive"}
@@ -241,7 +256,7 @@ export function ConfigPanel({
               </div>
 
               <div className="space-y-1.5">
-                <p className="text-[10px] uppercase tracking-[0.12em] text-sidebar-foreground/35">
+                <p className="text-[10px] uppercase tracking-[0.12em] text-foreground/35">
                   Model
                 </p>
                 <select
@@ -251,7 +266,7 @@ export function ConfigPanel({
                     setClaudeModel(value);
                     void onSaveModel({ model: value });
                   }}
-                  className="w-full border border-sidebar-border bg-sidebar px-2 py-1.5 text-xs text-sidebar-foreground focus:border-sidebar-ring focus:outline-none"
+                  className="w-full border border-border/70 bg-background px-2 py-1.5 text-xs text-foreground focus:border-sidebar-ring focus:outline-none"
                 >
                   {CLAUDE_MODELS.map((m) => (
                     <option key={m.value} value={m.value}>
@@ -261,60 +276,6 @@ export function ConfigPanel({
                 </select>
               </div>
             </div>
-          </Section>
-
-          <Section title="Connectors">
-            <ul className="space-y-2">
-              {connectors.map((connector) => (
-                <li
-                  key={connector.id}
-                  className="overflow-hidden border border-sidebar-border"
-                >
-                  <div className="space-y-2 px-3 py-2">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex min-w-0 items-start gap-2">
-                        <span className="mt-0.5 flex shrink-0 items-center gap-2 text-xs">
-                          {CONNECTOR_ICONS[connector.id] ? (
-                            <img
-                              src={CONNECTOR_ICONS[connector.id]}
-                              alt=""
-                              className="size-3.5 object-contain"
-                            />
-                          ) : (
-                            <CloudArrowUpIcon className="size-3.5" />
-                          )}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="truncate text-xs">{connector.label}</p>
-                        </div>
-                      </div>
-
-                      {connector.findingsCached > 0 && (
-                        <DatabaseIcon className="mt-0.5 size-3.5 shrink-0 text-sidebar-foreground/45" />
-                      )}
-                    </div>
-
-                    <div className="space-y-1 text-[10px] leading-4 text-sidebar-foreground/35">
-                      <p className="break-all">Config: {connector.configPath}</p>
-                      <p className="break-all">Cache: {connector.cachePath}</p>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-sidebar-border px-3 py-2">
-                    <span
-                      className={cn(
-                        "text-[10px] uppercase tracking-[0.12em]",
-                        connector.configured
-                          ? "text-emerald-400"
-                          : "text-rose-400",
-                      )}
-                    >
-                      {connector.configured ? "Configured" : "Not configured"}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
           </Section>
         </div>
       </div>

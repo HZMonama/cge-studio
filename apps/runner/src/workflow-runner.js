@@ -175,12 +175,20 @@ export function createWorkflowRuntime(deps) {
         return null;
       }
 
+      const runningState = {
+        ...workflowState,
+        phase: "running",
+        response: input.response,
+        respondedAt: new Date().toISOString(),
+      };
+      await writeWorkflowState(runDirectory, runningState);
+
       return definition.respond({
         ...input,
         ...deps,
         definition,
         runDirectory,
-        workflowState,
+        workflowState: runningState,
       });
     },
   };

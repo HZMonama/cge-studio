@@ -1,11 +1,12 @@
-import { type Plugin } from "@/lib/plugins"
+import { type Plugin, type Command, getRunnerSupport } from "@/lib/plugins"
 
-const RUNNER_BASE_URL = process.env.NEXT_PUBLIC_RUNNER_URL ?? "http://127.0.0.1:3333"
+export const RUNNER_BASE_URL = process.env.NEXT_PUBLIC_RUNNER_URL ?? "http://127.0.0.1:3333"
 
 interface PluginRegistryResponse {
   plugins: Plugin[]
   source: string
   toolkitPath: string | null
+  format?: "v2" | "v1"  // Phase 3: v2 format from simplified runner
 }
 
 export interface RunnerWorkspace {
@@ -21,6 +22,7 @@ export interface RunnerWorkspace {
     runs: string
     findings: string
     program: string
+    programControls?: string
     artifacts: string
     artifactsGenerated: string
     artifactsExports: string
@@ -93,7 +95,7 @@ export interface RunnerRunEvent {
 
 export interface RunnerRun {
   id: string
-  status: "planned" | "running" | "completed" | "failed"
+  status: "planned" | "pending" | "running" | "completed" | "failed"
   createdAt: string
   completedAt?: string | null
   prompt?: string
@@ -154,6 +156,31 @@ export async function updateClaudeCodeConfig(
   }
 }
 
+/**
+ * Process commands from v2 format to ensure all have proper runtime info
+ * Commands without schema.yaml (not yet migrated) are marked as "planned"
+ */
+function processV2Commands(commands: Command[]): Command[] {
+  return commands.map((cmd) => {
+    // Trust the runner's runtime.runnerSupport if it exists (v2 format)
+    // The runner already validates schemas and sets this correctly
+    const runnerSupport = getRunnerSupport(cmd)
+    
+    return {
+      ...cmd,
+      // Ensure runtime field exists
+      runtime: cmd.runtime || {
+        executionMode: cmd.execution?.mode || "agent",
+        runnerSupport,
+      },
+      // Copy runtime support to legacy field for backward compatibility
+      runnerSupport,
+      // Ensure uiHint exists
+      uiHint: cmd.ui?.category as Command["uiHint"] || cmd.uiHint,
+    }
+  })
+}
+
 export async function fetchPluginRegistry(signal?: AbortSignal): Promise<Plugin[] | null> {
   try {
     const response = await fetch(`${RUNNER_BASE_URL}/registry/plugins`, {
@@ -166,9 +193,22 @@ export async function fetchPluginRegistry(signal?: AbortSignal): Promise<Plugin[
     }
 
     const payload = (await response.json()) as PluginRegistryResponse
-    return Array.isArray(payload.plugins) && payload.plugins.length > 0
-      ? payload.plugins
-      : null
+    
+    if (!Array.isArray(payload.plugins)) {
+      return null
+    }
+    
+    // Phase 3: Handle v2 format from simplified runner
+    if (payload.format === "v2") {
+      const processedPlugins = payload.plugins.map((plugin) => ({
+        ...plugin,
+        commands: processV2Commands(plugin.commands),
+      }))
+      return processedPlugins.length > 0 ? processedPlugins : null
+    }
+    
+    // Legacy v1 format
+    return payload.plugins.length > 0 ? payload.plugins : null
   } catch {
     return null
   }
@@ -591,7 +631,42 @@ export interface ProgramMetric {
   value: number
   unit?: string | null
   subject?: string | null
-  source?: string | null
+  source?: "workspace" | "command" | string | null
+  sourceRef?: string | null
+  runId?: string | null
+  dimensions?: Record<string, unknown> | null
+  window?: string | null
+}
+
+export interface RunnerMetricRecord {
+  schema_version: string
+  metric_id: string
+  recorded_at: string
+  value: number
+  unit: string | null
+  subject: string | null
+  source: "workspace" | "command"
+  sourceRef: string | null
+  runId: string | null
+  dimensions: Record<string, unknown> | null
+  window: string | null
+}
+
+export interface RunnerMetricSnapshotSummary {
+  snapshot_id: string
+  recorded_at: string
+  metric_count: number
+}
+
+export interface RunnerMetricSnapshot extends RunnerMetricSnapshotSummary {
+  schema_version: string
+  workspace_id: string
+  metrics: RunnerMetricRecord[]
+}
+
+export interface RunnerMetricsResponse {
+  current: RunnerMetricRecord[]
+  snapshots: RunnerMetricSnapshotSummary[]
 }
 
 export interface ProgramException {
@@ -633,12 +708,27 @@ export interface ProgramPolicy {
   control_refs?: string[]
 }
 
+export interface ProgramControl {
+  schema_version?: string
+  control_id: string
+  title: string
+  status: string
+  owner?: string | null
+  framework_refs?: string[]
+  policy_refs?: string[]
+  evidence_refs?: string[]
+  automation_status?: string | null
+  last_tested_at?: string | null
+  next_test_at?: string | null
+}
+
 export interface ProgramSummary {
   risks: ProgramRisk[]
   metrics: ProgramMetric[]
   exceptions: ProgramException[]
   vendors: ProgramVendor[]
   policies: ProgramPolicy[]
+  controls: ProgramControl[]
 }
 
 export async function fetchProgram(
@@ -652,6 +742,39 @@ export async function fetchProgram(
     )
     if (!response.ok) return null
     return (await response.json()) as ProgramSummary
+  } catch {
+    return null
+  }
+}
+
+export async function fetchMetrics(
+  workspaceId: string,
+  signal?: AbortSignal,
+): Promise<RunnerMetricsResponse | null> {
+  try {
+    const response = await fetch(
+      `${RUNNER_BASE_URL}/workspaces/${workspaceId}/metrics`,
+      { cache: "no-store", signal },
+    )
+    if (!response.ok) return null
+    return (await response.json()) as RunnerMetricsResponse
+  } catch {
+    return null
+  }
+}
+
+export async function fetchMetricSnapshot(
+  workspaceId: string,
+  snapshotId: string,
+  signal?: AbortSignal,
+): Promise<RunnerMetricSnapshot | null> {
+  try {
+    const response = await fetch(
+      `${RUNNER_BASE_URL}/workspaces/${workspaceId}/metrics/snapshots/${encodeURIComponent(snapshotId)}`,
+      { cache: "no-store", signal },
+    )
+    if (!response.ok) return null
+    return (await response.json()) as RunnerMetricSnapshot
   } catch {
     return null
   }

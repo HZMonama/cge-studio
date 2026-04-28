@@ -44,7 +44,7 @@ export function TimelineItemRow({
   const artifactCreated = isArtifactTimelineItem(item);
 
   const headerClassName = cn(
-    "flex w-full items-center justify-between gap-3 text-xs tracking-[0.14em]",
+    "flex w-full items-center justify-between gap-3 font-mono text-xs tracking-[0.14em]",
     danger ? "text-rose-400" : "text-muted-foreground",
   );
   const rowClassName = "px-6 py-4";
@@ -133,7 +133,7 @@ export function TimelineItemRow({
             className={cn(
               "mx-6 mb-4 overflow-x-auto whitespace-pre-wrap break-words border px-3 py-2 text-xs leading-5",
               item.stream === "stderr"
-                ? "border-rose-500/20 bg-rose-500/5 text-rose-200"
+                ? "border-rose-500/20 bg-rose-500/5 text-rose-500"
                 : "border-border/60 bg-muted/20 text-foreground",
             )}
           >

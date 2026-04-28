@@ -11,6 +11,15 @@ const SUPPORT_COLORS: Record<string, string> = {
   planned: "bg-pink-500/10 text-pink-400",
 };
 
+function formatCommandDescription(description: string): string {
+  return description
+    .replace(/^\s*>\s?/gm, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/[*_`~]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function PluginPanel({
   onSelectCommand,
 }: {
@@ -28,7 +37,7 @@ export function PluginPanel({
   return (
     <div
       className={cn(
-        "h-svh shrink-0 overflow-hidden transition-[width] duration-200",
+        "h-full shrink-0 overflow-hidden transition-[width] duration-200",
         selectedPlugin ? "w-[var(--app-sidebar-w)]" : "w-0",
       )}
     >
@@ -100,8 +109,8 @@ export function PluginPanel({
                       </span>
                     )}
                   </div>
-                   <p className="mt-1.5 text-xs text-foreground/60">
-                    {cmd.description}
+                  <p className="mt-1.5 text-xs text-foreground/60">
+                    {formatCommandDescription(cmd.description)}
                   </p>
                 </div>
               </button>

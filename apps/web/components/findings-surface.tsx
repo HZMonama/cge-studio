@@ -1,9 +1,11 @@
 "use client"
 
-import { ArrowSquareOutIcon, ClockIcon, ShieldWarningIcon } from "@phosphor-icons/react"
+import { ArrowSquareOutIcon, ShieldWarningIcon } from "@phosphor-icons/react"
 
-import { cn } from "@/lib/utils"
+import { HeaderActionButton } from "@/components/header-action-button"
 import { type RunnerFindingDetail } from "@/lib/runner"
+import { RecordHeader } from "@/components/record-header"
+import { cn } from "@/lib/utils"
 
 const SEVERITY_BADGE: Record<string, string> = {
   critical: "bg-red-600 text-white",
@@ -98,23 +100,63 @@ export function FindingsSurface({
   finding: RunnerFindingDetail | null
   loading: boolean
 }) {
+  function copyFindingIdentifier() {
+    const identifier =
+      finding?.resource?.id ??
+      finding?.resource?.arn ??
+      finding?.resource?.uri ??
+      finding?.controlId ??
+      finding?.title
+
+    if (!identifier) {
+      return
+    }
+
+    void navigator.clipboard.writeText(identifier)
+  }
+
+  function openReference() {
+    const ref = finding?.remediation?.ref
+    if (!ref || !ref.startsWith("http")) {
+      return
+    }
+
+    window.open(ref, "_blank", "noopener,noreferrer")
+  }
+
   if (loading) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-[var(--editor-bg)] p-8">
-        <p className="text-sm text-muted-foreground">Loading finding…</p>
+      <div className="flex flex-1 flex-col overflow-hidden bg-[var(--editor-bg)]">
+        <div className="flex flex-1 items-center justify-center p-8">
+          <p className="text-sm text-muted-foreground">Loading finding…</p>
+        </div>
       </div>
     )
   }
 
   if (!finding) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-[var(--editor-bg)] p-8">
-        <div className="max-w-md text-center">
-          <ShieldWarningIcon className="mx-auto mb-3 size-8 text-muted-foreground/30" />
-          <h2 className="text-sm font-medium text-foreground">No finding selected</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Select a finding from the sidebar to view its detail, evaluation context, and remediation guidance.
-          </p>
+      <div className="flex flex-1 flex-col overflow-hidden bg-[var(--editor-bg)]">
+        <div className="flex-1 overflow-auto">
+          <RecordHeader
+            eyebrow="Finding"
+            title="No finding selected"
+            actions={
+              <>
+                <HeaderActionButton disabled>Copy ID</HeaderActionButton>
+                <HeaderActionButton disabled>Open Ref</HeaderActionButton>
+              </>
+            }
+          />
+          <div className="flex items-center justify-center p-8">
+          <div className="max-w-md text-center">
+            <ShieldWarningIcon className="mx-auto mb-3 size-8 text-muted-foreground/30" />
+            <h2 className="text-sm font-medium text-foreground">No finding selected</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Select a finding from the sidebar to view its detail, evaluation context, and remediation guidance.
+            </p>
+          </div>
+          </div>
         </div>
       </div>
     )
@@ -126,36 +168,44 @@ export function FindingsSurface({
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden bg-[var(--editor-bg)]">
-      {/* Header */}
-      <div className="border-b border-border/70 bg-background px-6 py-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <SeverityBadge severity={finding.severity} />
-          <StatusBadge status={finding.status} />
-          {finding.hasRemediation && (
-            <span className="inline-flex items-center rounded border border-emerald-300/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-400">
-              Remediation available
-            </span>
-          )}
-        </div>
-        <h1 className="mt-3 text-base font-semibold leading-snug text-foreground">
-          {finding.title}
-        </h1>
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          <span className="font-medium text-foreground/70">{finding.source}</span>
-          {finding.controlFramework && finding.controlId && (
-            <span>{finding.controlFramework} / {finding.controlId}</span>
-          )}
-          {finding.collectedAt && (
-            <span className="flex items-center gap-1">
-              <ClockIcon className="size-3" />
-              {new Date(finding.collectedAt).toLocaleString()}
-            </span>
-          )}
-        </div>
-      </div>
-
       <div className="flex-1 overflow-auto">
-        {/* Resource */}
+        <RecordHeader
+          eyebrow="Finding"
+          title={finding.title}
+          identifier={finding.resource?.id ?? null}
+          badges={
+            <>
+              <SeverityBadge severity={finding.severity} />
+              <StatusBadge status={finding.status} />
+              {finding.hasRemediation ? (
+                <span className="inline-flex items-center rounded border border-emerald-300/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-400">
+                  Remediation available
+                </span>
+              ) : null}
+            </>
+          }
+          meta={[
+            { label: "Source", value: finding.source },
+            ...(finding.controlFramework && finding.controlId
+              ? [{ label: "Control", value: `${finding.controlFramework} / ${finding.controlId}` }]
+              : []),
+            ...(finding.collectedAt
+              ? [{ label: "Collected", value: new Date(finding.collectedAt).toLocaleString() }]
+              : []),
+          ]}
+          actions={
+            <>
+              <HeaderActionButton onClick={copyFindingIdentifier}>Copy ID</HeaderActionButton>
+              <HeaderActionButton
+                disabled={!finding.remediation?.ref?.startsWith("http")}
+                onClick={openReference}
+              >
+                Open Ref
+              </HeaderActionButton>
+            </>
+          }
+        />
+
         <DetailBlock title="Resource">
           <FieldRow label="Type" value={finding.resource?.type} />
           <FieldRow label="ID" value={finding.resource?.id} mono />

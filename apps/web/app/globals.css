@@ -51,75 +51,88 @@
 :root {
   --row-h: 5vh;
   --app-sidebar-w: 20vw;
-  --editor-bg: oklch(0.918 0.013 95.2);
 
-  --background: oklch(0.977 0.013 95.31);
-  --foreground: oklch(0.243 0.018 196.84);
-  --card: oklch(0.993 0.007 100.41 / 96%);
-  --card-foreground: oklch(0.243 0.018 196.84);
-  --popover: oklch(1 0 0 / 96%);
-  --popover-foreground: oklch(0.243 0.018 196.84);
-  --primary: oklch(0.467 0.084 170.23);
-  --primary-foreground: oklch(0.986 0.005 95.1);
-  --secondary: oklch(0.927 0.026 93.82);
-  --secondary-foreground: oklch(0.302 0.023 200.12);
-  --muted: oklch(0.948 0.014 95.2);
-  --muted-foreground: oklch(0.533 0.029 201.52);
-  --accent: oklch(0.91 0.044 150.74);
-  --accent-foreground: oklch(0.302 0.023 200.12);
-  --destructive: oklch(0.612 0.217 26.73);
-  --border: oklch(0.884 0.018 94.37);
-  --input: oklch(0.884 0.018 94.37);
-  --ring: oklch(0.467 0.084 170.23);
-  --chart-1: oklch(0.682 0.167 149.58);
-  --chart-2: oklch(0.744 0.144 87.98);
-  --chart-3: oklch(0.612 0.105 202.62);
-  --chart-4: oklch(0.537 0.114 37.26);
-  --chart-5: oklch(0.466 0.078 246.85);
+  /* ── Light Theme ── */
+  --editor-bg: oklch(0.97 0.01 260);
+
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.22 0.02 260);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.02 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.02 260);
+
+  /* Sky blue accent */
+  --primary: oklch(0.58 0.14 245);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.95 0.015 260);
+  --secondary-foreground: oklch(0.3 0.04 260);
+  --muted: oklch(0.96 0.01 260);
+  --muted-foreground: oklch(0.5 0.03 260);
+  --accent: oklch(0.93 0.04 245);
+  --accent-foreground: oklch(0.35 0.08 245);
+  --destructive: oklch(0.6 0.2 25);
+  --border: oklch(0.9 0.015 260);
+  --input: oklch(0.9 0.015 260);
+  --ring: oklch(0.58 0.14 245);
+
+  --chart-1: oklch(0.58 0.14 245);
+  --chart-2: oklch(0.65 0.12 85);
+  --chart-3: oklch(0.6 0.1 200);
+  --chart-4: oklch(0.55 0.11 35);
+  --chart-5: oklch(0.5 0.08 250);
+
   --radius: 1rem;
-  --sidebar: oklch(0.966 0.01 96.57);
-  --sidebar-foreground: oklch(0.243 0.018 196.84);
-  --sidebar-primary: oklch(0.467 0.084 170.23);
-  --sidebar-primary-foreground: oklch(0.986 0.005 95.1);
-  --sidebar-accent: oklch(0.91 0.044 150.74);
-  --sidebar-accent-foreground: oklch(0.302 0.023 200.12);
-  --sidebar-border: oklch(0.884 0.018 94.37);
-  --sidebar-ring: oklch(0.467 0.084 170.23);
+
+  --sidebar: oklch(0.98 0.005 260);
+  --sidebar-foreground: oklch(0.25 0.03 260);
+  --sidebar-primary: oklch(0.58 0.14 245);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.9 0.07 245);
+  --sidebar-accent-foreground: oklch(0.3 0.08 245);
+  --sidebar-border: oklch(0.9 0.015 260);
+  --sidebar-ring: oklch(0.58 0.14 245);
 }
 
 .dark {
-  --editor-bg: oklch(0.224 0.015 208.9);
-  --background: oklch(0.202 0.021 212.81);
-  --foreground: oklch(0.96 0.012 95.83);
-  --card: oklch(0.258 0.016 204.31 / 96%);
-  --card-foreground: oklch(0.96 0.012 95.83);
-  --popover: oklch(0.258 0.016 204.31 / 96%);
-  --popover-foreground: oklch(0.96 0.012 95.83);
-  --primary: oklch(0.71 0.136 163.7);
-  --primary-foreground: oklch(0.173 0.016 212.8);
-  --secondary: oklch(0.311 0.019 212.59);
-  --secondary-foreground: oklch(0.96 0.012 95.83);
-  --muted: oklch(0.278 0.014 207.54);
-  --muted-foreground: oklch(0.764 0.02 94.77);
-  --accent: oklch(0.362 0.037 166.41);
-  --accent-foreground: oklch(0.96 0.012 95.83);
-  --destructive: oklch(0.69 0.202 24.68);
+  /* ── Dark Theme ── */
+  --editor-bg: oklch(0.22 0.015 210);
+
+  --background: oklch(0.2 0.02 212);
+  --foreground: oklch(0.95 0.01 95);
+  --card: oklch(0.25 0.015 205);
+  --card-foreground: oklch(0.95 0.01 95);
+  --popover: oklch(0.25 0.015 205);
+  --popover-foreground: oklch(0.95 0.01 95);
+
+  /* Green accent for dark mode */
+  --primary: oklch(0.7 0.15 145);
+  --primary-foreground: oklch(0.15 0.02 145);
+  --secondary: oklch(0.3 0.015 212);
+  --secondary-foreground: oklch(0.95 0.01 95);
+  --muted: oklch(0.28 0.01 210);
+  --muted-foreground: oklch(0.7 0.02 95);
+  --accent: oklch(0.35 0.05 145);
+  --accent-foreground: oklch(0.95 0.01 95);
+  --destructive: oklch(0.65 0.18 25);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.71 0.136 163.7);
-  --chart-1: oklch(0.71 0.136 163.7);
-  --chart-2: oklch(0.742 0.159 85.91);
-  --chart-3: oklch(0.665 0.118 201.85);
-  --chart-4: oklch(0.643 0.129 39.91);
-  --chart-5: oklch(0.625 0.101 272.65);
-  --sidebar: oklch(0.235 0.016 208.48);
-  --sidebar-foreground: oklch(0.96 0.012 95.83);
-  --sidebar-primary: oklch(0.71 0.136 163.7);
-  --sidebar-primary-foreground: oklch(0.173 0.016 212.8);
-  --sidebar-accent: oklch(0.362 0.037 166.41);
-  --sidebar-accent-foreground: oklch(0.96 0.012 95.83);
+  --ring: oklch(0.7 0.15 145);
+
+  --chart-1: oklch(0.7 0.15 145);
+  --chart-2: oklch(0.72 0.14 85);
+  --chart-3: oklch(0.65 0.11 200);
+  --chart-4: oklch(0.6 0.12 35);
+  --chart-5: oklch(0.58 0.1 250);
+
+  --sidebar: oklch(0.23 0.015 210);
+  --sidebar-foreground: oklch(0.95 0.01 95);
+  --sidebar-primary: oklch(0.7 0.15 145);
+  --sidebar-primary-foreground: oklch(0.15 0.02 145);
+  --sidebar-accent: oklch(0.35 0.05 145);
+  --sidebar-accent-foreground: oklch(0.95 0.01 95);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.71 0.136 163.7);
+  --sidebar-ring: oklch(0.7 0.15 145);
 }
 
 @layer base {
@@ -134,9 +147,16 @@
   body {
     @apply bg-background text-foreground;
     background-image:
-      radial-gradient(circle at top left, color-mix(in oklab, var(--primary) 22%, transparent), transparent 28%),
-      radial-gradient(circle at top right, color-mix(in oklab, var(--chart-2) 14%, transparent), transparent 24%),
-      linear-gradient(180deg, color-mix(in oklab, var(--background) 94%, white), var(--background));
+      radial-gradient(circle at top left, color-mix(in oklab, var(--primary) 10%, transparent), transparent 28%),
+      radial-gradient(circle at top right, color-mix(in oklab, var(--chart-2) 6%, transparent), transparent 24%),
+      linear-gradient(180deg, color-mix(in oklab, var(--background) 96%, white), var(--background));
+  }
+
+  .dark body {
+    background-image:
+      radial-gradient(circle at top left, color-mix(in oklab, var(--primary) 14%, transparent), transparent 28%),
+      radial-gradient(circle at top right, color-mix(in oklab, var(--chart-2) 10%, transparent), transparent 24%),
+      linear-gradient(180deg, color-mix(in oklab, var(--background) 94%, black), var(--background));
   }
 }
 
@@ -195,5 +215,72 @@
   .composer-fade-item:focus-visible::before,
   .composer-fade-item-active::before {
     opacity: 1;
+  }
+}
+
+/* Prose styles for react-markdown */
+@layer components {
+  .prose {
+    @apply text-foreground;
+  }
+  .prose h1 {
+    @apply mb-4 text-2xl font-semibold text-foreground;
+  }
+  .prose h2 {
+    @apply mb-3 mt-8 text-lg font-semibold text-foreground;
+  }
+  .prose h3 {
+    @apply mb-2 mt-6 text-base font-semibold text-foreground;
+  }
+  .prose p {
+    @apply my-3 text-sm leading-7 text-muted-foreground;
+  }
+  .prose ul {
+    @apply my-3 list-disc pl-6 text-sm text-muted-foreground;
+  }
+  .prose ol {
+    @apply my-3 list-decimal pl-6 text-sm text-muted-foreground;
+  }
+  .prose li {
+    @apply my-1;
+  }
+  .prose pre {
+    @apply my-4 overflow-x-auto rounded-xl border border-border/60 bg-background p-4 text-sm;
+  }
+  .prose code {
+    @apply rounded bg-background/80 px-1.5 py-0.5 font-mono text-[0.9em];
+  }
+  .prose pre code {
+    @apply bg-transparent p-0;
+  }
+  .prose blockquote {
+    @apply my-4 border-l-2 border-border pl-4 text-muted-foreground;
+  }
+  .prose table {
+    @apply my-4 w-full border-collapse text-left text-sm;
+  }
+  .prose thead {
+    @apply border-b border-border/70;
+  }
+  .prose th {
+    @apply border-b border-border/70 px-3 py-2 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground;
+  }
+  .prose td {
+    @apply border-b border-border/50 px-3 py-2 align-top text-muted-foreground;
+  }
+  .prose tr:last-child td {
+    @apply border-b-0;
+  }
+  .prose hr {
+    @apply my-6 border-border;
+  }
+  .prose a {
+    @apply text-primary underline;
+  }
+  .prose strong {
+    @apply font-semibold text-foreground;
+  }
+  .prose img {
+    @apply my-4 max-w-full rounded;
   }
 }

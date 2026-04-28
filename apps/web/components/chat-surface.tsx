@@ -8,6 +8,7 @@ import {
   ClockCounterClockwiseIcon,
   LightningIcon,
   PipeIcon,
+  SidebarSimpleIcon,
   XIcon,
 } from "@phosphor-icons/react";
 
@@ -21,6 +22,7 @@ import {
   type CommandFormValues,
 } from "@/lib/command-form";
 import {
+  getCommandForm,
   getPluginCategory,
   type Command,
   type CommandFormField,
@@ -29,6 +31,7 @@ import {
 import { type RunnerRun, type RunnerRunEvent } from "@/lib/runner";
 import { cn } from "@/lib/utils";
 import { RunnerTimeline } from "./timeline";
+import { FilePickerModal } from "./file-picker";
 
 function commandScore(command: SlashCommand, query: string) {
   const normalizedQuery = query.trim().toLowerCase();
@@ -107,10 +110,80 @@ function getRunStatusTag(runStatus: RunnerRun["status"]) {
     };
   }
 
+  if (runStatus === "pending") {
+    return {
+      label: "Pending",
+      tone: "bg-amber-500/10 text-amber-400",
+    };
+  }
+
   return {
     label: "Running",
     tone: "bg-sky-500/10 text-sky-400",
   };
+}
+
+function PathInput({
+  field,
+  value,
+  onChange,
+}: {
+  field: CommandFormField;
+  value: CommandFormValue;
+  onChange: (nextValue: CommandFormValue) => void;
+}) {
+  const [pickerOpen, setPickerOpen] = React.useState(false);
+  const stringValue = typeof value === "string" ? value : "";
+
+  const handleSelect = React.useCallback(
+    (paths: string[]) => {
+      if (paths.length > 0) {
+        // For multiple selection, join with commas
+        onChange(paths.join(","));
+      }
+    },
+    [onChange]
+  );
+
+  return (
+    <>
+      <label className="block">
+        <span className="mb-1 block text-xs font-medium text-foreground">
+          {field.label}
+          {field.required && <span className="ml-1 text-rose-400">*</span>}
+        </span>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={stringValue}
+            onChange={(event) => onChange(event.target.value)}
+            placeholder={field.placeholder}
+            className="h-10 flex-1 border border-border/60 bg-transparent px-3 font-mono text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-border"
+          />
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            className="h-10 border border-border/60 bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          >
+            Browse…
+          </button>
+        </div>
+        {field.description && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {field.description}
+          </p>
+        )}
+      </label>
+      <FilePickerModal
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        onSelect={handleSelect}
+        pathType={(field as { pathType?: "file" | "directory" | "any" }).pathType || "any"}
+        allowMultiple={(field as { allowMultiple?: boolean }).allowMultiple || false}
+        title={`Select ${field.label}`}
+      />
+    </>
+  );
 }
 
 function InlineFormField({
@@ -123,6 +196,10 @@ function InlineFormField({
   onChange: (nextValue: CommandFormValue) => void;
 }) {
   const options = getCommandFormOptions(field);
+
+  if (field.type === "path") {
+    return <PathInput field={field} value={value} onChange={onChange} />;
+  }
 
   if (field.type === "boolean") {
     return (
@@ -310,10 +387,7 @@ function InlineFormField({
         value={typeof value === "string" ? value : ""}
         onChange={(event) => onChange(event.target.value)}
         placeholder={field.placeholder}
-        className={cn(
-          "h-10 w-full border border-border/60 bg-transparent px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-border",
-          field.type === "path" && "font-mono",
-        )}
+        className="h-10 w-full border border-border/60 bg-transparent px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-border"
       />
       {field.description && (
         <p className="mt-1 text-xs text-muted-foreground">
@@ -498,6 +572,7 @@ export function ChatSurface({
   onSubmitPrompt,
   onRun,
   onRunPipeline,
+  onToggleSidebar,
   runPending,
   run,
   plugins,
@@ -505,6 +580,7 @@ export function ChatSurface({
   selectedCommand,
   selectedCommandPath,
   setPrompt,
+  sidebarOpen,
 }: {
   commandFormValues: CommandFormValues;
   events: RunnerRunEvent[];
@@ -520,6 +596,7 @@ export function ChatSurface({
   onSubmitPrompt: (promptId: string, answers: Record<string, string>) => Promise<void>;
   onRun: () => void;
   onRunPipeline: (pipelinePath: string) => void;
+  onToggleSidebar: () => void;
   runPending: boolean;
   run: RunnerRun | null;
   plugins: Plugin[];
@@ -527,6 +604,7 @@ export function ChatSurface({
   selectedCommand: Command | null;
   selectedCommandPath: string | null;
   setPrompt: React.Dispatch<React.SetStateAction<string>>;
+  sidebarOpen: boolean;
 }) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [activeCommandIndex, setActiveCommandIndex] = React.useState(0);
@@ -557,7 +635,7 @@ export function ChatSurface({
     [plugins],
   );
 
-  const selectedForm = selectedCommand?.form ?? null;
+  const selectedForm = getCommandForm(selectedCommand);
   const inlineFormActive = Boolean(
     selectedCommand && selectedForm?.mode === "inline",
   );
@@ -674,7 +752,7 @@ export function ChatSurface({
   }
 
   return (
-    <div className="relative flex flex-1 flex-col overflow-hidden bg-(--editor-bg)">
+    <div className="relative flex flex-1 flex-col overflow-hidden bg-[var(--editor-bg)]">
       {/* Scroll view */}
       <div className="flex-1 overflow-y-auto [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin]">
         <div className={cn("min-h-full", run ? "pt-[5vh] pb-40" : "h-full")}>
@@ -690,11 +768,8 @@ export function ChatSurface({
       </div>
 
       {/* Floating run bar */}
-      <motion.div
+      <div
         className="pointer-events-none absolute inset-x-0 top-0 flex h-[5vh] min-h-10 items-center justify-between gap-4 border-b border-border/70 bg-background/88 px-4 backdrop-blur"
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.25, 0, 0.2, 1], delay: 0.18 }}
       >
         <div className="flex min-w-0 items-center gap-2">
           {run ? (() => {
@@ -748,11 +823,11 @@ export function ChatSurface({
             History
           </button>
         </div>
-      </motion.div>
+      </div>
 
       {/* Floating composer */}
       <motion.div
-        className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-6 pb-6"
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-50 flex justify-center px-6 pb-6"
         initial={{ opacity: 0, y: 48 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: [0.25, 0, 0.2, 1], delay: 0.06 }}
@@ -793,7 +868,8 @@ export function ChatSurface({
             </button>
           </div>
 
-          <div className="border border-border/70 bg-background">
+          <div className="flex max-h-[70vh] flex-col border border-border/70 bg-background">
+            <div className="shrink-0">
             <AnimatePresence initial={false} mode="wait">
               {inlineFormActive && selectedCommand ? (
                 <motion.div
@@ -824,13 +900,40 @@ export function ChatSurface({
                     >
                       <XIcon className="size-3.5" />
                     </button>
+                    <button
+                      onClick={onToggleSidebar}
+                      className={cn(
+                        "group flex h-11 shrink-0 items-center gap-2 border-r border-border/70 px-4 text-xs font-medium transition-colors hover:bg-accent",
+                        sidebarOpen ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                      )}
+                      aria-label={sidebarOpen ? "Hide plugins sidebar" : "Show plugins sidebar"}
+                      title="Plugins"
+                    >
+                      <span className="relative flex size-3.5 shrink-0 items-center justify-center">
+                        <SidebarSimpleIcon
+                          className={cn(
+                            "size-3.5 transition-all",
+                            sidebarOpen ? "opacity-0" : "opacity-100 group-hover:opacity-0"
+                          )}
+                          weight="regular"
+                        />
+                        <SidebarSimpleIcon
+                          weight="fill"
+                          className={cn(
+                            "absolute inset-0 size-3.5 transition-all",
+                            sidebarOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                          )}
+                        />
+                      </span>
+                      Plugins
+                    </button>
                     <input
                       ref={inputRef}
                       value={generatedPrompt}
                       readOnly
                       disabled
                       placeholder="Type / to choose a command"
-                      className="h-11 w-full bg-transparent px-4 font-mono text-sm text-emerald-400 outline-none placeholder:text-muted-foreground/60 disabled:cursor-not-allowed disabled:text-emerald-400"
+                      className="h-11 w-full bg-transparent px-4 font-mono text-sm text-primary outline-none placeholder:text-muted-foreground/60 disabled:cursor-not-allowed disabled:text-primary"
                     />
                     {selectedCommand.runnerSupport ? (
                       <span
@@ -866,7 +969,7 @@ export function ChatSurface({
                     </p>
                   ) : null}
                 </motion.div>
-              ) : (
+                ) : (
                 <motion.div
                   key="text"
                   initial={{ opacity: 0 }}
@@ -875,6 +978,33 @@ export function ChatSurface({
                   transition={{ duration: 0.15 }}
                   className={cn("flex items-center", composerToneClass)}
                 >
+                    <button
+                    onClick={onToggleSidebar}
+                    className={cn(
+                      "group flex h-11 shrink-0 items-center gap-2 border-r border-border/70 px-4 text-xs font-medium transition-colors hover:bg-accent",
+                      sidebarOpen ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                    )}
+                    aria-label={sidebarOpen ? "Hide plugins sidebar" : "Show plugins sidebar"}
+                    title="Plugins"
+                  >
+                    <span className="relative flex size-3.5 shrink-0 items-center justify-center">
+                      <SidebarSimpleIcon
+                        className={cn(
+                          "size-3.5 transition-all",
+                          sidebarOpen ? "opacity-0" : "opacity-100 group-hover:opacity-0"
+                        )}
+                        weight="regular"
+                      />
+                      <SidebarSimpleIcon
+                        weight="fill"
+                        className={cn(
+                          "absolute inset-0 size-3.5 transition-all",
+                          sidebarOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                        )}
+                      />
+                    </span>
+                    Plugins
+                  </button>
                   <input
                     ref={inputRef}
                     value={prompt}
@@ -913,7 +1043,9 @@ export function ChatSurface({
                 Runner execution is not implemented for `{typedCommand.path}` yet.
               </p>
             ) : null}
+            </div>
 
+            <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin]">
             <AnimatePresence initial={false}>
               {!composerCollapsed && inlineFormActive && selectedForm && selectedCommand && (
                 <motion.div
@@ -924,7 +1056,7 @@ export function ChatSurface({
                   transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
                   style={{ overflow: "hidden" }}
                 >
-                  <div className="max-h-[60vh] space-y-4 overflow-y-auto px-4 py-4 [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin]">
+                  <div className="space-y-4 px-4 py-4">
                     {selectedForm.fields.length === 0 ? (
                       <div className="border border-border/60 bg-muted/30 px-4 py-3">
                         <p className="text-sm font-medium text-foreground">
@@ -1050,6 +1182,7 @@ export function ChatSurface({
                 </motion.div>
               )}
             </AnimatePresence>
+            </div>
           </div>
         </div>
       </motion.div>

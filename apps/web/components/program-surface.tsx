@@ -1,32 +1,22 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect } from "react"
 import {
-  ShieldCheckIcon,
   ShieldWarningIcon,
-  UsersIcon,
-  WarningCircleIcon,
 } from "@phosphor-icons/react"
 
+import { HeaderActionButton } from "@/components/header-action-button"
+import { RecordHeader } from "@/components/record-header"
 import { cn } from "@/lib/utils"
 import {
   type ProgramException,
-  type ProgramMetric,
   type ProgramPolicy,
+  type ProgramControl,
   type ProgramRisk,
   type ProgramSummary,
   type ProgramVendor,
 } from "@/lib/runner"
-
-type ProgramTab = "risks" | "exceptions" | "vendors" | "policies" | "metrics"
-
-const TABS: { id: ProgramTab; label: string }[] = [
-  { id: "risks", label: "Risks" },
-  { id: "exceptions", label: "Exceptions" },
-  { id: "vendors", label: "Vendors" },
-  { id: "policies", label: "Policies" },
-  { id: "metrics", label: "Metrics" },
-]
+import { ProgramTabs, type ProgramTab } from "@/components/program-tabs"
 
 const RISK_STATUS_BADGE: Record<string, string> = {
   open: "border-red-300/40 bg-red-500/10 text-red-400",
@@ -67,20 +57,6 @@ function Badge({ label, className }: { label: string; className?: string }) {
   )
 }
 
-function EntityRow({ children, onClick, selected }: { children: React.ReactNode; onClick?: () => void; selected?: boolean }) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "w-full border-b border-border/40 px-6 py-4 text-left transition-colors last:border-0 hover:bg-muted/30",
-        selected && "bg-muted/40",
-      )}
-    >
-      {children}
-    </button>
-  )
-}
-
 function FieldPair({ label, value }: { label: string; value?: string | null }) {
   if (!value) return null
   return (
@@ -91,24 +67,38 @@ function FieldPair({ label, value }: { label: string; value?: string | null }) {
   )
 }
 
+function copyText(value: string | null | undefined) {
+  if (!value) return
+  void navigator.clipboard.writeText(value)
+}
+
 function RiskDetail({ risk }: { risk: ProgramRisk }) {
   const score = risk.residual?.score ?? risk.inherent?.score
   return (
     <div className="flex-1 overflow-auto">
-      <div className="border-b border-border/70 bg-background px-6 py-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge
-            label={risk.status}
-            className={RISK_STATUS_BADGE[risk.status] ?? "border-zinc-300/20 bg-zinc-500/10 text-zinc-400"}
-          />
-          {risk.treatment && <Badge label={risk.treatment} />}
-          {score != null && (
-            <Badge label={`Score ${score}`} />
-          )}
-        </div>
-        <h2 className="mt-3 text-base font-semibold text-foreground">{risk.title}</h2>
-        <p className="mt-1 text-xs text-muted-foreground font-mono">{risk.risk_id}</p>
-      </div>
+      <RecordHeader
+        eyebrow="Risk"
+        title={risk.title}
+        identifier={risk.risk_id}
+        badges={
+          <>
+            <Badge
+              label={risk.status}
+              className={RISK_STATUS_BADGE[risk.status] ?? "border-zinc-300/20 bg-zinc-500/10 text-zinc-400"}
+            />
+            {risk.treatment ? <Badge label={risk.treatment} /> : null}
+            {score != null ? <Badge label={`Score ${score}`} /> : null}
+          </>
+        }
+        meta={[
+          ...(risk.owner ? [{ label: "Owner", value: risk.owner }] : []),
+          ...(risk.created_at ? [{ label: "Created", value: new Date(risk.created_at).toLocaleDateString() }] : []),
+          ...(risk.updated_at ? [{ label: "Updated", value: new Date(risk.updated_at).toLocaleDateString() }] : []),
+        ]}
+        actions={
+          <HeaderActionButton onClick={() => copyText(risk.risk_id)}>Copy ID</HeaderActionButton>
+        }
+      />
       <div className="space-y-2 px-6 py-5">
         <FieldPair label="Owner" value={risk.owner} />
         <FieldPair label="Created" value={risk.created_at ? new Date(risk.created_at).toLocaleDateString() : null} />
@@ -150,16 +140,28 @@ function RiskDetail({ risk }: { risk: ProgramRisk }) {
 function ExceptionDetail({ exception: ex }: { exception: ProgramException }) {
   return (
     <div className="flex-1 overflow-auto">
-      <div className="border-b border-border/70 bg-background px-6 py-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge
-            label={ex.status}
-            className={EXCEPTION_STATUS_BADGE[ex.status] ?? "border-zinc-300/20 bg-zinc-500/10 text-zinc-400"}
-          />
-          <Badge label={`${ex.control_framework} / ${ex.control_id}`} />
-        </div>
-        <h2 className="mt-3 text-base font-semibold text-foreground">{ex.exception_id}</h2>
-      </div>
+      <RecordHeader
+        eyebrow="Exception"
+        title={ex.exception_id}
+        identifier={ex.control_id}
+        badges={
+          <>
+            <Badge
+              label={ex.status}
+              className={EXCEPTION_STATUS_BADGE[ex.status] ?? "border-zinc-300/20 bg-zinc-500/10 text-zinc-400"}
+            />
+            <Badge label={`${ex.control_framework} / ${ex.control_id}`} />
+          </>
+        }
+        meta={[
+          ...(ex.owner ? [{ label: "Owner", value: ex.owner }] : []),
+          ...(ex.created_at ? [{ label: "Created", value: new Date(ex.created_at).toLocaleDateString() }] : []),
+          ...(ex.expires_at ? [{ label: "Expires", value: new Date(ex.expires_at).toLocaleDateString() }] : []),
+        ]}
+        actions={
+          <HeaderActionButton onClick={() => copyText(ex.exception_id)}>Copy ID</HeaderActionButton>
+        }
+      />
       <div className="space-y-2 px-6 py-5">
         <FieldPair label="Owner" value={ex.owner} />
         <FieldPair label="Created" value={ex.created_at ? new Date(ex.created_at).toLocaleDateString() : null} />
@@ -186,14 +188,25 @@ function ExceptionDetail({ exception: ex }: { exception: ProgramException }) {
 function VendorDetail({ vendor }: { vendor: ProgramVendor }) {
   return (
     <div className="flex-1 overflow-auto">
-      <div className="border-b border-border/70 bg-background px-6 py-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge label={`Tier ${vendor.tier}`} className={VENDOR_TIER_BADGE[vendor.tier] ?? "border-zinc-300/20 bg-zinc-500/10 text-zinc-400"} />
-          <Badge label={vendor.status} />
-        </div>
-        <h2 className="mt-3 text-base font-semibold text-foreground">{vendor.name}</h2>
-        <p className="mt-1 font-mono text-xs text-muted-foreground">{vendor.vendor_id}</p>
-      </div>
+      <RecordHeader
+        eyebrow="Vendor"
+        title={vendor.name}
+        identifier={vendor.vendor_id}
+        badges={
+          <>
+            <Badge label={`Tier ${vendor.tier}`} className={VENDOR_TIER_BADGE[vendor.tier] ?? "border-zinc-300/20 bg-zinc-500/10 text-zinc-400"} />
+            <Badge label={vendor.status} />
+          </>
+        }
+        meta={[
+          ...(vendor.owner ? [{ label: "Owner", value: vendor.owner }] : []),
+          ...(vendor.last_review_at ? [{ label: "Last review", value: new Date(vendor.last_review_at).toLocaleDateString() }] : []),
+          ...(vendor.next_review_at ? [{ label: "Next review", value: new Date(vendor.next_review_at).toLocaleDateString() }] : []),
+        ]}
+        actions={
+          <HeaderActionButton onClick={() => copyText(vendor.vendor_id)}>Copy ID</HeaderActionButton>
+        }
+      />
       <div className="space-y-2 px-6 py-5">
         <FieldPair label="Owner" value={vendor.owner} />
         <FieldPair label="Last review" value={vendor.last_review_at ? new Date(vendor.last_review_at).toLocaleDateString() : null} />
@@ -206,14 +219,30 @@ function VendorDetail({ vendor }: { vendor: ProgramVendor }) {
 function PolicyDetail({ policy }: { policy: ProgramPolicy }) {
   return (
     <div className="flex-1 overflow-auto">
-      <div className="border-b border-border/70 bg-background px-6 py-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge label={policy.status} className={POLICY_STATUS_BADGE[policy.status] ?? "border-zinc-300/20 bg-zinc-500/10 text-zinc-400"} />
-          <Badge label={`v${policy.version}`} />
-        </div>
-        <h2 className="mt-3 text-base font-semibold text-foreground">{policy.title}</h2>
-        <p className="mt-1 font-mono text-xs text-muted-foreground">{policy.policy_id}</p>
-      </div>
+      <RecordHeader
+        eyebrow="Policy"
+        title={policy.title}
+        identifier={policy.policy_id}
+        badges={
+          <>
+            <Badge label={policy.status} className={POLICY_STATUS_BADGE[policy.status] ?? "border-zinc-300/20 bg-zinc-500/10 text-zinc-400"} />
+            <Badge label={`v${policy.version}`} />
+          </>
+        }
+        meta={[
+          ...(policy.owner ? [{ label: "Owner", value: policy.owner }] : []),
+          ...(policy.effective_at ? [{ label: "Effective", value: new Date(policy.effective_at).toLocaleDateString() }] : []),
+          ...(policy.next_review_at ? [{ label: "Next review", value: new Date(policy.next_review_at).toLocaleDateString() }] : []),
+        ]}
+        actions={
+          <>
+            <HeaderActionButton onClick={() => copyText(policy.policy_id)}>Copy ID</HeaderActionButton>
+            <HeaderActionButton onClick={() => copyText(policy.document_path)}>
+              Copy Path
+            </HeaderActionButton>
+          </>
+        }
+      />
       <div className="space-y-2 px-6 py-5">
         <FieldPair label="Owner" value={policy.owner} />
         <FieldPair label="Effective" value={policy.effective_at ? new Date(policy.effective_at).toLocaleDateString() : null} />
@@ -234,252 +263,166 @@ function PolicyDetail({ policy }: { policy: ProgramPolicy }) {
   )
 }
 
-function MetricRow({ metric }: { metric: ProgramMetric }) {
+function ControlDetail({ control }: { control: ProgramControl }) {
   return (
-    <div className="border-b border-border/40 px-6 py-4 last:border-0">
-      <div className="flex items-baseline justify-between gap-4">
-        <span className="font-mono text-xs text-muted-foreground">{metric.metric_id}</span>
-        <span className="text-xs text-muted-foreground">
-          {new Date(metric.recorded_at).toLocaleDateString()}
-        </span>
+    <div className="flex-1 overflow-auto">
+      <RecordHeader
+        eyebrow="Control"
+        title={control.title}
+        identifier={control.control_id}
+        badges={
+          <>
+            <Badge label={control.status} />
+            {control.automation_status ? <Badge label={control.automation_status} /> : null}
+          </>
+        }
+        meta={[
+          ...(control.owner ? [{ label: "Owner", value: control.owner }] : []),
+          ...(control.last_tested_at ? [{ label: "Last tested", value: new Date(control.last_tested_at).toLocaleDateString() }] : []),
+          ...(control.next_test_at ? [{ label: "Next test", value: new Date(control.next_test_at).toLocaleDateString() }] : []),
+        ]}
+        actions={
+          <HeaderActionButton onClick={() => copyText(control.control_id)}>Copy ID</HeaderActionButton>
+        }
+      />
+      <div className="space-y-2 px-6 py-5">
+        <FieldPair label="Owner" value={control.owner} />
+        <FieldPair label="Last tested" value={control.last_tested_at ? new Date(control.last_tested_at).toLocaleDateString() : null} />
+        <FieldPair label="Next test" value={control.next_test_at ? new Date(control.next_test_at).toLocaleDateString() : null} />
+        {control.framework_refs && control.framework_refs.length > 0 && (
+          <div className="pt-2">
+            <p className="mb-1.5 text-xs font-medium text-muted-foreground">Frameworks</p>
+            <div className="flex flex-wrap gap-1.5">
+              {control.framework_refs.map((f) => (
+                <span key={f} className="rounded border border-border/60 bg-muted/40 px-2 py-0.5 font-mono text-[11px] text-muted-foreground">{f}</span>
+              ))}
+            </div>
+          </div>
+        )}
+        {control.policy_refs && control.policy_refs.length > 0 && (
+          <div className="pt-2">
+            <p className="mb-1.5 text-xs font-medium text-muted-foreground">Policies</p>
+            <ul className="space-y-0.5">
+              {control.policy_refs.map((p) => (
+                <li key={p} className="font-mono text-xs text-foreground/80">{p}</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
-      <div className="mt-1 flex items-baseline gap-1.5">
-        <span className="text-2xl font-semibold tabular-nums text-foreground">{metric.value}</span>
-        {metric.unit && <span className="text-sm text-muted-foreground">{metric.unit}</span>}
-      </div>
-      {metric.subject && <p className="mt-0.5 text-xs text-muted-foreground">{metric.subject}</p>}
     </div>
   )
 }
 
 export function ProgramSurface({
+  activeTab,
   program,
   loading,
+  onSelectTab,
+  selectedItemId,
 }: {
+  activeTab: ProgramTab
   program: ProgramSummary | null
   loading: boolean
+  onSelectTab: (tab: ProgramTab) => void
+  selectedItemId: string | null
 }) {
-  const [activeTab, setActiveTab] = useState<ProgramTab>(() => {
-    const stored = typeof window !== "undefined"
-      ? window.localStorage.getItem("cge.program-active-tab")
-      : null;
-    return (stored as ProgramTab | null) ?? "risks";
-  })
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  useEffect(() => {
+    window.localStorage.setItem("cge.program-active-tab", activeTab)
+  }, [activeTab])
 
   if (loading) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-[var(--editor-bg)] p-8">
-        <p className="text-sm text-muted-foreground">Loading program…</p>
+      <div className="relative flex flex-1 flex-col overflow-hidden bg-[var(--editor-bg)]">
+        <div className="flex flex-1 items-center justify-center p-8">
+          <p className="text-sm text-muted-foreground">Loading program…</p>
+        </div>
+        <ProgramTabs activeTab={activeTab} onSelectTab={(tab) => tab && onSelectTab(tab)} />
       </div>
     )
   }
 
   const isEmpty =
     !program ||
-    (program.risks.length === 0 &&
-      program.exceptions.length === 0 &&
-      program.vendors.length === 0 &&
-      program.policies.length === 0 &&
-      program.metrics.length === 0)
+    ((program.risks?.length ?? 0) === 0 &&
+      (program.exceptions?.length ?? 0) === 0 &&
+      (program.vendors?.length ?? 0) === 0 &&
+      (program.policies?.length ?? 0) === 0 &&
+      (program.controls?.length ?? 0) === 0)
 
   if (isEmpty) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-[var(--editor-bg)] p-8">
-        <div className="max-w-md text-center">
-          <ShieldWarningIcon className="mx-auto mb-3 size-8 text-muted-foreground/30" />
-          <h2 className="text-sm font-medium text-foreground">No program records</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Create records in <span className="font-mono">grc-data/</span> within your workspace to populate risks, exceptions, vendors, policies, and metrics.
-          </p>
+      <div className="relative flex flex-1 flex-col overflow-hidden bg-[var(--editor-bg)]">
+        <div className="flex flex-1 items-center justify-center p-8">
+          <div className="max-w-md text-center">
+            <ShieldWarningIcon className="mx-auto mb-3 size-8 text-muted-foreground/30" />
+            <h2 className="text-sm font-medium text-foreground">No program records</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Create records in <span className="font-mono">grc-data/</span> within your workspace to populate risks, exceptions, vendors, policies, and controls.
+            </p>
+          </div>
         </div>
+        <ProgramTabs activeTab={activeTab} onSelectTab={(tab) => tab && onSelectTab(tab)} />
       </div>
     )
-  }
-
-  const counts: Record<ProgramTab, number> = {
-    risks: program?.risks.length ?? 0,
-    exceptions: program?.exceptions.length ?? 0,
-    vendors: program?.vendors.length ?? 0,
-    policies: program?.policies.length ?? 0,
-    metrics: program?.metrics.length ?? 0,
   }
 
   function tabContent() {
     if (!program) return null
 
     if (activeTab === "risks") {
-      const selected = selectedId ? program.risks.find((r) => r.risk_id === selectedId) : null
-      return (
-        <div className="flex flex-1 overflow-hidden">
-          <div className="w-72 shrink-0 overflow-auto border-r border-border/60">
-            {program.risks.map((risk) => (
-              <EntityRow
-                key={risk.risk_id}
-                selected={selectedId === risk.risk_id}
-                onClick={() => setSelectedId(risk.risk_id)}
-              >
-                <div className="flex items-start gap-2.5">
-                  <WarningCircleIcon className={cn("mt-0.5 size-4 shrink-0", risk.status === "open" ? "text-red-400" : "text-muted-foreground/50")} />
-                  <div className="min-w-0">
-                    <p className="truncate text-xs font-medium text-foreground">{risk.title}</p>
-                    <p className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-muted-foreground/50">{risk.status}{risk.owner ? ` · ${risk.owner}` : ""}</p>
-                  </div>
-                </div>
-              </EntityRow>
-            ))}
-          </div>
-          {selected ? (
-            <RiskDetail risk={selected} />
-          ) : (
-            <div className="flex flex-1 items-center justify-center p-8 text-sm text-muted-foreground">
-              Select a risk to view details
-            </div>
-          )}
-        </div>
-      )
+      const risks = program.risks ?? []
+      const selected = selectedItemId ? risks.find((r) => r.risk_id === selectedItemId) : null
+      return selected ? <RiskDetail risk={selected} /> : <EmptyDetail label="risk" />
     }
 
     if (activeTab === "exceptions") {
-      const selected = selectedId ? program.exceptions.find((e) => e.exception_id === selectedId) : null
-      return (
-        <div className="flex flex-1 overflow-hidden">
-          <div className="w-72 shrink-0 overflow-auto border-r border-border/60">
-            {program.exceptions.map((ex) => (
-              <EntityRow
-                key={ex.exception_id}
-                selected={selectedId === ex.exception_id}
-                onClick={() => setSelectedId(ex.exception_id)}
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-xs font-medium text-foreground">{ex.exception_id}</p>
-                  <p className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-muted-foreground/50">
-                    {ex.control_framework}/{ex.control_id} · {ex.status}
-                  </p>
-                </div>
-              </EntityRow>
-            ))}
-          </div>
-          {selected ? (
-            <ExceptionDetail exception={selected} />
-          ) : (
-            <div className="flex flex-1 items-center justify-center p-8 text-sm text-muted-foreground">
-              Select an exception to view details
-            </div>
-          )}
-        </div>
-      )
+      const exceptions = program.exceptions ?? []
+      const selected = selectedItemId ? exceptions.find((e) => e.exception_id === selectedItemId) : null
+      return selected ? <ExceptionDetail exception={selected} /> : <EmptyDetail label="exception" />
     }
 
     if (activeTab === "vendors") {
-      const selected = selectedId ? program.vendors.find((v) => v.vendor_id === selectedId) : null
-      return (
-        <div className="flex flex-1 overflow-hidden">
-          <div className="w-72 shrink-0 overflow-auto border-r border-border/60">
-            {program.vendors.map((vendor) => (
-              <EntityRow
-                key={vendor.vendor_id}
-                selected={selectedId === vendor.vendor_id}
-                onClick={() => setSelectedId(vendor.vendor_id)}
-              >
-                <div className="flex items-start gap-2.5">
-                  <UsersIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground/50" />
-                  <div className="min-w-0">
-                    <p className="truncate text-xs font-medium text-foreground">{vendor.name}</p>
-                    <p className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-muted-foreground/50">
-                      Tier {vendor.tier} · {vendor.status}
-                    </p>
-                  </div>
-                </div>
-              </EntityRow>
-            ))}
-          </div>
-          {selected ? (
-            <VendorDetail vendor={selected} />
-          ) : (
-            <div className="flex flex-1 items-center justify-center p-8 text-sm text-muted-foreground">
-              Select a vendor to view details
-            </div>
-          )}
-        </div>
-      )
+      const vendors = program.vendors ?? []
+      const selected = selectedItemId ? vendors.find((v) => v.vendor_id === selectedItemId) : null
+      return selected ? <VendorDetail vendor={selected} /> : <EmptyDetail label="vendor" />
     }
 
     if (activeTab === "policies") {
-      const selected = selectedId ? program.policies.find((p) => p.policy_id === selectedId) : null
-      return (
-        <div className="flex flex-1 overflow-hidden">
-          <div className="w-72 shrink-0 overflow-auto border-r border-border/60">
-            {program.policies.map((policy) => (
-              <EntityRow
-                key={policy.policy_id}
-                selected={selectedId === policy.policy_id}
-                onClick={() => setSelectedId(policy.policy_id)}
-              >
-                <div className="flex items-start gap-2.5">
-                  <ShieldCheckIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground/50" />
-                  <div className="min-w-0">
-                    <p className="truncate text-xs font-medium text-foreground">{policy.title}</p>
-                    <p className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-muted-foreground/50">
-                      {policy.status} · v{policy.version}
-                    </p>
-                  </div>
-                </div>
-              </EntityRow>
-            ))}
-          </div>
-          {selected ? (
-            <PolicyDetail policy={selected} />
-          ) : (
-            <div className="flex flex-1 items-center justify-center p-8 text-sm text-muted-foreground">
-              Select a policy to view details
-            </div>
-          )}
-        </div>
-      )
+      const policies = program.policies ?? []
+      const selected = selectedItemId ? policies.find((p) => p.policy_id === selectedItemId) : null
+      return selected ? <PolicyDetail policy={selected} /> : <EmptyDetail label="policy" />
     }
 
-    if (activeTab === "metrics") {
-      return (
-        <div className="flex-1 overflow-auto">
-          {program.metrics.map((metric, i) => (
-            <MetricRow key={`${metric.metric_id}-${i}`} metric={metric} />
-          ))}
-        </div>
-      )
+    if (activeTab === "controls") {
+      const controls = program.controls ?? []
+      const selected = selectedItemId ? controls.find((c) => c.control_id === selectedItemId) : null
+      return selected ? <ControlDetail control={selected} /> : <EmptyDetail label="control" />
     }
 
     return null
   }
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden bg-[var(--editor-bg)]">
-      <div className="border-b border-border/70 bg-background">
-        <div className="flex gap-0 overflow-x-auto">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => { setActiveTab(tab.id); setSelectedId(null); window.localStorage.setItem("cge.program-active-tab", tab.id); }}
-              className={cn(
-                "flex items-center gap-2 border-b-2 px-5 py-3.5 text-xs font-medium transition-colors whitespace-nowrap",
-                activeTab === tab.id
-                  ? "border-foreground text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {tab.label}
-              <span className={cn(
-                "rounded-full px-1.5 py-0.5 text-[10px] tabular-nums",
-                activeTab === tab.id ? "bg-foreground/10 text-foreground" : "bg-muted text-muted-foreground",
-              )}>
-                {counts[tab.id]}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
+    <div className="relative flex flex-1 flex-col overflow-hidden bg-[var(--editor-bg)]">
       <div className="flex flex-1 overflow-hidden">
         {tabContent()}
+      </div>
+      <ProgramTabs activeTab={activeTab} onSelectTab={(tab) => tab && onSelectTab(tab)} />
+    </div>
+  )
+}
+
+function EmptyDetail({ label }: { label: string }) {
+  return (
+    <div className="flex flex-1 flex-col overflow-auto">
+      <RecordHeader
+        eyebrow={label}
+        title={`No ${label} selected`}
+        actions={<HeaderActionButton disabled>Copy ID</HeaderActionButton>}
+      />
+      <div className="flex flex-1 items-center justify-center p-8 text-sm text-muted-foreground">
+        Select a {label} from the sidebar to view details
       </div>
     </div>
   )

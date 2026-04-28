@@ -23,6 +23,8 @@ export function isCollapsibleTimelineItem(_item: TimelineItem) {
 export function defaultCollapsedForItem(item: TimelineItem) {
   if (item.kind === "stream") return false;
   if (item.event.type === "run.failed") return false;
+  if (item.event.type === "message") return false;
+  if (item.event.type === "prompt.required") return false;
   if (item.event.type === "tool.completed" && Number(item.event.data.exitCode ?? 0) !== 0) {
     return false;
   }

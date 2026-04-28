@@ -337,8 +337,8 @@ function validateSchema(schema, pluginId, commandId) {
   if (!schema.execution) {
     errors.push(`Missing required section: execution`);
   } else {
-    if (!schema.execution.mode) errors.push(`execution.mode is required (script|agent)`);
-    const validModes = ["script", "agent"];
+    if (!schema.execution.mode) errors.push(`execution.mode is required (script|workflow|agent)`);
+    const validModes = ["script", "workflow", "agent"];
     if (schema.execution.mode && !validModes.includes(schema.execution.mode)) {
       errors.push(`execution.mode must be one of: ${validModes.join(", ")}`);
     }
@@ -352,20 +352,35 @@ function validateSchema(schema, pluginId, commandId) {
       schema.inputs.forEach((input, index) => {
         if (!input.name) errors.push(`inputs[${index}].name is required`);
         if (!input.type) errors.push(`inputs[${index}].type is required`);
-        const validTypes = ["text", "select", "boolean", "number", "multiselect", "path", "textarea", "json"];
+        const validTypes = ["text", "select", "boolean", "number", "multiselect", "path", "textarea", "secret", "json"];
         if (input.type && !validTypes.includes(input.type)) {
           errors.push(`inputs[${index}].type must be one of: ${validTypes.join(", ")}`);
         }
         if (input.type === "select" && !input.options) {
           errors.push(`inputs[${index}].options is required for select type`);
         }
+        // Validate pathType if present
+        if (input.type === "path" && input.pathType) {
+          const validPathTypes = ["file", "directory", "any"];
+          if (!validPathTypes.includes(input.pathType)) {
+            errors.push(`inputs[${index}].pathType must be one of: ${validPathTypes.join(", ")}`);
+          }
+        }
       });
     }
   }
 
-  // Optional: validate outputs if present
+  // Optional: validate outputs if present. v2 uses an object, v3 uses an array.
   if (schema.outputs) {
-    if (!schema.outputs.type) {
+    if (Array.isArray(schema.outputs)) {
+      const validV3Types = ["stdout", "artifact", "findings", "program-records", "metrics", "interactive"];
+      schema.outputs.forEach((output, index) => {
+        if (!output.id) errors.push(`outputs[${index}].id is required`);
+        if (!validV3Types.includes(output.type)) {
+          errors.push(`outputs[${index}].type must be one of: ${validV3Types.join(", ")}`);
+        }
+      });
+    } else if (!schema.outputs.type) {
       errors.push(`outputs.type is recommended (findings|status|document|artifact)`);
     }
   }
@@ -458,6 +473,10 @@ function inferPluginMetadata(pluginDir, pluginId) {
 
   if (pluginId === "grc-reporter") {
     return { type: "tool", category: "reporting", personas: allPersonas };
+  }
+
+  if (pluginId === "pipeline") {
+    return { type: "tool", category: "program", personas: allPersonas };
   }
 
   if (pluginId === "oscal" || pluginId === "fedramp-ssp") {

@@ -66,6 +66,9 @@ export interface InputField {
   position?: "argument";
   help?: string;
   range?: [number, number];
+  // Path input options
+  pathType?: "file" | "directory" | "any";
+  allowMultiple?: boolean;
 }
 
 // New: Output schema from schema.yaml
@@ -187,22 +190,47 @@ export function getPluginCategory(plugin: Plugin): PluginCategory {
 
 // Helper to convert new v2 inputs to legacy form fields (for gradual migration)
 export function inputsToFormFields(inputs: InputField[] = []): CommandFormField[] {
-  return inputs.map(input => ({
-    name: input.name,
-    label: input.label,
-    type: input.type,
-    required: input.required,
-    position: input.position,
-    flag: input.flag,
-    description: input.description,
-    placeholder: input.placeholder,
-    defaultValue: input.default,
-    options: input.options,
-  }));
+  return inputs.map(input => {
+    // Determine if this should be a positional argument or a flag
+    // - If position is explicitly set, use that
+    // - If flag is explicitly set, use that
+    // - Boolean fields become flags (e.g., --offline)
+    // - Optional non-boolean fields become flags (e.g., --background=value)
+    // - Required fields without flags become positional arguments
+    const hasExplicitFlag = !!input.flag;
+    const isBoolean = input.type === "boolean";
+    const isOptional = input.required === false;
+    
+    // Auto-generate flag if needed
+    let flag = input.flag;
+    if (!flag && (isBoolean || isOptional)) {
+      flag = `--${input.name}`;
+    }
+    
+    // Determine position: if it has a flag, it's not a positional argument
+    const position = input.position ?? (flag ? undefined : "argument");
+    
+    return {
+      name: input.name,
+      label: input.label,
+      type: input.type,
+      required: input.required,
+      position,
+      flag,
+      description: input.description,
+      placeholder: input.placeholder,
+      defaultValue: input.default,
+      options: input.options,
+    };
+  });
 }
 
 // Helper to get form schema from command (works with both v1 and v2)
-export function getCommandForm(command: Command): CommandFormSchema | null {
+export function getCommandForm(command: Command | null | undefined): CommandFormSchema | null {
+  if (!command) {
+    return null;
+  }
+  
   // If legacy form exists, use it
   if (command.form) {
     return command.form;

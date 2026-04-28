@@ -1,18 +1,31 @@
 "use client";
 
 import { motion } from "motion/react";
+import { useThemeStore } from "@/stores/theme-store";
+
+function getInspectorIcon(id: string, theme: "dark" | "light"): string {
+  const icons: Record<string, { dark: string; light: string }> = {
+    "github-inspector": { dark: "/github_dark.svg", light: "/github_light.svg" },
+    "aws-inspector":    { dark: "/aws_dark.svg", light: "/aws_light.svg" },
+    "gcp-inspector":    { dark: "/google_cloud.svg", light: "/google_cloud.svg" },
+    "okta-inspector":   { dark: "/okta_dark.png", light: "/okta_light.svg" },
+  };
+  return icons[id]?.[theme] ?? icons[id]?.dark ?? "";
+}
 
 const INSPECTOR_SHORTCUTS = [
-  { id: "github-inspector", label: "GitHub Inspector", icon: "/github_dark.svg" },
-  { id: "aws-inspector",    label: "AWS Inspector",    icon: "/aws_dark.svg" },
-  { id: "gcp-inspector",    label: "GCP Inspector",    icon: "/google_cloud.svg" },
-  { id: "okta-inspector",   label: "Okta Inspector",   icon: "/okta_dark.png" },
+  { id: "github-inspector", label: "GitHub Inspector" },
+  { id: "aws-inspector",    label: "AWS Inspector" },
+  { id: "gcp-inspector",    label: "GCP Inspector" },
+  { id: "okta-inspector",   label: "Okta Inspector" },
 ];
 
 export function EmptyState({ onQuickRun }: { onQuickRun?: (commandPath: string) => void }) {
+  const { theme } = useThemeStore();
   return (
-    <div className="flex min-h-full items-center justify-center px-6 py-16">
-      <div className="w-max text-center">
+    <div className="relative flex min-h-full items-center justify-center px-6 py-16">
+      
+      <div className="relative z-10 w-max text-center">
         <motion.p
           className="text-[48pt] font-semibold leading-none tracking-tight text-foreground"
           initial={{ opacity: 0, y: 16, filter: "blur(8px)" }}
@@ -22,13 +35,13 @@ export function EmptyState({ onQuickRun }: { onQuickRun?: (commandPath: string) 
           CGE Studio
         </motion.p>
         <motion.p
-          className="mt-2 text-2xl font-normal italic text-muted-foreground/60"
+          className="mt-2 text-2xl font-normal italic text-foreground/70"
           style={{ fontFamily: "var(--font-instrument-serif)" }}
           initial={{ opacity: 0, y: 10, filter: "blur(6px)" }}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ duration: 0.45, ease: [0.25, 0, 0.2, 1], delay: 0.1 }}
         >
-          alpha
+          Alpha
         </motion.p>
         <motion.div
           className="mt-14"
@@ -37,9 +50,9 @@ export function EmptyState({ onQuickRun }: { onQuickRun?: (commandPath: string) 
           transition={{ duration: 0.4, ease: [0.25, 0, 0.2, 1], delay: 0.22 }}
         >
           <div className="flex items-center gap-3">
-            <div className="flex-1 border-t border-dashed border-border/40" />
-            <span className="font-mono text-[11px] text-muted-foreground/40">Start here</span>
-            <div className="flex-1 border-t border-dashed border-border/40" />
+            <div className="flex-1 border-t border-dashed border-border" />
+            <span className="font-mono text-[11px] text-muted-foreground">Start here</span>
+            <div className="flex-1 border-t border-dashed border-border" />
           </div>
           <div className="mt-6 flex items-center justify-center gap-3">
             {INSPECTOR_SHORTCUTS.map((inspector, i) => (
@@ -47,12 +60,12 @@ export function EmptyState({ onQuickRun }: { onQuickRun?: (commandPath: string) 
                 key={inspector.id}
                 type="button"
                 onClick={() => onQuickRun?.(`/${inspector.id}:setup`)}
-                className="inline-flex items-center gap-2.5 border border-border/60 bg-card/60 p-2.5 text-sm text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+                className="inline-flex items-center gap-2.5 border border-border bg-muted/60 p-2.5 text-sm text-foreground/80 backdrop-blur-sm transition-colors hover:border-primary/40 hover:bg-accent hover:text-foreground"
                 initial={{ opacity: 0, y: 8, filter: "blur(4px)" }}
                 animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                 transition={{ duration: 0.35, ease: [0.25, 0, 0.2, 1], delay: 0.32 + i * 0.06 }}
               >
-                <img src={inspector.icon} alt="" className="w-4 h-4 flex-shrink-0 object-contain" />
+                <img src={getInspectorIcon(inspector.id, theme)} alt="" className="w-4 h-4 flex-shrink-0 object-contain" />
                 <span className="ml-1">{inspector.label}</span>
               </motion.button>
             ))}

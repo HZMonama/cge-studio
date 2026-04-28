@@ -3,9 +3,8 @@
 import { useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import type { Monaco } from "@monaco-editor/react"
-import { Markdown } from "@tiptap/markdown"
-import { EditorContent, useEditor } from "@tiptap/react"
-import StarterKit from "@tiptap/starter-kit"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import { configureMonacoYaml } from "monaco-yaml"
 import {
   BracketsCurlyIcon,
@@ -501,56 +500,13 @@ function MetadataCard({
 }
 
 function MarkdownArtifactView({ content }: { content: string }) {
-  const editor = useEditor(
-    {
-      content,
-      contentType: "markdown",
-      editable: false,
-      editorProps: {
-        attributes: {
-          class: [
-            "min-h-full px-8 py-6 text-sm leading-7 text-foreground focus:outline-none",
-            "[&_h1]:mb-4 [&_h1]:text-2xl [&_h1]:font-semibold",
-            "[&_h2]:mb-3 [&_h2]:mt-8 [&_h2]:text-lg [&_h2]:font-semibold",
-            "[&_p]:my-3",
-            "[&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-6",
-            "[&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-6",
-            "[&_li]:my-1",
-            "[&_pre]:my-4 [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:border [&_pre]:border-border/60 [&_pre]:bg-background [&_pre]:p-4",
-            "[&_code]:rounded [&_code]:bg-background/80 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[0.9em]",
-            "[&_pre_code]:bg-transparent [&_pre_code]:p-0",
-            "[&_blockquote]:my-4 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground",
-            "[&_table]:my-4 [&_table]:w-full [&_table]:border-collapse [&_table]:text-left",
-            "[&_th]:border-b [&_th]:border-border/70 [&_th]:px-3 [&_th]:py-2 [&_th]:text-xs [&_th]:font-medium [&_th]:uppercase [&_th]:tracking-[0.12em] [&_th]:text-muted-foreground",
-            "[&_td]:border-b [&_td]:border-border/50 [&_td]:px-3 [&_td]:py-2 align-top",
-          ].join(" "),
-        },
-      },
-      extensions: [StarterKit, Markdown],
-      immediatelyRender: false,
-    },
-    [],
-  )
-
-  useEffect(() => {
-    if (!editor) return
-
-    editor.commands.setContent(content, {
-      contentType: "markdown",
-    })
-  }, [content, editor])
-
-  if (!editor) {
-    return (
-      <div className="flex h-full min-h-80 items-center justify-center text-sm text-muted-foreground">
-        Loading markdown renderer…
-      </div>
-    )
-  }
-
   return (
-    <div className="h-full overflow-auto">
-      <EditorContent editor={editor} />
+    <div className="h-full overflow-auto px-8 py-6">
+      <div className="prose prose-sm max-w-none dark:prose-invert">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          {content}
+        </ReactMarkdown>
+      </div>
     </div>
   )
 }
@@ -712,7 +668,7 @@ export function ArtifactsSurface({
 
   if (loading) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-(--editor-bg) p-8">
+      <div className="flex flex-1 items-center justify-center bg-[var(--editor-bg)] p-8">
         <p className="text-sm text-muted-foreground">Loading artifact…</p>
       </div>
     )
@@ -720,7 +676,7 @@ export function ArtifactsSurface({
 
   if (error) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-(--editor-bg) p-8">
+      <div className="flex flex-1 items-center justify-center bg-[var(--editor-bg)] p-8">
         <div className="max-w-md text-center">
           <h2 className="text-sm font-medium text-rose-400">Failed to load artifact</h2>
           <p className="mt-2 text-sm text-muted-foreground">{error}</p>
@@ -731,7 +687,7 @@ export function ArtifactsSurface({
 
   if (!artifact) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-(--editor-bg) p-8">
+      <div className="flex flex-1 items-center justify-center bg-[var(--editor-bg)] p-8">
         <div className="max-w-md text-center">
           <h2 className="text-sm font-medium text-foreground">No artifact selected</h2>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -744,9 +700,10 @@ export function ArtifactsSurface({
 
   const language = getSourceLanguage(artifact, presentation ?? "text")
   const supportsStructured = parsedContent !== null
+  const isMarkdown = presentation === "markdown"
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden bg-(--editor-bg)">
+    <div className="flex flex-1 flex-col overflow-hidden bg-[var(--editor-bg)]">
       <button
         className={cn(
           "group border-b border-border/70 bg-background px-6 text-left transition-[height,padding] duration-200",
@@ -784,7 +741,7 @@ export function ArtifactsSurface({
         </div>
       </button>
 
-      {tabs.length > 1 ? (
+      {!isMarkdown && tabs.length > 1 ? (
         <div className="border-b border-border/60 bg-background">
           <div className="flex gap-0 overflow-x-auto px-2">
             {tabs.map((tab) => {
@@ -813,7 +770,7 @@ export function ArtifactsSurface({
       ) : null}
 
       <div className="min-h-0 flex-1 overflow-hidden">
-        {activeTab === "rendered" ? (
+        {activeTab === "rendered" || isMarkdown ? (
           <MarkdownArtifactView content={artifact.content} />
         ) : null}
 

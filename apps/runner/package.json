@@ -1,18 +1,21 @@
 {
   "name": "@cge-studio/runner",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "node --watch src/server.js",
     "build": "node --check src/server.js",
     "start": "node src/server.js",
+    "restart": "kill $(lsof -ti:3333) 2>/dev/null; sleep 1; node src/server.js",
     "lint": "node --check src/server.js",
     "typecheck": "node --check src/server.js",
-    "smoke": "node scripts/runner-smoke.mjs"
+    "smoke": "node scripts/runner-smoke.mjs",
+    "validate:commands": "node scripts/validate-command-schemas.mjs"
   },
   "dependencies": {
     "@hono/node-server": "^2.0.0",
-    "hono": "^4.12.15"
+    "hono": "^4.12.15",
+    "js-yaml": "^4.1.0"
   }
 }

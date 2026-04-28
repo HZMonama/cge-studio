@@ -3,10 +3,10 @@
 import * as React from "react"
 import {
   CloudIcon,
+  ChartBarIcon,
   CheckIcon,
   FileTextIcon,
   FunnelIcon,
-  GearSixIcon,
   HandshakeIcon,
   MagnifyingGlassIcon,
   ShieldStarIcon,
@@ -16,10 +16,11 @@ import {
 
 import { cn } from "@/lib/utils"
 import { getPluginCategory, type Persona, type Plugin, type PluginCategory } from "@/lib/plugins"
-import { type RunnerArtifactSummary, type RunnerFindingSummary } from "@/lib/runner"
+import { type ProgramSummary, type RunnerArtifactSummary, type RunnerFindingSummary } from "@/lib/runner"
+import { type ProgramTab } from "@/components/program-tabs"
 import { usePluginPanel } from "@/stores/plugin-panel-store"
+import { useThemeStore } from "@/stores/theme-store"
 
-import Grainient from "@/components/Grainient"
 import { Kbd } from "@/components/ui/kbd"
 import {
   Popover,
@@ -30,15 +31,13 @@ import {
 } from "@/components/ui/popover"
 import {
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-type SidebarSection = "chat" | "dashboards" | "findings" | "program" | "artifacts"
+type SidebarSection = "runner" | "findings" | "program" | "metrics" | "artifacts"
 
 const PERSONAS: { id: Persona; label: string }[] = [
   { id: "engineer", label: "Engineer" },
@@ -52,7 +51,6 @@ const CATEGORIES: { id: PluginCategory; label: string }[] = [
   { id: "framework", label: "Frameworks" },
   { id: "connector", label: "Connectors" },
   { id: "reporting", label: "Reporting" },
-  { id: "dashboard", label: "Dashboards" },
   { id: "transform", label: "Transforms" },
   { id: "program",   label: "Programs" },
   { id: "meeting",   label: "Meetings" },
@@ -66,11 +64,14 @@ const ARTIFACT_KINDS: { id: string; label: string }[] = [
   { id: "findings", label: "Findings" },
 ]
 
-const BRAND_ICONS: Partial<Record<string, string>> = {
-  "github-inspector": "/github_dark.svg",
-  "okta-inspector":   "/okta_dark.png",
-  "aws-inspector":    "/aws_dark.svg",
-  "gcp-inspector":    "/google_cloud.svg",
+function getBrandIcon(pluginId: string, theme: "dark" | "light"): string | null {
+  const icons: Record<string, { dark: string; light: string }> = {
+    "github-inspector": { dark: "/github_dark.svg", light: "/github_light.svg" },
+    "okta-inspector":   { dark: "/okta_dark.png", light: "/okta_light.svg" },
+    "aws-inspector":    { dark: "/aws_dark.svg", light: "/aws_light.svg" },
+    "gcp-inspector":    { dark: "/google_cloud.svg", light: "/google_cloud.svg" },
+  }
+  return icons[pluginId]?.[theme] ?? null
 }
 
 const FRAMEWORK_FLAG_CODES: Partial<Record<string, string>> = {
@@ -85,6 +86,7 @@ const FRAMEWORK_FLAG_CODES: Partial<Record<string, string>> = {
   "glba": "us",
   "hitrust": "us",
   "irap": "au",
+  "ind-dpdpa": "in",
   "ismap": "jp",
   "iso27001": "un",
   "nist-800-53": "us",
@@ -97,11 +99,7 @@ const FRAMEWORK_FLAG_CODES: Partial<Record<string, string>> = {
   "us-export": "us",
 }
 
-const EMPTY_STATE_COPY: Record<Exclude<SidebarSection, "chat">, { title: string; description: string }> = {
-  dashboards: {
-    title: "No dashboards yet",
-    description: "Dashboard navigation will appear here once dashboard entities are available.",
-  },
+const EMPTY_STATE_COPY: Record<Exclude<SidebarSection, "runner">, { title: string; description: string }> = {
   findings: {
     title: "No findings yet",
     description: "Structured findings and remediation-linked issue navigation will appear here.",
@@ -114,13 +112,17 @@ const EMPTY_STATE_COPY: Record<Exclude<SidebarSection, "chat">, { title: string;
     title: "No artifacts yet",
     description: "Generated reports, exports, and saved outputs will be listed here.",
   },
+  metrics: {
+    title: "No metrics yet",
+    description: "Durable measurements emitted by setup, status, collection, and program commands will appear here.",
+  },
 }
 
 const SEARCH_PLACEHOLDERS: Record<SidebarSection, string> = {
-  chat: "Search plugins...",
-  dashboards: "Search dashboards...",
+  runner: "Search plugins...",
   findings: "Search findings...",
   program: "Search program records...",
+  metrics: "Search metrics...",
   artifacts: "Search artifacts...",
 }
 
@@ -172,7 +174,8 @@ function pluginIcon(plugin: Plugin): React.ElementType {
 }
 
 function PluginItem({ plugin }: { plugin: Plugin }) {
-  const brandSrc = BRAND_ICONS[plugin.id]
+  const { theme } = useThemeStore()
+  const brandSrc = getBrandIcon(plugin.id, theme)
   const flagCode = plugin.type === "framework" ? FRAMEWORK_FLAG_CODES[plugin.id] : null
   const Icon = pluginIcon(plugin)
   const { selectedPlugin, setSelectedPlugin } = usePluginPanel()
@@ -186,7 +189,7 @@ function PluginItem({ plugin }: { plugin: Plugin }) {
           "sidebar-fade-item group/plugin-item flex h-(--row-h) w-full items-center gap-2 overflow-hidden px-4 text-left text-xs outline-none transition-colors hover:text-sidebar-accent-foreground focus-visible:ring-2",
           isSelected
             ? "sidebar-fade-item-active text-sidebar-accent-foreground"
-            : "text-sidebar-foreground/60",
+            : "text-foreground/60",
         )}
       >
         {brandSrc
@@ -254,7 +257,7 @@ function FindingItem({
           "sidebar-fade-item group/finding-item flex h-auto w-full items-start gap-2.5 overflow-hidden px-4 py-3 text-left text-xs outline-none transition-colors hover:text-sidebar-accent-foreground focus-visible:ring-2",
           isSelected
             ? "sidebar-fade-item-active text-sidebar-accent-foreground"
-            : "text-sidebar-foreground/60",
+            : "text-foreground/60",
         )}
       >
         <span
@@ -270,11 +273,11 @@ function FindingItem({
               {finding.severity}
             </span>
           </div>
-          <p className="mt-0.5 truncate text-[10px] uppercase tracking-[0.12em] text-sidebar-foreground/45">
+          <p className="mt-0.5 truncate text-[10px] uppercase tracking-[0.12em] text-foreground/45">
             {subline}
           </p>
           {tertiary && (
-            <p className="mt-0.5 truncate text-[10px] text-sidebar-foreground/35">{tertiary}</p>
+            <p className="mt-0.5 truncate text-[10px] text-foreground/35">{tertiary}</p>
           )}
         </div>
       </button>
@@ -299,7 +302,7 @@ function ArtifactItem({
           "sidebar-fade-item group/artifact-item flex h-auto w-full items-start gap-2 overflow-hidden px-4 py-3 text-left text-xs outline-none transition-colors hover:text-sidebar-accent-foreground focus-visible:ring-2",
           isSelected
             ? "sidebar-fade-item-active text-sidebar-accent-foreground"
-            : "text-sidebar-foreground/60",
+            : "text-foreground/60",
         )}
       >
         <SidebarPhosphorIcon
@@ -309,7 +312,7 @@ function ArtifactItem({
         />
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium">{artifact.title}</p>
-          <p className="mt-1 truncate text-[10px] uppercase tracking-[0.14em] text-sidebar-foreground/45">
+          <p className="mt-1 truncate text-[10px] uppercase tracking-[0.14em] text-foreground/45">
             {artifact.kind}
           </p>
         </div>
@@ -318,35 +321,378 @@ function ArtifactItem({
   )
 }
 
+function ProgramSidebarContent({
+  activeTab,
+  query,
+  program,
+  selectedItemId,
+  onSelectItem,
+}: {
+  activeTab: ProgramTab | null
+  query?: string
+  program?: ProgramSummary | null
+  selectedItemId?: string | null
+  onSelectItem?: (itemId: string) => void
+}) {
+  if (!program) {
+    return (
+      <div className="flex h-full items-center justify-center px-6 text-center">
+        <p className="text-xs text-foreground/40">Loading program data...</p>
+      </div>
+    )
+  }
+
+  const q = query?.trim().toLowerCase() ?? ""
+
+  const risks = (program.risks ?? []).filter((r) =>
+    !q || r.title.toLowerCase().includes(q) || r.status.toLowerCase().includes(q) || (r.owner ?? "").toLowerCase().includes(q) || r.risk_id.toLowerCase().includes(q)
+  )
+  const exceptions = (program.exceptions ?? []).filter((e) =>
+    !q || e.exception_id.toLowerCase().includes(q) || e.control_framework.toLowerCase().includes(q) || e.control_id.toLowerCase().includes(q) || e.status.toLowerCase().includes(q)
+  )
+  const vendors = (program.vendors ?? []).filter((v) =>
+    !q || v.name.toLowerCase().includes(q) || v.vendor_id.toLowerCase().includes(q) || v.status.toLowerCase().includes(q)
+  )
+  const policies = (program.policies ?? []).filter((p) =>
+    !q || p.title.toLowerCase().includes(q) || p.policy_id.toLowerCase().includes(q) || p.status.toLowerCase().includes(q)
+  )
+  const controls = (program.controls ?? []).filter((c) =>
+    !q || c.title.toLowerCase().includes(q) || c.control_id.toLowerCase().includes(q) || c.status.toLowerCase().includes(q) || (c.owner ?? "").toLowerCase().includes(q)
+  )
+
+  function renderRisks(items: typeof risks) {
+    return items.map((risk) => (
+      <SidebarMenuItem key={risk.risk_id}>
+        <button
+          onClick={() => onSelectItem?.(risk.risk_id)}
+          className={cn(
+            "sidebar-fade-item flex h-auto w-full items-start gap-2 overflow-hidden px-4 py-3 text-left text-xs outline-none transition-colors hover:text-sidebar-accent-foreground",
+            selectedItemId === risk.risk_id
+              ? "sidebar-fade-item-active text-sidebar-accent-foreground"
+              : "text-foreground/60"
+          )}
+        >
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-medium">{risk.title}</p>
+            <p className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-foreground/45">
+              {risk.status}{risk.owner ? ` · ${risk.owner}` : ""}
+            </p>
+          </div>
+        </button>
+      </SidebarMenuItem>
+    ))
+  }
+
+  function renderExceptions(items: typeof exceptions) {
+    return items.map((ex) => (
+      <SidebarMenuItem key={ex.exception_id}>
+        <button
+          onClick={() => onSelectItem?.(ex.exception_id)}
+          className={cn(
+            "sidebar-fade-item flex h-auto w-full items-start gap-2 overflow-hidden px-4 py-3 text-left text-xs outline-none transition-colors hover:text-sidebar-accent-foreground",
+            selectedItemId === ex.exception_id
+              ? "sidebar-fade-item-active text-sidebar-accent-foreground"
+              : "text-foreground/60"
+          )}
+        >
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-medium">{ex.exception_id}</p>
+            <p className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-foreground/45">
+              {ex.control_framework}/{ex.control_id} · {ex.status}
+            </p>
+          </div>
+        </button>
+      </SidebarMenuItem>
+    ))
+  }
+
+  function renderVendors(items: typeof vendors) {
+    return items.map((vendor) => (
+      <SidebarMenuItem key={vendor.vendor_id}>
+        <button
+          onClick={() => onSelectItem?.(vendor.vendor_id)}
+          className={cn(
+            "sidebar-fade-item flex h-auto w-full items-start gap-2 overflow-hidden px-4 py-3 text-left text-xs outline-none transition-colors hover:text-sidebar-accent-foreground",
+            selectedItemId === vendor.vendor_id
+              ? "sidebar-fade-item-active text-sidebar-accent-foreground"
+              : "text-foreground/60"
+          )}
+        >
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-medium">{vendor.name}</p>
+            <p className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-foreground/45">
+              Tier {vendor.tier} · {vendor.status}
+            </p>
+          </div>
+        </button>
+      </SidebarMenuItem>
+    ))
+  }
+
+  function renderPolicies(items: typeof policies) {
+    return items.map((policy) => (
+      <SidebarMenuItem key={policy.policy_id}>
+        <button
+          onClick={() => onSelectItem?.(policy.policy_id)}
+          className={cn(
+            "sidebar-fade-item flex h-auto w-full items-start gap-2 overflow-hidden px-4 py-3 text-left text-xs outline-none transition-colors hover:text-sidebar-accent-foreground",
+            selectedItemId === policy.policy_id
+              ? "sidebar-fade-item-active text-sidebar-accent-foreground"
+              : "text-foreground/60"
+          )}
+        >
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-medium">{policy.title}</p>
+            <p className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-foreground/45">
+              {policy.status} · v{policy.version}
+            </p>
+          </div>
+        </button>
+      </SidebarMenuItem>
+    ))
+  }
+
+  function renderControls(items: typeof controls) {
+    return items.map((control) => (
+      <SidebarMenuItem key={control.control_id}>
+        <button
+          onClick={() => onSelectItem?.(control.control_id)}
+          className={cn(
+            "sidebar-fade-item flex h-auto w-full items-start gap-2 overflow-hidden px-4 py-3 text-left text-xs outline-none transition-colors hover:text-sidebar-accent-foreground",
+            selectedItemId === control.control_id
+              ? "sidebar-fade-item-active text-sidebar-accent-foreground"
+              : "text-foreground/60"
+          )}
+        >
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-medium">{control.title}</p>
+            <p className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-foreground/45">
+              {control.status}{control.owner ? ` · ${control.owner}` : ""}
+            </p>
+          </div>
+        </button>
+      </SidebarMenuItem>
+    ))
+  }
+
+  if (activeTab === null) {
+    const total = risks.length + exceptions.length + vendors.length + policies.length + controls.length
+    if (total === 0) {
+      return (
+        <div className="flex h-full items-center justify-center px-6 text-center">
+          <p className="text-xs text-foreground/40">{q ? "No records match" : "No program records"}</p>
+        </div>
+      )
+    }
+    return (
+      <SidebarGroup className="p-0">
+        <SidebarGroupContent>
+          <SidebarMenu>
+            {renderRisks(risks)}
+            {renderExceptions(exceptions)}
+            {renderVendors(vendors)}
+            {renderPolicies(policies)}
+            {renderControls(controls)}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    )
+  }
+
+  if (activeTab === "risks") {
+    if (risks.length === 0) {
+      return (
+        <div className="flex h-full items-center justify-center px-6 text-center">
+          <p className="text-xs text-foreground/40">{q ? "No risks match" : "No risks recorded"}</p>
+        </div>
+      )
+    }
+    return (
+      <SidebarGroup className="p-0">
+        <SidebarGroupContent>
+          <SidebarMenu>{renderRisks(risks)}</SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    )
+  }
+
+  if (activeTab === "exceptions") {
+    if (exceptions.length === 0) {
+      return (
+        <div className="flex h-full items-center justify-center px-6 text-center">
+          <p className="text-xs text-foreground/40">{q ? "No exceptions match" : "No exceptions recorded"}</p>
+        </div>
+      )
+    }
+    return (
+      <SidebarGroup className="p-0">
+        <SidebarGroupContent>
+          <SidebarMenu>{renderExceptions(exceptions)}</SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    )
+  }
+
+  if (activeTab === "vendors") {
+    if (vendors.length === 0) {
+      return (
+        <div className="flex h-full items-center justify-center px-6 text-center">
+          <p className="text-xs text-foreground/40">{q ? "No vendors match" : "No vendors recorded"}</p>
+        </div>
+      )
+    }
+    return (
+      <SidebarGroup className="p-0">
+        <SidebarGroupContent>
+          <SidebarMenu>{renderVendors(vendors)}</SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    )
+  }
+
+  if (activeTab === "policies") {
+    if (policies.length === 0) {
+      return (
+        <div className="flex h-full items-center justify-center px-6 text-center">
+          <p className="text-xs text-foreground/40">{q ? "No policies match" : "No policies recorded"}</p>
+        </div>
+      )
+    }
+    return (
+      <SidebarGroup className="p-0">
+        <SidebarGroupContent>
+          <SidebarMenu>{renderPolicies(policies)}</SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    )
+  }
+
+  if (activeTab === "controls") {
+    if (controls.length === 0) {
+      return (
+        <div className="flex h-full items-center justify-center px-6 text-center">
+          <p className="text-xs text-foreground/40">{q ? "No controls match" : "No controls recorded"}</p>
+        </div>
+      )
+    }
+    return (
+      <SidebarGroup className="p-0">
+        <SidebarGroupContent>
+          <SidebarMenu>{renderControls(controls)}</SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    )
+  }
+
+  return null
+}
+
+function MetricsSidebarContent({
+  query,
+  program,
+  selectedItemId,
+  onSelectItem,
+}: {
+  query?: string
+  program?: ProgramSummary | null
+  selectedItemId?: string | null
+  onSelectItem?: (itemId: string) => void
+}) {
+  if (!program) {
+    return (
+      <div className="flex h-full items-center justify-center px-6 text-center">
+        <p className="text-xs text-foreground/40">Loading metrics...</p>
+      </div>
+    )
+  }
+
+  const q = query?.trim().toLowerCase() ?? ""
+  const metrics = (program.metrics ?? []).filter((metric) =>
+    !q ||
+    metric.metric_id.toLowerCase().includes(q) ||
+    String(metric.value).toLowerCase().includes(q) ||
+    (metric.subject ?? "").toLowerCase().includes(q) ||
+    (metric.source ?? "").toLowerCase().includes(q)
+  )
+
+  if (metrics.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center px-6 text-center">
+        <p className="text-xs text-foreground/40">{q ? "No metrics match" : "No metrics recorded"}</p>
+      </div>
+    )
+  }
+
+  return (
+    <SidebarGroup className="p-0">
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {metrics.map((metric, index) => {
+            const id = `${metric.metric_id}-${metric.recorded_at}-${index}`
+            return (
+              <SidebarMenuItem key={id}>
+                <button
+                  onClick={() => onSelectItem?.(id)}
+                  className={cn(
+                    "sidebar-fade-item flex h-auto w-full items-start gap-2 overflow-hidden px-4 py-3 text-left text-xs outline-none transition-colors hover:text-sidebar-accent-foreground",
+                    selectedItemId === id
+                      ? "sidebar-fade-item-active text-sidebar-accent-foreground"
+                      : "text-foreground/60"
+                  )}
+                >
+                  <ChartBarIcon className="mt-0.5 size-4 shrink-0 text-foreground/40" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{metric.metric_id}</p>
+                    <p className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-foreground/45">
+                      {metric.value} {metric.unit ?? ""}
+                    </p>
+                  </div>
+                </button>
+              </SidebarMenuItem>
+            )
+          })}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  )
+}
+
 export function AppSidebar({
-  activeSection = "chat",
+  activeSection = "runner",
+  activeProgramTab = null,
   artifacts = [],
   className,
   findings = [],
   focusSearchToken,
   onSelectArtifact,
   onSelectFinding,
+  onSelectProgramItem,
   plugins,
+  program,
   selectedArtifactId,
   selectedFindingId,
+  selectedProgramItemId,
   ...props
 }: React.ComponentProps<"aside"> & {
   activeSection?: SidebarSection
+  activeProgramTab?: ProgramTab | null
   artifacts?: RunnerArtifactSummary[]
   findings?: RunnerFindingSummary[]
   focusSearchToken?: number
   onSelectArtifact?: (artifactId: string) => void
   onSelectFinding?: (findingId: string) => void
+  onSelectProgramItem?: (itemId: string) => void
   plugins: Plugin[]
+  program?: ProgramSummary | null
   selectedArtifactId?: string | null
   selectedFindingId?: string | null
+  selectedProgramItemId?: string | null
 }) {
   const [query, setQuery] = React.useState("")
   const [activePersona, setActivePersona] = React.useState<Persona | null>(null)
   const [activeCategories, setActiveCategories] = React.useState<PluginCategory[]>([])
   const [activeArtifactKinds, setActiveArtifactKinds] = React.useState<string[]>([])
   const searchRef = React.useRef<HTMLInputElement>(null)
-  const { openConfig, configOpen } = usePluginPanel()
 
   const activePersonaLabel = PERSONAS.find(persona => persona.id === activePersona)?.label
   const filterLabel = activeCategories.length > 0
@@ -412,208 +758,50 @@ export function AppSidebar({
   return (
     <aside
       className={cn(
-        "flex h-svh w-[var(--app-sidebar-w)] min-w-[var(--app-sidebar-w)] basis-[var(--app-sidebar-w)] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground",
+        "flex h-full w-[var(--app-sidebar-w)] min-w-[var(--app-sidebar-w)] basis-[var(--app-sidebar-w)] shrink-0 flex-col border-r border-border/70 bg-background text-foreground",
         className
       )}
       {...props}
     >
-      <SidebarHeader className="relative shrink-0 gap-0 overflow-hidden">
-        <div aria-hidden className="pointer-events-none absolute inset-0">
-          <Grainient
-            className="absolute inset-0 [&>canvas]:pointer-events-none"
-            timeSpeed={0.5}
-            warpStrength={1.35}
-            warpFrequency={6.1}
-            warpSpeed={2.8}
-            warpAmplitude={30}
-            blendAngle={-30}
-            blendSoftness={0.22}
-            rotationAmount={420}
-            noiseScale={4}
-            grainAmount={0}
-            grainScale={0}
-            grainAnimated
-            contrast={1.24}
-            saturation={1.15}
-            zoom={1.02}
-            color1="#162323"
-            color2="#1c2929"
-            color3="#176953"
-          />
-        </div>
-
-        <div className="relative z-10 flex h-(--row-h) min-h-(--row-h) max-h-(--row-h) shrink-0 items-center overflow-hidden px-4 text-lg font-semibold text-white">
-          <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/20 via-black/10 to-transparent" />
-
-          <div className="relative z-10 flex items-baseline gap-2 drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]">
-            <span>CGE Studio</span>
-            <span
-              className="text-lg font-normal italic"
-              style={{ fontFamily: "var(--font-instrument-serif)" }}
-            >
-              Alpha
-            </span>
+      {/* Search bar */}
+      <div className="group/search-row relative shrink-0 flex h-(--row-h) min-h-(--row-h) max-h-(--row-h) items-center overflow-hidden border-b border-border/70 bg-background/68 px-2 backdrop-blur-md">
+            <SidebarPhosphorIcon
+              Icon={MagnifyingGlassIcon}
+              className="size-3.5 text-foreground/50 group-hover/search-row:[&>svg:first-child]:opacity-0 group-hover/search-row:[&>svg:last-child]:opacity-100 group-focus-within/search-row:[&>svg:first-child]:opacity-0 group-focus-within/search-row:[&>svg:last-child]:opacity-100"
+            />
+            <input
+              ref={searchRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={
+                activeSection === "program" && activeProgramTab
+                  ? `Search program ${activeProgramTab}...`
+                  : SEARCH_PLACEHOLDERS[activeSection]
+              }
+              className="min-w-0 flex-1 bg-transparent px-2 text-xs text-foreground placeholder:text-foreground/40 focus:outline-none"
+            />
+            {!query.trim() && (
+              <>
+                <Kbd className="mr-1 hidden h-5 shrink-0 px-1.5 text-[10px] text-muted-foreground md:inline-flex">
+                  Alt + S
+                </Kbd>
+                <Kbd className="h-5 shrink-0 px-1.5 text-[10px] text-muted-foreground">
+                  {activeSection === "runner" && visible.length}
+                  {activeSection === "findings" && visibleFindings.length}
+                  {activeSection === "metrics" && (program?.metrics?.length ?? 0)}
+                  {activeSection === "artifacts" && visibleArtifacts.length}
+                  {activeSection === "program" && program && (
+                    activeProgramTab === null
+                      ? (program.risks?.length ?? 0) + (program.exceptions?.length ?? 0) + (program.vendors?.length ?? 0) + (program.policies?.length ?? 0) + (program.controls?.length ?? 0)
+                      : (program[activeProgramTab]?.length ?? 0)
+                  )}
+                </Kbd>
+              </>
+            )}
           </div>
-        </div>
-
-        <div className="group/search-row relative z-10 flex h-(--row-h) min-h-(--row-h) max-h-(--row-h) shrink-0 items-center overflow-hidden border-y border-sidebar-border bg-sidebar/68 px-2 backdrop-blur-md">
-          <SidebarPhosphorIcon
-            Icon={MagnifyingGlassIcon}
-            className="size-3.5 text-sidebar-foreground/50 group-hover/search-row:[&>svg:first-child]:opacity-0 group-hover/search-row:[&>svg:last-child]:opacity-100 group-focus-within/search-row:[&>svg:first-child]:opacity-0 group-focus-within/search-row:[&>svg:last-child]:opacity-100"
-          />
-          <input
-            ref={searchRef}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={SEARCH_PLACEHOLDERS[activeSection]}
-            className="min-w-0 flex-1 bg-transparent px-2 text-xs text-sidebar-foreground placeholder:text-sidebar-foreground/40 focus:outline-none"
-          />
-          {!query.trim() && (
-            <Kbd className="mr-1 hidden h-5 shrink-0 border border-white/15 bg-white/10 px-1.5 text-[10px] text-sidebar-foreground/70 md:inline-flex">
-              Alt + S
-            </Kbd>
-          )}
-          {activeSection === "chat" && (
-            <Popover>
-              <PopoverTrigger
-                className={cn(
-                  "group/filter-trigger flex h-full items-center gap-1 border-l border-sidebar-border px-2 text-xs transition-colors hover:text-sidebar-foreground",
-                  activePersona ? "text-sidebar-foreground" : "text-sidebar-foreground/50"
-                )}
-              >
-                <SidebarPhosphorIcon
-                  Icon={FunnelIcon}
-                  filled={Boolean(activePersona || activeCategories.length > 0)}
-                  className="size-3.5 group-hover/filter-trigger:[&>svg:first-child]:opacity-0 group-hover/filter-trigger:[&>svg:last-child]:opacity-100"
-                />
-                <span>{filterLabel}</span>
-              </PopoverTrigger>
-              <PopoverPortal>
-                <PopoverPositioner side="bottom" align="end" sideOffset={4}>
-                  <PopoverContent className="w-52">
-                    <ul>
-                      <li className="border-b">
-                        <button
-                          onClick={() => {
-                            setActivePersona(null)
-                            setActiveCategories([])
-                          }}
-                          className={cn(
-                            "flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs transition-colors hover:bg-accent",
-                            !activePersona && activeCategories.length === 0 && "font-medium"
-                          )}
-                        >
-                          <span>All</span>
-                          {!activePersona && activeCategories.length === 0 && <CheckIcon className="size-3.5" weight="bold" />}
-                        </button>
-                      </li>
-                      <li className="border-b px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-sidebar-foreground/45">
-                        Categories
-                      </li>
-                      {CATEGORIES.map((category) => {
-                        const selected = activeCategories.includes(category.id)
-
-                        return (
-                          <li key={category.id} className="border-b last:border-0">
-                            <button
-                              onClick={() => toggleCategory(category.id)}
-                              className={cn(
-                                "flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs transition-colors hover:bg-accent",
-                                selected && "font-medium"
-                              )}
-                            >
-                              <span>{category.label}</span>
-                              {selected && <CheckIcon className="size-3.5" weight="bold" />}
-                            </button>
-                          </li>
-                        )
-                      })}
-                      <li className="border-b px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-sidebar-foreground/45">
-                        Persona
-                      </li>
-                      {PERSONAS.map((p) => (
-                        <li key={p.id} className="border-b last:border-0">
-                          <button
-                            onClick={() => setActivePersona(p.id)}
-                            className={cn(
-                              "flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs transition-colors hover:bg-accent",
-                              activePersona === p.id && "font-medium"
-                            )}
-                          >
-                            <span>{p.label}</span>
-                            {activePersona === p.id && <CheckIcon className="size-3.5" weight="bold" />}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </PopoverContent>
-                </PopoverPositioner>
-              </PopoverPortal>
-            </Popover>
-          )}
-          {activeSection === "artifacts" && (
-            <Popover>
-              <PopoverTrigger
-                className={cn(
-                  "group/filter-trigger flex h-full items-center gap-1 border-l border-sidebar-border px-2 text-xs transition-colors hover:text-sidebar-foreground",
-                  activeArtifactKinds.length > 0 ? "text-sidebar-foreground" : "text-sidebar-foreground/50"
-                )}
-              >
-                <SidebarPhosphorIcon
-                  Icon={FunnelIcon}
-                  filled={activeArtifactKinds.length > 0}
-                  className="size-3.5 group-hover/filter-trigger:[&>svg:first-child]:opacity-0 group-hover/filter-trigger:[&>svg:last-child]:opacity-100"
-                />
-                <span>{activeArtifactKinds.length > 0 ? `${activeArtifactKinds.length} types` : "All"}</span>
-              </PopoverTrigger>
-              <PopoverPortal>
-                <PopoverPositioner side="bottom" align="end" sideOffset={4}>
-                  <PopoverContent className="w-52">
-                    <ul>
-                      <li className="border-b">
-                        <button
-                          onClick={() => setActiveArtifactKinds([])}
-                          className={cn(
-                            "flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs transition-colors hover:bg-accent",
-                            activeArtifactKinds.length === 0 && "font-medium"
-                          )}
-                        >
-                          <span>All</span>
-                          {activeArtifactKinds.length === 0 && <CheckIcon className="size-3.5" weight="bold" />}
-                        </button>
-                      </li>
-                      <li className="border-b px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-sidebar-foreground/45">
-                        Types
-                      </li>
-                      {ARTIFACT_KINDS.map((kind) => {
-                        const selected = activeArtifactKinds.includes(kind.id)
-
-                        return (
-                          <li key={kind.id} className="border-b last:border-0">
-                            <button
-                              onClick={() => toggleArtifactKind(kind.id)}
-                              className={cn(
-                                "flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs transition-colors hover:bg-accent",
-                                selected && "font-medium"
-                              )}
-                            >
-                              <span>{kind.label}</span>
-                              {selected && <CheckIcon className="size-3.5" weight="bold" />}
-                            </button>
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  </PopoverContent>
-                </PopoverPositioner>
-              </PopoverPortal>
-            </Popover>
-          )}
-        </div>
-      </SidebarHeader>
 
       <SidebarContent>
-        {activeSection === "chat" ? (
+        {activeSection === "runner" ? (
           <SidebarGroup className="p-0">
             <SidebarGroupContent>
               <SidebarMenu>
@@ -621,7 +809,7 @@ export function AppSidebar({
                   <PluginItem key={plugin.id} plugin={plugin} />
                 ))}
                 {visible.length === 0 && (
-                  <li className="px-4 py-4 text-center text-xs text-sidebar-foreground/40">
+                  <li className="px-4 py-4 text-center text-xs text-foreground/40">
                     No plugins match
                   </li>
                 )}
@@ -641,7 +829,7 @@ export function AppSidebar({
                   />
                 ))}
                 {visibleFindings.length === 0 && (
-                  <li className="px-4 py-4 text-center text-xs text-sidebar-foreground/40">
+                  <li className="px-4 py-4 text-center text-xs text-foreground/40">
                     {findings.length === 0 ? EMPTY_STATE_COPY.findings.description : "No findings match"}
                   </li>
                 )}
@@ -661,45 +849,52 @@ export function AppSidebar({
                   />
                 ))}
                 {visibleArtifacts.length === 0 && (
-                  <li className="px-4 py-4 text-center text-xs text-sidebar-foreground/40">
+                  <li className="px-4 py-4 text-center text-xs text-foreground/40">
                     No artifacts match
                   </li>
                 )}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
-        ) : (
+        ) : activeSection === "program" ? (
+          <ProgramSidebarContent
+            activeTab={activeProgramTab}
+            query={query}
+            program={program}
+            selectedItemId={selectedProgramItemId}
+            onSelectItem={onSelectProgramItem}
+          />
+        ) : activeSection === "metrics" ? (
+          <MetricsSidebarContent
+            query={query}
+            program={program}
+            selectedItemId={selectedProgramItemId}
+            onSelectItem={onSelectProgramItem}
+          />
+        ) : activeSection === "findings" ? (
           <div className="flex h-full items-center justify-center px-6 text-center">
             <div className="max-w-44">
-              <p className="text-sm font-medium text-sidebar-foreground">
-                {EMPTY_STATE_COPY[activeSection].title}
+              <p className="text-sm font-medium text-foreground">
+                {EMPTY_STATE_COPY.findings.title}
               </p>
-              <p className="mt-2 text-xs leading-5 text-sidebar-foreground/55">
-                {EMPTY_STATE_COPY[activeSection].description}
+              <p className="mt-2 text-xs leading-5 text-foreground/55">
+                {EMPTY_STATE_COPY.findings.description}
               </p>
             </div>
           </div>
-        )}
+        ) : activeSection === "artifacts" ? (
+          <div className="flex h-full items-center justify-center px-6 text-center">
+            <div className="max-w-44">
+              <p className="text-sm font-medium text-foreground">
+                {EMPTY_STATE_COPY.artifacts.title}
+              </p>
+              <p className="mt-2 text-xs leading-5 text-foreground/55">
+                {EMPTY_STATE_COPY.artifacts.description}
+              </p>
+            </div>
+          </div>
+        ) : null}
       </SidebarContent>
-
-      <SidebarFooter className="p-0">
-        <button
-          onClick={openConfig}
-          className={cn(
-            "sidebar-fade-item group/config-item flex h-(--row-h) w-full items-center gap-2 border-t border-sidebar-border px-4 text-xs transition-colors hover:text-sidebar-accent-foreground",
-            configOpen
-              ? "sidebar-fade-item-active text-sidebar-accent-foreground"
-              : "text-sidebar-foreground/60"
-          )}
-        >
-          <SidebarPhosphorIcon
-            Icon={GearSixIcon}
-            filled={configOpen}
-            className="size-4 group-hover/config-item:[&>svg:first-child]:opacity-0 group-hover/config-item:[&>svg:last-child]:opacity-100"
-          />
-          <span>Configuration</span>
-        </button>
-      </SidebarFooter>
     </aside>
   )
 }

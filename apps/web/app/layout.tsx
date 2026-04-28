@@ -4,6 +4,7 @@ import "flag-icons/css/flag-icons.min.css";
 
 import { cn } from "@/lib/utils";
 import { AgentationProvider } from "@/components/agentation-provider";
+import { ThemeInit } from "@/components/theme-init";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -36,14 +37,16 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={cn(
-        "dark h-full bg-background antialiased",
+        "h-full bg-background antialiased",
         spaceGrotesk.variable,
         jetbrainsMono.variable,
         instrumentSerif.variable,
       )}
     >
       <body className="flex min-h-full flex-col">
+        <ThemeInit />
         {children}
         <AgentationProvider />
       </body>
