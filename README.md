@@ -85,20 +85,72 @@ Then edit `runner.config.local.json` and set `toolkitPath` to your preferred pat
 
 ## Docker install
 
-Single-container flow:
+### Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) 24.0+
+- [Docker Compose](https://docs.docker.com/compose/install/) v2+
+
+### Quick start (Docker Compose — recommended)
+
+The fastest way to get running is with the included `docker-compose.yml`. It builds the image, starts the web UI and runner together, and persists all data in a named volume.
 
 ```bash
+# 1. Export your Anthropic API key
+echo "ANTHROPIC_API_KEY=your-key" >> .env
+
+# 2. Build and start
+docker compose up --build -d
+
+# 3. Open the studio
+open http://localhost:3000
+```
+
+To stop:
+
+```bash
+docker compose down
+```
+
+To stop **and** delete the persistent volume (this removes all workspaces, cache, and config):
+
+```bash
+docker compose down -v
+```
+
+### Single-container flow
+
+If you prefer running a single container directly:
+
+```bash
+# Build
 docker build -t maynframe/cge-studio .
-docker run --rm -p 3000:3000 -e ANTHROPIC_API_KEY=your-key maynframe/cge-studio
+
+# Run (with API key)
+docker run --rm \
+  -p 3000:3000 \
+  -e ANTHROPIC_API_KEY=your-key \
+  -v cge-studio-data:/data \
+  maynframe/cge-studio
 ```
 
-Compose flow with persistent app data:
+### Required environment variables
 
-```bash
-docker compose up --build
-```
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ANTHROPIC_API_KEY` | — | Your Anthropic API key (required by several toolkit commands). |
 
-The compose stack persists runner config, cache, workspace registry, and workspace folders in the `cge-studio-data` volume mounted at `/data`.
+### Data persistence
+
+Inside the container, all mutable data lives under `/data`:
+
+| Path | Purpose |
+|------|---------|
+| `/data/config/claude-grc` | Runner configuration |
+| `/data/cache/claude-grc` | Toolkit cache |
+| `/data/app` | App-level metadata |
+| `/data/workspaces` | Workspace registry and workspace data |
+
+The compose stack automatically mounts a named volume (`cge-studio-data`) at `/data` so your work survives container restarts. When running a single container manually, add `-v cge-studio-data:/data` to achieve the same behavior.
 
 ## Running locally
 
@@ -127,11 +179,18 @@ pnpm start       # production-style web + runner
 pnpm build       # production build for web + syntax-check runner
 pnpm lint        # lint web + check runner
 pnpm typecheck   # type-check web + check runner
+pnpm mcp         # start the CGE MCP server for Codex/agent clients
 ```
 
 ## CLI package
 
 The embedded toolkit is kept separate from the UI package. Its package metadata lives in [`cli/cli-grc-engineering/package.json`](cli/cli-grc-engineering/package.json) and now exposes a `cli-grc-engineering` bin for npm-style installation or `npx` usage once published.
+
+## Codex / MCP
+
+`apps/mcp` exposes the embedded toolkit through FastMCP. Codex can connect to it as a local stdio MCP server and use generated tools for schema-backed commands plus runner controls for paused workflows.
+
+See [`docs/CODEX.md`](docs/CODEX.md) for the Codex config snippet, tool list, and optional skill template.
 
 ## Runner Form Engine
 

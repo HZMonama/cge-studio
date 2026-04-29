@@ -61,6 +61,7 @@ import {
   fetchArtifactDetail,
   fetchArtifacts,
   fetchClaudeCodeStatus,
+  fetchCodexStatus,
   fetchFindingDetail,
   fetchFindings,
   fetchMetricSnapshot,
@@ -77,8 +78,10 @@ import {
   respondToRunPrompt,
   RunnerPromptError,
   updateClaudeCodeConfig,
+  updateCodexConfig,
   updateRunnerConfig,
   type ClaudeCodeStatus,
+  type CodexStatus,
   type ConnectorSummary,
   type RunnerConfigSnapshot,
   type RunnerArtifactDetail,
@@ -218,6 +221,7 @@ export default function Page() {
   const [connectors, setConnectors] = useState<ConnectorSummary[]>([]);
   const [configSavePending, setConfigSavePending] = useState(false);
   const [claudeCodeStatus, setClaudeCodeStatus] = useState<ClaudeCodeStatus | null>(null);
+  const [codexStatus, setCodexStatus] = useState<CodexStatus | null>(null);
   const [modalState, setModalState] = useState<AppModalState>({ type: "closed" });
   const [modalInputValue, setModalInputValue] = useState("");
   const [modalPending, setModalPending] = useState(false);
@@ -304,7 +308,15 @@ export default function Page() {
       }
 
       try {
-        const [health, config, registry, nextWorkspaces, nextConnectors, nextClaudeCodeStatus] =
+        const [
+          health,
+          config,
+          registry,
+          nextWorkspaces,
+          nextConnectors,
+          nextClaudeCodeStatus,
+          nextCodexStatus,
+        ] =
           await Promise.all([
             fetchRunnerHealth(signal),
             fetchRunnerConfig(signal),
@@ -312,6 +324,7 @@ export default function Page() {
             fetchWorkspaces(signal),
             fetchConnectors(signal),
             fetchClaudeCodeStatus(signal),
+            fetchCodexStatus(signal),
           ]);
 
         if (signal?.aborted) {
@@ -326,6 +339,7 @@ export default function Page() {
         setRunnerConfig(config);
         setConnectors(nextConnectors);
         setClaudeCodeStatus(nextClaudeCodeStatus);
+        setCodexStatus(nextCodexStatus);
         setWorkspaces(nextWorkspaces);
         setActiveWorkspaceId((current) => {
           const nextActiveWorkspaceId =
@@ -1120,6 +1134,20 @@ export default function Page() {
     }
   }
 
+  async function saveCodexConfiguration(input: { model: string }) {
+    try {
+      const next = await updateCodexConfig({ model: input.model });
+      if (!next) {
+        openAlert("Codex save failed", "The Codex configuration could not be saved.");
+        return;
+      }
+
+      setCodexStatus(next);
+    } catch {
+      openAlert("Codex save failed", "The Codex configuration could not be saved.");
+    }
+  }
+
   const isSidebarVisible =
     activeSection === "metrics" ? false : activeSection === "runner" ? sidebarOpen : true
 
@@ -1361,9 +1389,11 @@ export default function Page() {
         />
         <ConfigPanel
           claudeCodeStatus={claudeCodeStatus}
+          codexStatus={codexStatus}
           config={runnerConfig}
           health={runnerHealth}
-          onSaveModel={saveClaudeCodeConfiguration}
+          onSaveClaudeModel={saveClaudeCodeConfiguration}
+          onSaveCodexModel={saveCodexConfiguration}
         />
         <Dialog open={modalState.type !== "closed"} onOpenChange={(open) => !open && closeModal()}>
           <DialogContent>

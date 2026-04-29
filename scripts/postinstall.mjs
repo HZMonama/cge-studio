@@ -19,7 +19,10 @@ const child = spawn(
   ["--dir", embeddedCliRoot, "install", "--frozen-lockfile=false"],
   {
     stdio: "inherit",
-    env: process.env,
+    env: {
+      ...process.env,
+      CGE_SKIP_EMBEDDED_CLI_INSTALL: "1",
+    },
   },
 );
 

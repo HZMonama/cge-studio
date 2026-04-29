@@ -688,11 +688,38 @@ app.post("/workspaces/:workspaceId/runs/:runId/respond", async (c) => {
   }
 
   const body = await readBody(c);
-  const answered = await respondToWorkflowRun({
-    response: body,
-    run,
-    workspace,
-  });
+  let answered;
+  const { toolkitAvailable, toolkitPath } = await getRunnerContext();
+
+  try {
+    answered = await respondToWorkflowRun({
+      response: body,
+      run,
+      toolkitAvailable,
+      toolkitPath,
+      workspace,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Workflow response failed.";
+    const failedRun = {
+      ...run,
+      completedAt: new Date().toISOString(),
+      status: "failed",
+    };
+
+    await writeWorkflowStateFile(run.runDirectory, {
+      phase: "failed",
+      failedAt: failedRun.completedAt,
+      message,
+    });
+    await appendRunEvent(run.runDirectory, {
+      type: "run.failed",
+      data: { message },
+    });
+    await writeRun(run.runDirectory, failedRun);
+
+    return c.json(failedRun);
+  }
 
   if (!answered) {
     return c.json({ error: "run_not_waiting_for_input", message: "This run is no longer awaiting input." }, 400);
@@ -1012,6 +1039,16 @@ app.patch("/claude-code/config", async (c) => {
   return c.json(await readClaudeCodeStatus(updated));
 });
 
+app.get("/codex/status", async (c) => {
+  return c.json(await readCodexStatus());
+});
+
+app.patch("/codex/config", async (c) => {
+  const body = await readBody(c);
+  const updated = await writeCodexSettings(body);
+  return c.json(await readCodexStatus(updated));
+});
+
 app.post("/gap-assessment", async (c) => {
   const body = await readBody(c);
   const frameworks = coerceArray(body.frameworks);
@@ -1222,6 +1259,179 @@ async function readClaudeCodeStatus(settings) {
     subscriptionLoginConfigured,
     model: resolvedSettings.model ?? null,
     settingsPath: getClaudeSettingsPath(),
+  };
+}
+
+function getCodexConfigPath() {
+  return path.join(os.homedir(), ".codex", "config.toml");
+}
+
+function getCodexAuthPath() {
+  return path.join(os.homedir(), ".codex", "auth.json");
+}
+
+function readTopLevelTomlString(contents, key) {
+  const pattern = new RegExp(`^\\s*${key}\\s*=\\s*("(?:\\\\.|[^"\\\\])*"|'[^']*')`);
+  const lines = contents.split(/\r?\n/);
+
+  for (const line of lines) {
+    const trimmed = line.trimStart();
+    if (trimmed.startsWith("[")) {
+      return null;
+    }
+
+    const match = line.match(pattern);
+    if (!match) {
+      continue;
+    }
+
+    const raw = match[1];
+    if (raw.startsWith("\"")) {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return raw.slice(1, -1);
+      }
+    }
+
+    return raw.slice(1, -1);
+  }
+
+  return null;
+}
+
+function tomlString(value) {
+  return JSON.stringify(value);
+}
+
+function setTopLevelTomlString(contents, key, value) {
+  const eol = contents.includes("\r\n") ? "\r\n" : "\n";
+  const lines = contents ? contents.split(/\r?\n/) : [];
+  const pattern = new RegExp(`^\\s*${key}\\s*=`);
+  const firstSectionIndex = lines.findIndex((line) => line.trimStart().startsWith("["));
+  const topLevelLimit = firstSectionIndex === -1 ? lines.length : firstSectionIndex;
+
+  for (let index = 0; index < topLevelLimit; index += 1) {
+    if (!pattern.test(lines[index])) {
+      continue;
+    }
+
+    if (value === null) {
+      lines.splice(index, 1);
+    } else {
+      lines[index] = `${key} = ${tomlString(value)}`;
+    }
+
+    return lines.join(eol);
+  }
+
+  if (value === null) {
+    return contents;
+  }
+
+  let insertAt = 0;
+  while (
+    insertAt < topLevelLimit &&
+    (lines[insertAt].trim() === "" || lines[insertAt].trimStart().startsWith("#"))
+  ) {
+    insertAt += 1;
+  }
+
+  lines.splice(insertAt, 0, `${key} = ${tomlString(value)}`);
+  return lines.join(eol);
+}
+
+async function readCodexSettings() {
+  try {
+    const contents = await fs.readFile(getCodexConfigPath(), "utf8");
+    return {
+      model: readTopLevelTomlString(contents, "model"),
+    };
+  } catch {
+    return { model: null };
+  }
+}
+
+async function writeCodexSettings(input) {
+  let contents = "";
+  try {
+    contents = await fs.readFile(getCodexConfigPath(), "utf8");
+  } catch {
+    contents = "";
+  }
+
+  if (typeof input.model === "string") {
+    const model = input.model.trim();
+    contents = setTopLevelTomlString(contents, "model", model || null);
+  }
+
+  const configPath = getCodexConfigPath();
+  await fs.mkdir(path.dirname(configPath), { recursive: true });
+  await fs.writeFile(configPath, contents, "utf8");
+
+  return {
+    model: readTopLevelTomlString(contents, "model"),
+  };
+}
+
+function getCodexVersion() {
+  return new Promise((resolve) => {
+    let output = "";
+
+    const proc = spawn("codex", ["--version"], { shell: true });
+    proc.stdout.on("data", (chunk) => {
+      output += chunk.toString();
+    });
+    proc.stderr.on("data", (chunk) => {
+      output += chunk.toString();
+    });
+
+    proc.on("close", (code) => {
+      resolve(code === 0 && output.trim() ? output.trim() : null);
+    });
+
+    proc.on("error", () => resolve(null));
+  });
+}
+
+async function readCodexAuthStatus() {
+  let apiKeyConfigured = Boolean(process.env.OPENAI_API_KEY);
+  let subscriptionLoginConfigured = false;
+
+  try {
+    const contents = await fs.readFile(getCodexAuthPath(), "utf8");
+    const parsed = JSON.parse(contents);
+
+    if (typeof parsed?.OPENAI_API_KEY === "string" && parsed.OPENAI_API_KEY.trim()) {
+      apiKeyConfigured = true;
+    }
+
+    const tokens = parsed?.tokens;
+    subscriptionLoginConfigured = Boolean(
+      (typeof tokens?.access_token === "string" && tokens.access_token) ||
+      (typeof tokens?.refresh_token === "string" && tokens.refresh_token),
+    );
+  } catch {
+    // Missing auth files are expected before `codex login` or API-key setup.
+  }
+
+  return { apiKeyConfigured, subscriptionLoginConfigured };
+}
+
+async function readCodexStatus(settings) {
+  const [version, resolvedSettings, authStatus] = await Promise.all([
+    getCodexVersion(),
+    settings ? Promise.resolve(settings) : readCodexSettings(),
+    readCodexAuthStatus(),
+  ]);
+
+  return {
+    installed: version !== null,
+    version,
+    apiKeyConfigured: authStatus.apiKeyConfigured,
+    subscriptionLoginConfigured: authStatus.subscriptionLoginConfigured,
+    model: resolvedSettings.model ?? null,
+    settingsPath: getCodexConfigPath(),
   };
 }
 

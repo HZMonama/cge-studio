@@ -11,6 +11,7 @@
     "lint": "node --check src/server.js",
     "typecheck": "node --check src/server.js",
     "smoke": "node scripts/runner-smoke.mjs",
+    "test:workflow-contract": "node scripts/workflow-contract.mjs",
     "validate:commands": "node scripts/validate-command-schemas.mjs"
   },
   "dependencies": {

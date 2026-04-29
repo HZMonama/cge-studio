@@ -5,6 +5,7 @@ node_modules
 dist
 coverage
 .turbo
+.cge
 
 apps/web/.next
 apps/web/node_modules

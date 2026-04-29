@@ -119,6 +119,15 @@ export interface ClaudeCodeStatus {
   settingsPath: string
 }
 
+export interface CodexStatus {
+  installed: boolean
+  version: string | null
+  apiKeyConfigured: boolean
+  subscriptionLoginConfigured: boolean
+  model: string | null
+  settingsPath: string
+}
+
 export interface WorkspaceExportSummary {
   workspace: RunnerWorkspace
   exportedAt: string
@@ -152,6 +161,35 @@ export async function updateClaudeCodeConfig(
     })
     if (!response.ok) return null
     return (await response.json()) as ClaudeCodeStatus
+  } catch {
+    return null
+  }
+}
+
+export async function fetchCodexStatus(signal?: AbortSignal): Promise<CodexStatus | null> {
+  try {
+    const response = await fetch(`${RUNNER_BASE_URL}/codex/status`, {
+      cache: "no-store",
+      signal,
+    })
+    if (!response.ok) return null
+    return (await response.json()) as CodexStatus
+  } catch {
+    return null
+  }
+}
+
+export async function updateCodexConfig(
+  input: Partial<Pick<CodexStatus, "model">>,
+): Promise<CodexStatus | null> {
+  try {
+    const response = await fetch(`${RUNNER_BASE_URL}/codex/config`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    })
+    if (!response.ok) return null
+    return (await response.json()) as CodexStatus
   } catch {
     return null
   }
