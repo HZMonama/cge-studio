@@ -822,9 +822,10 @@ export function ChatSurface({
           </button>
           <button
             onClick={onClearRunner}
-            className="group flex h-8 items-center gap-2 border border-border/70 bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+            disabled={!run}
+            className="group flex h-8 items-center gap-2 border border-border/70 bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:text-muted-foreground/60"
           >
-            <XIcon className="size-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />
+            <XIcon className="size-3.5 text-muted-foreground transition-colors group-hover:text-foreground group-disabled:text-muted-foreground/60" />
             Clear
           </button>
           <button

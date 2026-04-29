@@ -5,6 +5,7 @@ import { ChartBarIcon, XIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { type RunnerMetricSnapshotSummary } from "@/lib/runner";
 import { usePluginPanel } from "@/stores/plugin-panel-store";
+import { useClickOutside } from "@/hooks/use-click-outside";
 
 export function MetricSnapshotsPanel({
   onSelectSnapshot,
@@ -16,9 +17,11 @@ export function MetricSnapshotsPanel({
   snapshots: RunnerMetricSnapshotSummary[];
 }) {
   const { closeMetricHistory, metricHistoryOpen } = usePluginPanel();
+  const panelRef = useClickOutside<HTMLDivElement>(closeMetricHistory, metricHistoryOpen);
 
   return (
     <div
+      ref={panelRef}
       className={cn(
         "h-full shrink-0 overflow-hidden transition-all duration-300 ease-in-out",
         metricHistoryOpen ? "w-[var(--app-sidebar-w)] opacity-100" : "w-0 opacity-0",

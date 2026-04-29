@@ -5,6 +5,7 @@ import { ClockCounterClockwiseIcon, XIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { type RunnerRun } from "@/lib/runner";
 import { usePluginPanel } from "@/stores/plugin-panel-store";
+import { useClickOutside } from "@/hooks/use-click-outside";
 
 function statusTone(status: RunnerRun["status"]) {
   if (status === "completed") return "bg-emerald-500/10 text-emerald-400";
@@ -27,9 +28,11 @@ export function RunnerHistoryPanel({
   selectedRunId: string | null;
 }) {
   const { closeHistory, historyOpen } = usePluginPanel();
+  const panelRef = useClickOutside<HTMLDivElement>(closeHistory, historyOpen);
 
   return (
     <div
+      ref={panelRef}
       className={cn(
         "h-full shrink-0 overflow-hidden transition-all duration-300 ease-in-out",
         historyOpen ? "w-[var(--app-sidebar-w)] opacity-100" : "w-0 opacity-0",

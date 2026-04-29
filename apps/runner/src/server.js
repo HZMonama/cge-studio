@@ -2081,7 +2081,16 @@ async function resolveCommandExecution(input) {
 
   const scriptFactory = scriptCommandFactories.get(input.parsed.commandPath);
   if (scriptFactory) {
-    return scriptFactory(input);
+    const execution = scriptFactory(input);
+    const schema = await readCommandSchemaForExecution(
+      input.toolkitPath,
+      input.parsed.pluginId,
+      input.parsed.commandId,
+    );
+    return {
+      ...execution,
+      schemaOutputs: Array.isArray(schema?.outputs) ? schema.outputs : [],
+    };
   }
 
   const workflowExecution = resolveWorkflowExecution(input.parsed);
@@ -2424,7 +2433,7 @@ async function executeStep({ commandPath, args, stepIndex, runId, runDirectory, 
           data: { exitCode, status },
         });
 
-        const artifacts = status === "completed"
+        let artifacts = status === "completed"
           ? await collectRunArtifacts({
               commandPath,
               commandId: parsed.commandId,
@@ -2434,6 +2443,36 @@ async function executeStep({ commandPath, args, stepIndex, runId, runDirectory, 
               workspace,
             })
           : [];
+
+        const completedAt = new Date().toISOString();
+        const stepRun = {
+          id: runId,
+          commandId: parsed.commandId,
+          commandPath,
+          pluginId: parsed.pluginId,
+          outputDir: execution.outputDir,
+        };
+        await writeDerivedCommandOutputs({
+          artifacts,
+          execution,
+          exitCode,
+          recordedAt: completedAt,
+          run: stepRun,
+          status,
+          workspace,
+        });
+
+        if (status === "completed") {
+          const programArtifacts = await collectProgramDataArtifacts({
+            commandId: parsed.commandId,
+            commandPath,
+            execution,
+            runId,
+            startedAt: completedAt,
+            workspace,
+          });
+          artifacts = [...artifacts, ...programArtifacts];
+        }
 
         resolve({ status, artifacts, stdoutText, exitCode });
       });
@@ -2568,6 +2607,22 @@ async function executeStep({ commandPath, args, stepIndex, runId, runDirectory, 
               workspace,
             });
             artifacts = [...artifacts, ...programArtifacts];
+
+            await writeDerivedCommandOutputs({
+              artifacts,
+              execution,
+              exitCode: 0,
+              recordedAt: completedAt,
+              run: {
+                id: runId,
+                commandId: parsed.commandId,
+                commandPath,
+                pluginId: parsed.pluginId,
+                outputDir: execution.outputDir,
+              },
+              status: "completed",
+              workspace,
+            });
           }
 
           await appendRunEvent(runDirectory, {
@@ -2653,6 +2708,22 @@ async function executeStep({ commandPath, args, stepIndex, runId, runDirectory, 
             });
             artifacts = [...artifacts, ...programArtifacts];
 
+            await writeDerivedCommandOutputs({
+              artifacts,
+              execution,
+              exitCode: 0,
+              recordedAt: completedAt,
+              run: {
+                id: runId,
+                commandId: parsed.commandId,
+                commandPath,
+                pluginId: parsed.pluginId,
+                outputDir: execution.outputDir,
+              },
+              status: "completed",
+              workspace,
+            });
+
             await appendRunEvent(runDirectory, {
               type: "tool.completed",
               data: { exitCode: 0, status: "completed" },
@@ -2708,6 +2779,12 @@ async function finalizeCommandRun(input) {
         })
       : [];
 
+  await writeDerivedCommandOutputs({
+    ...input,
+    artifacts,
+    recordedAt: completionTime,
+  });
+
   // Collect program data artifacts (grc-data/ files modified during this run)
   if (input.status === "completed") {
     const programArtifacts = await collectProgramDataArtifacts({
@@ -2723,9 +2800,11 @@ async function finalizeCommandRun(input) {
 
   // When a script produces no files but has stdout output, capture it as a text artifact
   if (artifacts.length === 0 && input.status === "completed" && input.stdoutText?.trim()) {
-    const schemaArtifact = (input.execution.schemaOutputs ?? []).find(
+    const declaredOutputs = input.execution.schemaOutputs ?? [];
+    const schemaArtifact = declaredOutputs.find(
       (output) => output.type === "artifact",
     );
+    const hasDeclaredOutputs = declaredOutputs.length > 0;
     const schemaArtifactPath = schemaArtifact
       ? resolveSchemaOutputPath({
           output: schemaArtifact,
@@ -2735,7 +2814,9 @@ async function finalizeCommandRun(input) {
         })
       : null;
     const outputDir = input.execution.outputDir ?? input.run.outputDir;
-    const artifactPath = schemaArtifactPath ?? (outputDir ? path.join(outputDir, "output.txt") : null);
+    const artifactPath = schemaArtifactPath ?? (!hasDeclaredOutputs && outputDir
+      ? path.join(outputDir, "output.txt")
+      : null);
 
     if (artifactPath) {
       await fs.mkdir(path.dirname(artifactPath), { recursive: true });
@@ -3175,6 +3256,367 @@ async function collectRunArtifacts(input) {
   }
 
   return [];
+}
+
+async function writeDerivedCommandOutputs(input) {
+  await writeConnectorCommandMetrics(input);
+
+  if (input.status !== "completed") {
+    return;
+  }
+
+  await writeControlRecordFallback(input);
+  await writeFrameworkMetricFallback(input);
+}
+
+async function writeConnectorCommandMetrics(input) {
+  if (!["setup", "status", "collect", "pipeline-status"].includes(input.run.commandId)) {
+    return [];
+  }
+
+  const metricsOutput = findSchemaOutput(input.execution, {
+    type: "metrics",
+  });
+  if (!metricsOutput) {
+    return [];
+  }
+
+  const targetPath = resolveSchemaOutputPath({
+    output: metricsOutput,
+    outputDir: input.execution.outputDir ?? input.run.outputDir,
+    runId: input.run.id,
+    workspace: input.workspace,
+  });
+  if (!targetPath) {
+    return [];
+  }
+
+  const connectors = await readConnectorSummaries();
+  const connectorIds = connectorMetricTargets(input.run.pluginId, connectors);
+  if (connectorIds.length === 0) {
+    return [];
+  }
+
+  const exitCode = typeof input.exitCode === "number" ? input.exitCode : 1;
+  const statusOk = exitCode === 0 ? 1 : 0;
+  const metrics = [];
+
+  for (const connectorId of connectorIds) {
+    const connector = connectors.find((item) => item.id === connectorId);
+    const configured = connector?.configured ? 1 : 0;
+    const findingsCached = connector?.findingsCached ?? 0;
+    const base = {
+      schema_version: METRIC_SCHEMA_VERSION,
+      source: "command",
+      sourceRef: input.run.commandPath,
+      runId: input.run.id,
+      recorded_at: input.recordedAt,
+      subject: connector?.label ?? humanizeId(connectorId),
+      dimensions: {
+        connector_id: connectorId,
+        command_id: input.run.commandId,
+      },
+    };
+
+    metrics.push(
+      {
+        ...base,
+        metric_id: `connector.${connectorId}.status_ok`,
+        value: statusOk,
+        unit: "boolean",
+      },
+      {
+        ...base,
+        metric_id: `connector.${connectorId}.configured`,
+        value: configured,
+        unit: "boolean",
+      },
+      {
+        ...base,
+        metric_id: `connector.${connectorId}.cached_findings_count`,
+        value: findingsCached,
+        unit: "count",
+      },
+      {
+        ...base,
+        metric_id: `connector.${connectorId}.last_${input.run.commandId}_exit_code`,
+        value: exitCode,
+        unit: "code",
+      },
+    );
+  }
+
+  await writeMetricDocument(targetPath, {
+    commandPath: input.run.commandPath,
+    metrics,
+    recordedAt: input.recordedAt,
+    runId: input.run.id,
+  });
+
+  return metrics;
+}
+
+function connectorMetricTargets(pluginId, connectors) {
+  if (pluginId === "grc-engineer") {
+    return connectors.map((connector) => connector.id);
+  }
+
+  if (pluginId === "poam-automation") {
+    return connectors
+      .filter((connector) => connector.configFile === "poam-automation.yaml")
+      .map((connector) => connector.id);
+  }
+
+  return connectors.some((connector) => connector.id === pluginId) ? [pluginId] : [];
+}
+
+async function writeFrameworkMetricFallback(input) {
+  if (!shouldSynthesizeFrameworkMetrics(input.run)) {
+    return [];
+  }
+
+  const metricsOutput = findSchemaOutput(input.execution, {
+    type: "metrics",
+  });
+  if (!metricsOutput) {
+    return [];
+  }
+
+  const targetPath = resolveSchemaOutputPath({
+    output: metricsOutput,
+    outputDir: input.execution.outputDir ?? input.run.outputDir,
+    runId: input.run.id,
+    workspace: input.workspace,
+  });
+  if (!targetPath || await pathExists(targetPath)) {
+    return [];
+  }
+
+  const [findings, program] = await Promise.all([
+    readWorkspaceFindings(input.workspace),
+    readWorkspaceProgram(input.workspace),
+  ]);
+  const frameworkId = frameworkMetricSubject(input.run);
+  const relevantFindings = filterFindingsForFramework(findings, frameworkId);
+  const controls = program.controls ?? [];
+  const controlsWithEvidence = controls.filter((control) =>
+    Array.isArray(control.evidence_refs) && control.evidence_refs.length > 0,
+  ).length;
+  const metrics = [
+    createCommandMetric("framework.readiness", readinessScore(relevantFindings), "percent", input, {
+      subject: frameworkId,
+      dimensions: { framework: frameworkId },
+    }),
+    createCommandMetric("framework.evidence_coverage", percentValue(controlsWithEvidence, controls.length), "percent", input, {
+      subject: frameworkId,
+      dimensions: { framework: frameworkId },
+    }),
+  ];
+
+  await writeMetricDocument(targetPath, {
+    commandPath: input.run.commandPath,
+    metrics,
+    recordedAt: input.recordedAt,
+    runId: input.run.id,
+  });
+
+  return metrics;
+}
+
+function shouldSynthesizeFrameworkMetrics(run) {
+  return run.commandId === "assess" || run.commandPath === "/grc-internal:track-compliance";
+}
+
+function frameworkMetricSubject(run) {
+  if (run.commandPath === "/grc-internal:track-compliance") {
+    return "all";
+  }
+
+  return run.pluginId;
+}
+
+function filterFindingsForFramework(findings, frameworkId) {
+  if (!frameworkId || frameworkId === "all") {
+    return findings;
+  }
+
+  const normalizedFramework = normalizeMetricKey(frameworkId);
+  const matches = findings.filter((finding) =>
+    normalizeMetricKey(finding.controlFramework).includes(normalizedFramework) ||
+    normalizeMetricKey(finding.source).includes(normalizedFramework) ||
+    normalizeMetricKey(finding.documentPath).includes(normalizedFramework),
+  );
+
+  return matches.length > 0 ? matches : findings;
+}
+
+function readinessScore(findings) {
+  const penalty = findings.reduce((sum, finding) => {
+    const severity = String(finding.severity ?? "").toLowerCase();
+    if (severity === "critical") return sum + 25;
+    if (severity === "high") return sum + 15;
+    if (severity === "medium") return sum + 7;
+    if (severity === "low") return sum + 2;
+    return sum + 1;
+  }, 0);
+
+  return Math.max(0, Math.min(100, 100 - penalty));
+}
+
+async function writeControlRecordFallback(input) {
+  if (!["collect-evidence", "map-control", "test-control"].includes(input.run.commandId)) {
+    return [];
+  }
+
+  const recordOutput = findSchemaOutput(input.execution, {
+    type: "program-records",
+    recordType: "control",
+  });
+  if (!recordOutput) {
+    return [];
+  }
+
+  const targetPath = resolveSchemaOutputPath({
+    output: recordOutput,
+    outputDir: input.execution.outputDir ?? input.run.outputDir,
+    runId: input.run.id,
+    workspace: input.workspace,
+  });
+  if (!targetPath || await pathExists(targetPath)) {
+    return [];
+  }
+
+  const records = buildControlRecordFallbacks(input);
+  if (records.length === 0) {
+    return [];
+  }
+
+  await fs.mkdir(path.dirname(targetPath), { recursive: true });
+  await fs.writeFile(
+    targetPath,
+    JSON.stringify(
+      {
+        schema_version: "1",
+        recordType: "control",
+        commandPath: input.run.commandPath,
+        runId: input.run.id,
+        recorded_at: input.recordedAt,
+        records,
+      },
+      null,
+      2,
+    ),
+    "utf8",
+  );
+
+  return records;
+}
+
+function buildControlRecordFallbacks(input) {
+  const args = input.execution.args ?? [];
+  const evidenceRefs = (input.artifacts ?? []).map((artifact) => artifact.path).filter(Boolean);
+
+  if (input.run.commandId === "collect-evidence") {
+    const controlName = args[0] ?? "Evidence Collection Control";
+    const provider = args[1] ?? "aws";
+    return [{
+      id: `control-${slugify(controlName)}`,
+      title: controlName,
+      status: evidenceRefs.length > 0 ? "monitored" : "planned",
+      provider,
+      evidence_refs: evidenceRefs,
+      sourceRef: input.run.commandPath,
+      updated_at: input.recordedAt,
+    }];
+  }
+
+  if (input.run.commandId === "test-control") {
+    const controlId = args[0] ?? "unknown-control";
+    const provider = args[1] ?? null;
+    return [{
+      id: controlId,
+      title: humanizeId(controlId),
+      status: input.exitCode === 0 ? "passing" : "failing",
+      provider,
+      evidence_refs: evidenceRefs,
+      sourceRef: input.run.commandPath,
+      updated_at: input.recordedAt,
+    }];
+  }
+
+  if (input.run.commandId === "map-control") {
+    const filePath = args[0] ?? "unknown";
+    const framework = args[1] ?? "SOC2";
+    return [{
+      id: `mapped-${slugify(framework)}-${slugify(path.basename(filePath))}`,
+      title: `${framework} mapping for ${path.basename(filePath)}`,
+      status: "mapped",
+      framework,
+      source_file: filePath,
+      evidence_refs: evidenceRefs,
+      sourceRef: input.run.commandPath,
+      updated_at: input.recordedAt,
+    }];
+  }
+
+  return [];
+}
+
+function findSchemaOutput(execution, filters) {
+  return (execution.schemaOutputs ?? []).find((output) => {
+    if (filters.type && output.type !== filters.type) return false;
+    if (filters.recordType && output.recordType !== filters.recordType) return false;
+    return true;
+  });
+}
+
+function createCommandMetric(metricId, value, unit, input, options = {}) {
+  return {
+    schema_version: METRIC_SCHEMA_VERSION,
+    metric_id: metricId,
+    value,
+    unit,
+    subject: options.subject ?? null,
+    source: "command",
+    sourceRef: input.run.commandPath,
+    runId: input.run.id,
+    recorded_at: input.recordedAt,
+    dimensions: {
+      command_id: input.run.commandId,
+      ...(options.dimensions ?? {}),
+    },
+  };
+}
+
+async function writeMetricDocument(targetPath, input) {
+  await fs.mkdir(path.dirname(targetPath), { recursive: true });
+  await fs.writeFile(
+    targetPath,
+    JSON.stringify(
+      {
+        schema_version: METRIC_SCHEMA_VERSION,
+        commandPath: input.commandPath,
+        runId: input.runId,
+        recorded_at: input.recordedAt,
+        metrics: input.metrics,
+      },
+      null,
+      2,
+    ),
+    "utf8",
+  );
+}
+
+function normalizeMetricKey(value) {
+  return String(value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function slugify(value) {
+  return String(value ?? "record")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "record";
 }
 
 async function collectOutputDirArtifacts(input) {
@@ -3939,6 +4381,31 @@ async function findLatestJsonFile(targetDirectory) {
   }
 }
 
+async function listJsonFilesRecursive(targetDirectory) {
+  const files = [];
+
+  async function walk(currentDirectory) {
+    let entries;
+    try {
+      entries = await fs.readdir(currentDirectory, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      const entryPath = path.join(currentDirectory, entry.name);
+      if (entry.isDirectory()) {
+        await walk(entryPath);
+      } else if (entry.isFile() && entry.name.endsWith(".json")) {
+        files.push(entryPath);
+      }
+    }
+  }
+
+  await walk(targetDirectory);
+  return files;
+}
+
 function summarizeFailure(stderrText) {
   const lines = String(stderrText ?? "")
     .split("\n")
@@ -4012,7 +4479,7 @@ async function readWorkspaceFindings(workspace) {
     workspace.folders.findingsRawConnectors ?? {},
   );
 
-  const [connectorGroups, gapGroups] = await Promise.all([
+  const [connectorGroups, normalizedGroups] = await Promise.all([
     Promise.all(
       connectorEntries.map(async ([connectorId, connectorDir]) => {
         try {
@@ -4037,10 +4504,10 @@ async function readWorkspaceFindings(workspace) {
         }
       }),
     ),
-    readNormalizedGapFindings(workspace),
+    readNormalizedFindingStoreDocuments(workspace),
   ]);
 
-  return [...connectorGroups.flat(), ...gapGroups].sort((left, right) => {
+  return [...connectorGroups.flat(), ...normalizedGroups].sort((left, right) => {
     const sl = FINDING_SEVERITY_ORDER[left.severity] ?? 5;
     const sr = FINDING_SEVERITY_ORDER[right.severity] ?? 5;
     if (sl !== sr) return sl - sr;
@@ -4050,18 +4517,88 @@ async function readWorkspaceFindings(workspace) {
   });
 }
 
-async function readNormalizedGapFindings(workspace) {
-  const filePath = path.join(
-    workspace.folders.findingsNormalized,
-    "findings.normalized.json",
+async function readNormalizedFindingStoreDocuments(workspace) {
+  const files = await listJsonFilesRecursive(workspace.folders.findingsNormalized);
+  const groups = await Promise.all(
+    files.map(async (filePath) => {
+      try {
+        const content = await fs.readFile(filePath, "utf8");
+        const doc = JSON.parse(content);
+        return normalizeStoredFindingDocument(doc, filePath);
+      } catch {
+        return [];
+      }
+    }),
   );
-  try {
-    const content = await fs.readFile(filePath, "utf8");
-    const doc = JSON.parse(content);
-    return normalizeGapAssessmentDoc(doc, filePath);
-  } catch {
+
+  return groups.flat();
+}
+
+function normalizeStoredFindingDocument(doc, filePath) {
+  if (!doc || typeof doc !== "object") {
     return [];
   }
+
+  if (Array.isArray(doc.evaluations)) {
+    return normalizeFindingDocument(doc, filePath, doc.source ?? "findings-store");
+  }
+
+  if (
+    Array.isArray(doc.tier1) ||
+    Array.isArray(doc.tier2) ||
+    Array.isArray(doc.tier3) ||
+    Array.isArray(doc.inconclusive)
+  ) {
+    return normalizeGapAssessmentDoc(doc, filePath);
+  }
+
+  const findings = Array.isArray(doc) ? doc : Array.isArray(doc.findings) ? doc.findings : [];
+  return findings.map((finding, index) => normalizeGenericFinding(finding, {
+    filePath,
+    index,
+    runId: doc.run_id ?? doc.runId,
+    source: doc.source,
+  })).filter(Boolean);
+}
+
+function normalizeGenericFinding(finding, context) {
+  if (!finding || typeof finding !== "object") {
+    return null;
+  }
+
+  const resource = finding.resource && typeof finding.resource === "object"
+    ? finding.resource
+    : {};
+  const source = finding.source ?? context.source ?? "findings-store";
+  const resourceId = finding.resourceId ?? finding.resource_id ?? resource.id ?? null;
+  const controlFramework = finding.controlFramework ?? finding.control_framework ?? finding.framework ?? null;
+  const controlId = finding.controlId ?? finding.control_id ?? finding.control ?? null;
+  const runId = finding.run_id ?? finding.runId ?? context.runId ?? "unknown";
+
+  return {
+    id: finding.id ?? deriveFindingId(source, runId, resourceId, controlFramework, controlId ?? context.index),
+    title: finding.title ?? deriveFindingTitle(finding.message ?? finding.description, resourceId, controlId),
+    severity: String(finding.severity ?? "info").toLowerCase(),
+    status: finding.status ?? "open",
+    source,
+    resourceType: finding.resourceType ?? finding.resource_type ?? resource.type ?? null,
+    resourceId,
+    resourceRegion: finding.resourceRegion ?? finding.resource_region ?? resource.region ?? null,
+    accountId: finding.accountId ?? finding.account_id ?? resource.account_id ?? null,
+    controlFramework,
+    controlId,
+    message: finding.message ?? finding.description ?? null,
+    collectedAt: finding.collectedAt ?? finding.collected_at ?? null,
+    assessedAt: finding.assessedAt ?? finding.assessed_at ?? null,
+    hasRemediation: Boolean(finding.remediation),
+    resource,
+    remediation: finding.remediation ?? null,
+    evidenceRefs: finding.evidenceRefs ?? finding.evidence_refs ?? [],
+    rawAttributes: finding.rawAttributes ?? finding.raw_attributes ?? null,
+    metadata: finding.metadata ?? null,
+    narrativeFindings: [],
+    documentPath: context.filePath,
+  };
 }
 
 function normalizeGapAssessmentDoc(doc, filePath) {
@@ -4442,13 +4979,13 @@ async function readWorkspaceProgram(workspace) {
             .map(async (file) => {
               try {
                 const content = await fs.readFile(path.join(dir, file), "utf8");
-                return JSON.parse(content);
+                return extractProgramRecords(JSON.parse(content), kind);
               } catch {
-                return null;
+                return [];
               }
             }),
         );
-        return [kind, records.filter(Boolean)];
+        return [kind, records.flat()];
       } catch {
         return [kind, []];
       }
@@ -4456,6 +4993,29 @@ async function readWorkspaceProgram(workspace) {
   );
 
   return Object.fromEntries(entityGroups);
+}
+
+function extractProgramRecords(value, kind) {
+  const candidates = Array.isArray(value)
+    ? value
+    : Array.isArray(value?.records)
+      ? value.records
+      : value && typeof value === "object"
+        ? [value]
+        : [];
+
+  return candidates
+    .filter((record) => record && typeof record === "object")
+    .map((record) => ({
+      ...record,
+      recordType: record.recordType ?? singularProgramKind(kind),
+    }));
+}
+
+function singularProgramKind(kind) {
+  if (kind === "policies") return "policy";
+  if (kind === "risks") return "risk";
+  return kind.endsWith("s") ? kind.slice(0, -1) : kind;
 }
 
 function normalizeFindingDocument(doc, filePath, fallbackSource) {

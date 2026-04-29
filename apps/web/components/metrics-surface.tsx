@@ -160,21 +160,33 @@ function ConnectorCard({
   cardId,
   connector,
   expanded,
+  cachedFindingsMetric,
+  configuredMetric,
   onExpandedChange,
   plugin,
+  statusMetric,
   onOpenPlugin,
 }: {
   cardId: string
   connector: ConnectorSummary
   expanded: boolean
+  cachedFindingsMetric?: MetricLike
+  configuredMetric?: MetricLike
   onExpandedChange: (cardId: string, expanded: boolean) => void
   plugin?: Plugin
+  statusMetric?: MetricLike
   onOpenPlugin?: (plugin: Plugin) => void
 }) {
   const { theme } = useThemeStore()
   const iconSrc = getConnectorIcon(connector.id, theme)
-  const status: MetricCardStatus = connector.configured ? "ok" : "error"
+  const configured = configuredMetric ? configuredMetric.value === 1 : connector.configured
+  const findingsCached = cachedFindingsMetric ? cachedFindingsMetric.value : connector.findingsCached
+  const statusOk = statusMetric ? statusMetric.value === 1 : configured
+  const status: MetricCardStatus = statusOk ? "ok" : "error"
   const placeholderLabel = getConnectorPlaceholderLabel(connector.id)
+  const statusRecordedAt = statusMetric?.recorded_at
+    ? new Date(statusMetric.recorded_at).toLocaleString()
+    : null
 
   return (
     <MetricCard
@@ -201,7 +213,7 @@ function ConnectorCard({
       footerAction={
         plugin
           ? {
-              label: connector.configured ? "Open plugin" : "Configure",
+              label: configured ? "Open plugin" : "Configure",
               onClick: () => onOpenPlugin?.(plugin),
             }
           : undefined
@@ -209,10 +221,16 @@ function ConnectorCard({
     >
       <div className="space-y-3">
         <MetricValue
-          value={connector.findingsCached}
-          detail={connector.configured ? "Cached findings" : "Connector is not configured"}
+          value={findingsCached}
+          detail={configured ? "Cached findings" : "Connector is not configured"}
         />
         <div className="space-y-1.5 text-[10px] leading-4 text-muted-foreground">
+          {statusRecordedAt && (
+            <div>
+              <p className="uppercase tracking-[0.12em] text-muted-foreground/60">Last status</p>
+              <p className="text-foreground/70">{statusRecordedAt}</p>
+            </div>
+          )}
           <div>
             <p className="uppercase tracking-[0.12em] text-muted-foreground/60">Connector ID</p>
             <p className="break-all font-mono text-foreground/70">{connector.id}</p>
@@ -238,6 +256,10 @@ function latestMetricById(metrics: MetricLike[], ids: string[]) {
   return metrics
     .filter((metric) => wanted.has(metric.metric_id))
     .sort((a, b) => Date.parse(b.recorded_at) - Date.parse(a.recorded_at))[0]
+}
+
+function connectorMetric(metrics: MetricLike[], connectorId: string, suffix: string) {
+  return latestMetricById(metrics, [`connector.${connectorId}.${suffix}`])
 }
 
 function percent(part: number, total: number) {
@@ -512,17 +534,26 @@ export function MetricsSurface({
           description="POA&M automation source availability and cached finding inventory."
         >
           <div className="grid items-start gap-3 px-6 pb-6 pt-3 md:grid-cols-2 xl:grid-cols-4">
-            {normalizedConnectors.map((connector) => (
-              <ConnectorCard
-                cardId={`connector.${connector.id}`}
-                key={connector.id}
-                connector={connector}
-                expanded={expandedCardId === `connector.${connector.id}`}
-                onExpandedChange={handleCardExpansion}
-                plugin={getConnectorPlugin(connector.id, plugins)}
-                onOpenPlugin={setSelectedPlugin}
-              />
-            ))}
+            {normalizedConnectors.map((connector) => {
+              const statusMetric = connectorMetric(metrics, connector.id, "status_ok")
+              const configuredMetric = connectorMetric(metrics, connector.id, "configured")
+              const cachedFindingsMetric = connectorMetric(metrics, connector.id, "cached_findings_count")
+
+              return (
+                <ConnectorCard
+                  cardId={`connector.${connector.id}`}
+                  key={connector.id}
+                  connector={connector}
+                  expanded={expandedCardId === `connector.${connector.id}`}
+                  cachedFindingsMetric={cachedFindingsMetric}
+                  configuredMetric={configuredMetric}
+                  onExpandedChange={handleCardExpansion}
+                  plugin={getConnectorPlugin(connector.id, plugins)}
+                  statusMetric={statusMetric}
+                  onOpenPlugin={setSelectedPlugin}
+                />
+              )
+            })}
           </div>
         </Section>
       </div>

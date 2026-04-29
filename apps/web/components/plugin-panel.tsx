@@ -5,6 +5,7 @@ import { XIcon, Asterisk } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 import { usePluginPanel } from "@/stores/plugin-panel-store";
+import { useClickOutside } from "@/hooks/use-click-outside";
 
 const SUPPORT_COLORS: Record<string, string> = {
   ready: "bg-emerald-500/10 text-emerald-400",
@@ -34,8 +35,14 @@ export function PluginPanel({
       (command) => command.runnerSupport === "planned",
     ).length ?? 0;
 
+  const panelRef = useClickOutside<HTMLDivElement>(
+    () => setSelectedPlugin(null),
+    !!selectedPlugin,
+  );
+
   return (
     <div
+      ref={panelRef}
       className={cn(
         "h-full shrink-0 overflow-hidden transition-[width] duration-200",
         selectedPlugin ? "w-[var(--app-sidebar-w)]" : "w-0",

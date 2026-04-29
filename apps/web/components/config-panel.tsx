@@ -19,6 +19,7 @@ import {
 } from "@/lib/runner";
 import { usePluginPanel } from "@/stores/plugin-panel-store";
 import { useThemeStore } from "@/stores/theme-store";
+import { useClickOutside } from "@/hooks/use-click-outside";
 
 type SignalTone = "ok" | "warn" | "error" | "unknown";
 
@@ -72,8 +73,11 @@ export function ConfigPanel({
     setClaudeModel(claudeCodeStatus?.model ?? "");
   }, [claudeCodeStatus]);
 
+  const panelRef = useClickOutside<HTMLDivElement>(closeConfig, configOpen);
+
   return (
     <div
+      ref={panelRef}
       className={cn(
         "h-full shrink-0 overflow-hidden transition-all duration-300 ease-in-out",
         configOpen

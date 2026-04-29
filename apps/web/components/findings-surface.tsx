@@ -139,7 +139,6 @@ export function FindingsSurface({
       <div className="flex flex-1 flex-col overflow-hidden bg-[var(--editor-bg)]">
         <div className="flex-1 overflow-auto">
           <RecordHeader
-            eyebrow="Finding"
             title="No finding selected"
             actions={
               <>
@@ -170,7 +169,6 @@ export function FindingsSurface({
     <div className="flex flex-1 flex-col overflow-hidden bg-[var(--editor-bg)]">
       <div className="flex-1 overflow-auto">
         <RecordHeader
-          eyebrow="Finding"
           title={finding.title}
           identifier={finding.resource?.id ?? null}
           badges={
