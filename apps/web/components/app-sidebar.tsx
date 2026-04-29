@@ -19,7 +19,7 @@ import { getPluginCategory, type Persona, type Plugin, type PluginCategory } fro
 import { type ProgramSummary, type RunnerArtifactSummary, type RunnerFindingSummary } from "@/lib/runner"
 import { type ProgramTab } from "@/components/program-tabs"
 import { usePluginPanel } from "@/stores/plugin-panel-store"
-import { useThemeStore } from "@/stores/theme-store"
+import { useAppStore } from "@/stores/app-store"
 
 import { Kbd } from "@/components/ui/kbd"
 import {
@@ -174,7 +174,7 @@ function pluginIcon(plugin: Plugin): React.ElementType {
 }
 
 function PluginItem({ plugin }: { plugin: Plugin }) {
-  const { theme } = useThemeStore()
+  const { theme } = useAppStore()
   const brandSrc = getBrandIcon(plugin.id, theme)
   const flagCode = plugin.type === "framework" ? FRAMEWORK_FLAG_CODES[plugin.id] : null
   const Icon = pluginIcon(plugin)

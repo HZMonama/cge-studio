@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { useThemeStore } from "@/stores/theme-store";
+import { useAppStore } from "@/stores/app-store";
 
 function getInspectorIcon(id: string, theme: "dark" | "light"): string {
   const icons: Record<string, { dark: string; light: string }> = {
@@ -21,7 +21,7 @@ const INSPECTOR_SHORTCUTS = [
 ];
 
 export function EmptyState({ onQuickRun }: { onQuickRun?: (commandPath: string) => void }) {
-  const { theme } = useThemeStore();
+  const { theme } = useAppStore();
   return (
     <div className="relative flex min-h-full items-center justify-center px-6 py-16">
       

@@ -28,12 +28,10 @@ import {
   type RunnerHealthSnapshot,
 } from "@/lib/runner";
 import { usePluginPanel } from "@/stores/plugin-panel-store";
-import { useThemeStore } from "@/stores/theme-store";
+import { type AgentRuntime, useAppStore } from "@/stores/app-store";
 import { useClickOutside } from "@/hooks/use-click-outside";
 
 type SignalTone = "ok" | "warn" | "error" | "unknown";
-type AgentRuntime = "claude-code" | "codex";
-const AGENT_RUNTIME_STORAGE_KEY = "cge.config.agentRuntime";
 
 function signalDot(tone: SignalTone) {
   if (tone === "ok") return <CheckCircleIcon className="size-3.5 text-emerald-600 dark:text-emerald-400" weight="fill" />;
@@ -90,15 +88,6 @@ const AGENT_RUNTIMES: Array<{
   },
 ];
 
-function readStoredAgentRuntime(): AgentRuntime {
-  if (typeof window === "undefined") {
-    return "claude-code";
-  }
-
-  const stored = window.localStorage.getItem(AGENT_RUNTIME_STORAGE_KEY);
-  return stored === "codex" || stored === "claude-code" ? stored : "claude-code";
-}
-
 function AgentRuntimeTitle({
   runtime,
   theme,
@@ -144,8 +133,7 @@ export function ConfigPanel({
   onSaveCodexModel: (input: { model: string }) => Promise<void>;
 }) {
   const { configOpen, closeConfig } = usePluginPanel();
-  const { theme, setTheme, mounted } = useThemeStore();
-  const [agentRuntime, setAgentRuntime] = useState<AgentRuntime>(readStoredAgentRuntime);
+  const { agentRuntime, mounted, setAgentRuntime, setTheme, theme } = useAppStore();
   const [runtimePopoverOpen, setRuntimePopoverOpen] = useState(false);
   const [claudeModel, setClaudeModel] = useState<string | null>(null);
   const [codexModel, setCodexModel] = useState<string | null>(null);
@@ -313,7 +301,6 @@ export function ConfigPanel({
                             type="button"
                             onClick={() => {
                               setAgentRuntime(runtime.value);
-                              window.localStorage.setItem(AGENT_RUNTIME_STORAGE_KEY, runtime.value);
                               setRuntimePopoverOpen(false);
                             }}
                             className={cn(

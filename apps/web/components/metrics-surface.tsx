@@ -21,7 +21,7 @@ import {
 } from "@/lib/runner"
 import { cn } from "@/lib/utils"
 import { type Plugin } from "@/lib/plugins"
-import { useThemeStore } from "@/stores/theme-store"
+import { useAppStore } from "@/stores/app-store"
 import { usePluginPanel } from "@/stores/plugin-panel-store"
 
 const EXPECTED_POAM_SOURCES: Array<
@@ -177,7 +177,7 @@ function ConnectorCard({
   statusMetric?: MetricLike
   onOpenPlugin?: (plugin: Plugin) => void
 }) {
-  const { theme } = useThemeStore()
+  const { theme } = useAppStore()
   const iconSrc = getConnectorIcon(connector.id, theme)
   const configured = configuredMetric ? configuredMetric.value === 1 : connector.configured
   const findingsCached = cachedFindingsMetric ? cachedFindingsMetric.value : connector.findingsCached

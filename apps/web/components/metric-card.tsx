@@ -11,7 +11,7 @@ import {
 } from "@phosphor-icons/react"
 
 import { cn } from "@/lib/utils"
-import { useThemeStore } from "@/stores/theme-store"
+import { useAppStore } from "@/stores/app-store"
 
 export type MetricCardStatus = "ok" | "warn" | "error" | "unknown"
 
@@ -48,7 +48,7 @@ export function MetricCard({
   status?: MetricCardStatus
 }) {
   const [uncontrolledExpanded, setUncontrolledExpanded] = React.useState(defaultExpanded)
-  const { theme } = useThemeStore()
+  const { theme } = useAppStore()
   const isExpanded = expanded ?? uncontrolledExpanded
 
   function toggleExpanded() {

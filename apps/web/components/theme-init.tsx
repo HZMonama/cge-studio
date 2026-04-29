@@ -1,15 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
-import { useThemeStore } from "@/stores/theme-store";
+import { hydrateAppStore } from "@/stores/app-store";
 
 export function ThemeInit() {
-  const { theme, setMounted, setTheme } = useThemeStore();
-
   useEffect(() => {
-    // Apply the initial theme class on mount
-    setTheme(theme);
-    setMounted(true);
+    hydrateAppStore();
   }, []);
 
   return null;

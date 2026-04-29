@@ -96,9 +96,8 @@ import {
   type RunnerWorkspace,
   type ProgramSummary,
 } from "@/lib/runner";
+import { type AppSection, useAppStore } from "@/stores/app-store";
 import { usePluginPanel } from "@/stores/plugin-panel-store";
-
-type AppSection = "runner" | "findings" | "program" | "metrics" | "artifacts";
 type AppModalState =
   | { type: "closed" }
   | {
@@ -133,17 +132,20 @@ const HEADER_SECTIONS: AppHeaderSection[] = [
   { id: "artifacts", label: "Artifacts", Icon: FilesIcon },
 ];
 
-const ACTIVE_WORKSPACE_STORAGE_KEY = "cge.active-workspace-id";
-const ACTIVE_SECTION_STORAGE_KEY = "cge.active-section";
 const runnerClearedKey = (id: string) => `cge.runner-cleared.${id}`;
 
 export default function Page() {
   const { openHistory, openMetricHistory } = usePluginPanel();
+  const {
+    activeSection,
+    activeWorkspaceId,
+    mounted,
+    setActiveSection,
+    setActiveWorkspaceId,
+    setSidebarOpen,
+    sidebarOpen,
+  } = useAppStore();
   const [workspaces, setWorkspaces] = useState<RunnerWorkspace[]>([]);
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(
-    null,
-  );
-  const [activeSection, setActiveSection] = useState<AppSection>("runner");
   const [plugins, setPlugins] = useState<Plugin[]>(FALLBACK_PLUGINS);
   const [runs, setRuns] = useState<RunnerRun[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -191,25 +193,6 @@ export default function Page() {
   const [activeFrameworkPickerField, setActiveFrameworkPickerField] =
     useState<CommandFormField | null>(null);
   const [sidebarFocusSearchToken, setSidebarFocusSearchToken] = useState(0);
-  const [mounted, setMounted] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("cge.sidebarOpen");
-      return stored ? stored === "true" : false;
-    }
-    return false;
-  });
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Persist sidebar state to localStorage
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("cge.sidebarOpen", String(sidebarOpen));
-    }
-  }, [sidebarOpen]);
 
   const [workspaceRefreshPending, setWorkspaceRefreshPending] = useState(false);
   const [runnerConfig, setRunnerConfig] = useState<RunnerConfigSnapshot | null>(
@@ -279,22 +262,6 @@ export default function Page() {
     }
   }, [activeSection, selectedCommandPath]);
 
-  useEffect(() => {
-    const storedWorkspaceId = window.localStorage.getItem(
-      ACTIVE_WORKSPACE_STORAGE_KEY,
-    );
-
-    if (storedWorkspaceId) {
-      setActiveWorkspaceId(storedWorkspaceId);
-    }
-
-    const storedSection = window.localStorage.getItem(ACTIVE_SECTION_STORAGE_KEY);
-    const validSections: AppSection[] = ["runner", "findings", "program", "metrics", "artifacts"];
-    if (storedSection && validSections.includes(storedSection as AppSection)) {
-      setActiveSection(storedSection as AppSection);
-    }
-  }, []);
-
   const refreshRunnerConnection = useCallback(
     async ({
       signal,
@@ -341,32 +308,20 @@ export default function Page() {
         setClaudeCodeStatus(nextClaudeCodeStatus);
         setCodexStatus(nextCodexStatus);
         setWorkspaces(nextWorkspaces);
-        setActiveWorkspaceId((current) => {
-          const nextActiveWorkspaceId =
-            (current && nextWorkspaces.some((workspace) => workspace.id === current)
-              ? current
-              : null) ??
-            nextWorkspaces[0]?.id ??
-            null;
-
-          if (nextActiveWorkspaceId) {
-            window.localStorage.setItem(
-              ACTIVE_WORKSPACE_STORAGE_KEY,
-              nextActiveWorkspaceId,
-            );
-          } else {
-            window.localStorage.removeItem(ACTIVE_WORKSPACE_STORAGE_KEY);
-          }
-
-          return nextActiveWorkspaceId;
-        });
+        setActiveWorkspaceId((current) =>
+          (current && nextWorkspaces.some((workspace) => workspace.id === current)
+            ? current
+            : null) ??
+          nextWorkspaces[0]?.id ??
+          null,
+        );
       } finally {
         if (!signal?.aborted) {
           setHealthPending(false);
         }
       }
     },
-    [],
+    [setActiveWorkspaceId],
   );
 
   useEffect(() => {
@@ -381,21 +336,6 @@ export default function Page() {
 
     return () => controller.abort();
   }, [refreshRunnerConnection]);
-
-  useEffect(() => {
-    if (activeWorkspaceId) {
-      window.localStorage.setItem(
-        ACTIVE_WORKSPACE_STORAGE_KEY,
-        activeWorkspaceId,
-      );
-    } else {
-      window.localStorage.removeItem(ACTIVE_WORKSPACE_STORAGE_KEY);
-    }
-  }, [activeWorkspaceId]);
-
-  useEffect(() => {
-    window.localStorage.setItem(ACTIVE_SECTION_STORAGE_KEY, activeSection);
-  }, [activeSection]);
 
   useEffect(() => {
     if (!activeWorkspaceId) {
