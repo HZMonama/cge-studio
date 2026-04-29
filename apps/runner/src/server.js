@@ -12,7 +12,10 @@ import {
   createWorkflowRuntime,
   resolveWorkflowExecution,
 } from "./workflow-runner.js";
-import { discoverCommandsWithSchemas } from "./schema-reader.js";
+import {
+  discoverCommandsWithSchemas,
+  readCommandSchema,
+} from "./schema-reader.js";
 import {
   ensureWorkspaceSystem,
   exportWorkspaceSummary,
@@ -1808,7 +1811,7 @@ async function createCommandRun(input) {
     input.workspace.folders.artifactsGenerated,
     runId,
   );
-  const execution = resolveCommandExecution({
+  const execution = await resolveCommandExecution({
     parsed,
     prompt: input.prompt,
     toolkitAvailable: input.toolkitAvailable,
@@ -1916,7 +1919,7 @@ async function resolveCommandDiagnostics(input) {
     };
   }
 
-  const execution = resolveCommandExecution({
+  const execution = await resolveCommandExecution({
     parsed,
     prompt: input.prompt,
     toolkitAvailable: input.toolkitAvailable,
@@ -2067,7 +2070,7 @@ async function appendRunEvent(runDirectory, event) {
   return record;
 }
 
-function resolveCommandExecution(input) {
+async function resolveCommandExecution(input) {
   if (!input.toolkitAvailable || !input.toolkitPath) {
     return {
       kind: "unsupported",
@@ -2086,7 +2089,52 @@ function resolveCommandExecution(input) {
     return workflowExecution;
   }
 
+  const schemaScriptExecution = await buildSchemaScriptExecution(input);
+  if (schemaScriptExecution) {
+    return schemaScriptExecution;
+  }
+
   return buildAgentExecution(input);
+}
+
+async function buildSchemaScriptExecution(input) {
+  const match = await findCommandSchemaForExecution(
+    input.toolkitPath,
+    input.parsed.pluginId,
+    input.parsed.commandId,
+  );
+  const script = match?.schema?.execution?.script;
+
+  if (match?.schema?.execution?.mode !== "script" || typeof script !== "string" || !script.trim()) {
+    return null;
+  }
+
+  const commandDir = path.join(
+    input.toolkitPath,
+    "plugins",
+    match.pluginId,
+    "commands",
+    input.parsed.commandId,
+  );
+  const scriptPath = path.resolve(commandDir, script);
+  const ext = path.extname(scriptPath).toLowerCase();
+  const outputDir = input.runArtifactsDir ?? null;
+  const runtime = ext === ".js" || ext === ".mjs"
+    ? process.execPath
+    : "bash";
+
+  return {
+    kind: "script",
+    cwd: input.toolkitPath,
+    outputDir,
+    runtime,
+    scriptPath,
+    args: input.parsed.argumentTokens,
+    commandPath: input.parsed.commandPath,
+    pluginId: input.parsed.pluginId,
+    commandId: input.parsed.commandId,
+    schemaOutputs: Array.isArray(match.schema.outputs) ? match.schema.outputs : [],
+  };
 }
 
 function buildAgentExecution(input) {
@@ -2320,7 +2368,7 @@ async function executeStep({ commandPath, args, stepIndex, runId, runDirectory, 
   );
   await fs.mkdir(stepArtifactsDir, { recursive: true });
 
-  const execution = resolveCommandExecution({
+  const execution = await resolveCommandExecution({
     parsed,
     toolkitAvailable: Boolean(toolkitPath),
     toolkitPath,
@@ -2393,7 +2441,10 @@ async function executeStep({ commandPath, args, stepIndex, runId, runDirectory, 
   }
 
   if (execution.kind === "agent") {
-    await fs.mkdir(path.join(workspace.rootPath, "grc-reports"), { recursive: true });
+    await Promise.all([
+      fs.mkdir(path.join(workspace.rootPath, "grc-reports"), { recursive: true }),
+      fs.mkdir(execution.outputDir, { recursive: true }),
+    ]);
 
     await appendRunEvent(runDirectory, {
       type: "tool.started",
@@ -2402,12 +2453,17 @@ async function executeStep({ commandPath, args, stepIndex, runId, runDirectory, 
 
     // Read command documentation to include in system prompt
     const commandDoc = await readCommandDoc(toolkitPath, parsed.pluginId, parsed.commandId);
+    const commandSchema = await readCommandSchemaForExecution(toolkitPath, parsed.pluginId, parsed.commandId);
 
     const claudeArgs = buildClaudeArgs({
       commandPath: execution.commandPath,
       workspacePath: workspace.rootPath,
       args: execution.args,
       commandDoc,
+      commandSchema,
+      outputDir: execution.outputDir,
+      runId,
+      workspace,
     });
 
     const startedAt = new Date();
@@ -2667,22 +2723,36 @@ async function finalizeCommandRun(input) {
 
   // When a script produces no files but has stdout output, capture it as a text artifact
   if (artifacts.length === 0 && input.status === "completed" && input.stdoutText?.trim()) {
+    const schemaArtifact = (input.execution.schemaOutputs ?? []).find(
+      (output) => output.type === "artifact",
+    );
+    const schemaArtifactPath = schemaArtifact
+      ? resolveSchemaOutputPath({
+          output: schemaArtifact,
+          outputDir: input.execution.outputDir ?? input.run.outputDir,
+          runId: input.run.id,
+          workspace: input.workspace,
+        })
+      : null;
     const outputDir = input.execution.outputDir ?? input.run.outputDir;
-    if (outputDir) {
-      await fs.mkdir(outputDir, { recursive: true });
-      const artifactPath = path.join(outputDir, "output.txt");
+    const artifactPath = schemaArtifactPath ?? (outputDir ? path.join(outputDir, "output.txt") : null);
+
+    if (artifactPath) {
+      await fs.mkdir(path.dirname(artifactPath), { recursive: true });
       await fs.writeFile(artifactPath, input.stdoutText, "utf8");
 
       artifacts = [createArtifactSummary({
         commandId: input.run.commandId,
         commandPath: input.run.commandPath,
         createdAt: completionTime,
-        format: "text",
-        kind: "report",
+        format: schemaArtifact?.format ?? "text",
+        kind: schemaArtifact?.artifactKind ?? "report",
         path: artifactPath,
         pluginId: input.execution.pluginId ?? input.run.pluginId,
         runId: input.run.id,
-        title: input.run.commandPath ? `${input.run.commandPath} Output` : "Command Output",
+        title: schemaArtifact?.id
+          ? humanizeId(schemaArtifact.id)
+          : input.run.commandPath ? `${input.run.commandPath} Output` : "Command Output",
       })];
     }
   }
@@ -2747,7 +2817,10 @@ async function executeAgentRun(input) {
   const { execution, run, runDirectory, workspace } = input;
   const startedAt = new Date();
 
-  await fs.mkdir(path.join(workspace.rootPath, "grc-reports"), { recursive: true });
+  await Promise.all([
+    fs.mkdir(path.join(workspace.rootPath, "grc-reports"), { recursive: true }),
+    fs.mkdir(execution.outputDir, { recursive: true }),
+  ]);
 
   await appendRunEvent(runDirectory, {
     type: "run.started",
@@ -2756,6 +2829,7 @@ async function executeAgentRun(input) {
 
   // Read command documentation to include in system prompt
   const commandDoc = await readCommandDoc(execution.cwd, execution.pluginId, execution.commandId);
+  const commandSchema = await readCommandSchemaForExecution(execution.cwd, execution.pluginId, execution.commandId);
   console.log('[DEBUG] executeAgentRun commandDoc:', { 
     pluginId: execution.pluginId, 
     commandId: execution.commandId, 
@@ -2768,6 +2842,10 @@ async function executeAgentRun(input) {
     workspacePath: workspace.rootPath,
     args: execution.args,
     commandDoc,
+    commandSchema,
+    outputDir: execution.outputDir,
+    runId: run.id,
+    workspace,
   });
   console.log('[DEBUG] commandDoc truthy:', !!commandDoc, 'length:', commandDoc?.length);
   console.log('[DEBUG] userPrompt starts with:', claudeArgs[claudeArgs.length - 1].substring(0, 50));
@@ -3276,17 +3354,74 @@ function buildCommandPreview(input) {
 }
 
 async function readCommandDoc(toolkitPath, pluginId, commandId) {
-  const commandPath = path.join(toolkitPath, "plugins", pluginId, "commands", `${commandId}.md`);
-  try {
-    return await fs.readFile(commandPath, "utf8");
-  } catch {
-    return null;
+  for (const candidatePluginId of commandPluginIdCandidates(pluginId)) {
+    const commandReadmePath = path.join(
+      toolkitPath,
+      "plugins",
+      candidatePluginId,
+      "commands",
+      commandId,
+      "README.md",
+    );
+    const legacyCommandPath = path.join(
+      toolkitPath,
+      "plugins",
+      candidatePluginId,
+      "commands",
+      `${commandId}.md`,
+    );
+
+    try {
+      return await fs.readFile(commandReadmePath, "utf8");
+    } catch {}
+
+    try {
+      return await fs.readFile(legacyCommandPath, "utf8");
+    } catch {}
   }
+
+  return null;
+}
+
+async function readCommandSchemaForExecution(toolkitPath, pluginId, commandId) {
+  return (await findCommandSchemaForExecution(toolkitPath, pluginId, commandId))?.schema ?? null;
+}
+
+async function findCommandSchemaForExecution(toolkitPath, pluginId, commandId) {
+  for (const candidatePluginId of commandPluginIdCandidates(pluginId)) {
+    const schema = await readCommandSchema(toolkitPath, candidatePluginId, commandId);
+    if (schema) {
+      return {
+        pluginId: candidatePluginId,
+        schema,
+      };
+    }
+  }
+
+  return null;
+}
+
+function commandPluginIdCandidates(pluginId) {
+  return Array.from(new Set([
+    pluginId,
+    `connectors/${pluginId}`,
+    `frameworks/${pluginId}`,
+  ]));
 }
 
 function buildClaudeArgs(input) {
-  const systemPrompt = buildAgentWorkspaceContext(input.workspacePath, input.commandDoc);
-  const userPrompt = buildAgentPrompt(input.commandPath, input.args, input.commandDoc);
+  const outputContract = buildAgentOutputContract(input);
+  const systemPrompt = buildAgentWorkspaceContext({
+    commandDoc: input.commandDoc,
+    outputContract,
+    workspacePath: input.workspacePath,
+  });
+  const userPrompt = buildAgentPrompt({
+    args: input.args,
+    commandDoc: input.commandDoc,
+    commandPath: input.commandPath,
+    outputContract,
+  });
   return [
     "--print",
     "--output-format", "stream-json",
@@ -3298,30 +3433,131 @@ function buildClaudeArgs(input) {
   ];
 }
 
-function buildAgentWorkspaceContext(workspacePath, commandDoc) {
+function buildAgentWorkspaceContext({ workspacePath, commandDoc, outputContract }) {
   let context = (
     `Active CGE workspace: ${workspacePath}. ` +
     `Write all output files (reports, assessments, analyses, policies) to paths inside this workspace directory. ` +
-    `Use ${workspacePath}/grc-reports/ for generated reports.`
+    `Use the output contract paths exactly when provided.`
   );
 
   if (commandDoc) {
     context += `\n\nYou have been given a specific task. Follow the instructions provided in the user prompt precisely.`;
   }
 
+  if (outputContract) {
+    context += `\n\n${outputContract}`;
+  }
+
   return context;
 }
 
-function buildAgentPrompt(commandPath, args, commandDoc) {
+function buildAgentPrompt({ commandPath, args, commandDoc, outputContract }) {
   // If we have command documentation, construct a natural language prompt
   // instead of using the slash command syntax (which Claude doesn't recognize)
   if (commandDoc) {
     const argsText = (args ?? []).join(" ");
-    return `Please execute the following task:\n\nCommand: ${commandPath} ${argsText}\n\nInstructions:\n${commandDoc}`;
+    return [
+      `Please execute the following task:`,
+      "",
+      `Command: ${commandPath} ${argsText}`,
+      "",
+      outputContract ? `${outputContract}\n` : null,
+      `Instructions:`,
+      commandDoc,
+    ].filter(Boolean).join("\n");
   }
 
   // Fallback to slash command syntax for backward compatibility
   return [commandPath, ...(args ?? [])].join(" ");
+}
+
+function buildAgentOutputContract(input) {
+  const outputs = Array.isArray(input.commandSchema?.outputs)
+    ? input.commandSchema.outputs
+    : [];
+
+  if (outputs.length === 0) {
+    return "";
+  }
+
+  const lines = [
+    "Output contract:",
+    "Create parent directories before writing files. If an output has an exact path, write that file exactly once.",
+  ];
+
+  for (const output of outputs) {
+    if (output.type === "stdout" || output.type === "interactive" || output.destination === "runner-history") {
+      lines.push(`- ${output.id}: ${output.type}; respond in runner history/stdout, no file required.`);
+      continue;
+    }
+
+    const targetPath = resolveSchemaOutputPath({
+      output,
+      outputDir: input.outputDir,
+      runId: input.runId,
+      workspace: input.workspace,
+    });
+
+    if (!targetPath) {
+      continue;
+    }
+
+    const details = [
+      `type=${output.type}`,
+      output.format ? `format=${output.format}` : null,
+      output.artifactKind ? `artifactKind=${output.artifactKind}` : null,
+      output.recordType ? `recordType=${output.recordType}` : null,
+      output.validation ? `validation=${output.validation}` : null,
+    ].filter(Boolean).join(", ");
+
+    lines.push(`- ${output.id}: ${details}; path=${targetPath}`);
+  }
+
+  return lines.join("\n");
+}
+
+function resolveSchemaOutputPath({ output, outputDir, runId, workspace }) {
+  const relativePath = normalizeSchemaOutputPath(
+    output.path ?? defaultSchemaOutputPath(output),
+    runId,
+  );
+  if (!relativePath) {
+    return null;
+  }
+
+  const destination = output.destination ?? output.type;
+  const root = destination === "artifact-store"
+    ? outputDir
+    : destination === "findings-store"
+      ? workspace.folders.findingsNormalized
+      : destination === "metrics-store"
+        ? workspace.folders.programMetrics
+        : destination === "program-store"
+          ? workspace.folders.program
+          : outputDir;
+
+  return path.join(root, relativePath);
+}
+
+function normalizeSchemaOutputPath(outputPath, runId) {
+  const value = String(outputPath ?? "")
+    .replaceAll("{runId}", runId)
+    .replace(/^[/\\]+/, "");
+  const normalized = path.normalize(value);
+
+  if (!normalized || normalized === "." || normalized.startsWith("..") || path.isAbsolute(normalized)) {
+    return null;
+  }
+
+  return normalized;
+}
+
+function defaultSchemaOutputPath(output) {
+  const ext = output.format === "markdown" ? "md"
+    : output.format === "yaml" ? "yaml"
+    : output.format === "text" ? "txt"
+    : "json";
+  return `${output.id}-{runId}.${ext}`;
 }
 
 function parsePrompt(prompt) {
