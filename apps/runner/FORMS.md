@@ -21,7 +21,7 @@ The runner now guarantees full command coverage. Every command resolves to an in
 
 ### 1. The runner is the schema assembly layer
 
-The upstream toolkit in `cli/claude-grc-engineering` remains the source of truth for commands and documentation.
+The embedded toolkit in `cli/cli-grc-engineering` remains the source of truth for commands and documentation.
 
 The runner is responsible for:
 

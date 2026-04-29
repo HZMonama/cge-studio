@@ -34,6 +34,7 @@ const formOverlayRoot = path.join(
 );
 
 const port = Number(process.env.CGE_RUNNER_PORT ?? 3333);
+const runnerHost = process.env.CGE_RUNNER_HOST ?? "127.0.0.1";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const runnerRoot = path.resolve(__dirname, "..");
@@ -41,7 +42,7 @@ const repoRoot = path.resolve(runnerRoot, "..", "..");
 const embeddedToolkitPath = path.join(
   repoRoot,
   "cli",
-  "cool-grc-engineering",
+  "cli-grc-engineering",
 );
 const allPersonas = ["engineer", "auditor", "internal", "tprm"];
 
@@ -228,11 +229,19 @@ const scriptCommandFactories = new Map([
 ]);
 
 const roots = {
-  configRoot: path.join(os.homedir(), ".config", "claude-grc"),
-  cacheRoot: path.join(os.homedir(), ".cache", "claude-grc"),
-  appDataRoot: path.join(os.homedir(), ".local", "share", "cge-ui"),
+  configRoot: process.env.CGE_CONFIG_ROOT
+    ? path.resolve(process.env.CGE_CONFIG_ROOT)
+    : path.join(os.homedir(), ".config", "claude-grc"),
+  cacheRoot: process.env.CGE_CACHE_ROOT
+    ? path.resolve(process.env.CGE_CACHE_ROOT)
+    : path.join(os.homedir(), ".cache", "claude-grc"),
+  appDataRoot: process.env.CGE_APP_DATA_ROOT
+    ? path.resolve(process.env.CGE_APP_DATA_ROOT)
+    : path.join(os.homedir(), ".local", "share", "cge-ui"),
 };
-const defaultWorkspaceRoot = path.join(os.homedir(), "Documents", "CGE Workspaces");
+const defaultWorkspaceRoot = process.env.CGE_WORKSPACE_ROOT
+  ? path.resolve(process.env.CGE_WORKSPACE_ROOT)
+  : path.join(os.homedir(), "Documents", "CGE Workspaces");
 const workflowRuntime = createWorkflowRuntime({
   appendRunEvent,
   createArtifactSummary,
@@ -1222,10 +1231,10 @@ const server = serve(
   {
     fetch: app.fetch,
     port,
-    hostname: "127.0.0.1",
+    hostname: runnerHost,
   },
   (info) => {
-    console.log(`[runner] listening on http://127.0.0.1:${info.port}`);
+    console.log(`[runner] listening on http://${runnerHost}:${info.port}`);
   },
 );
 
@@ -2075,7 +2084,7 @@ async function resolveCommandExecution(input) {
     return {
       kind: "unsupported",
       reason:
-        "The claude-grc-engineering toolkit is not configured. Update the runner configuration before running commands.",
+        "The cli-grc-engineering toolkit is not configured. Update the runner configuration before running commands.",
     };
   }
 

@@ -10,7 +10,7 @@ const repoRoot = path.resolve(__dirname, "..", "..", "..");
 const pluginsRoot =
   process.env.CGE_TOOLKIT_PATH != null
     ? path.resolve(process.env.CGE_TOOLKIT_PATH, "plugins")
-    : path.join(repoRoot, "cli", "cool-grc-engineering", "plugins");
+    : path.join(repoRoot, "cli", "cli-grc-engineering", "plugins");
 
 const validV3OutputTypes = new Set([
   "stdout",

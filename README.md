@@ -1,6 +1,6 @@
 # cge-studio
 
-**cge-studio** is a local-first desktop UI for [`claude-grc-engineering`](https://github.com/ethanolivertroy/claude-grc-engineering) — a CLI toolkit for GRC (Governance, Risk, and Compliance) engineering workflows. It gives you an interactive studio for running evidence collection pipelines, gap assessments, and compliance reports without leaving your machine.
+**cge-studio** is a local-first UI for the embedded `cli-grc-engineering` toolkit. It gives you an interactive studio for running evidence collection pipelines, gap assessments, and compliance reports without leaving your machine.
 
 Everything runs locally: no cloud account required, no data leaves your filesystem.
 
@@ -13,6 +13,11 @@ Everything runs locally: no cloud account required, no data leaves your filesyst
 - **Program dashboard** — track risks, controls, evidence, exceptions, tasks, and notes across your GRC program.
 - **Artifact viewer** — read generated Markdown reports (exec summaries, board briefs, automation-coverage snapshots) inline.
 
+## Distribution targets
+
+- `cge-studio` UI + runner: Docker-first. The repo now ships a root `Dockerfile` and `docker-compose.yml` so the web app and runner can be started together behind a single `:3000` entrypoint.
+- `cli-grc-engineering` toolkit: separate npm package. The vendored checkout under `cli/cli-grc-engineering` is prepared to be published independently from the UI.
+
 ## Architecture overview
 
 ```
@@ -21,14 +26,14 @@ cge-studio/
 │   ├── web/          # Next.js frontend — the studio UI
 │   └── runner/       # Node.js HTTP server — filesystem & toolkit bridge
 ├── cli/
-│   └── claude-grc-engineering/  # upstream toolkit (git submodule)
+│   └── cli-grc-engineering/  # embedded toolkit checkout
 ├── packages/
 │   ├── types/        # shared TypeScript contracts
 │   └── toolkit-adapter/  # filesystem & command helpers
-└── scripts/dev.mjs   # parallel dev process orchestrator
+└── scripts/          # dev/prod process orchestrators
 ```
 
-The **runner** (`apps/runner`) is a plain Node.js HTTP server on port `3333`. It owns all filesystem access, command execution, workspace lifecycle, and workflow orchestration. The **web app** (`apps/web`) is a Next.js frontend on port `3000` that talks exclusively to the runner — it never touches the filesystem or the CLI directly.
+The **runner** (`apps/runner`) is a plain Node.js HTTP server on port `3333`. It owns all filesystem access, command execution, workspace lifecycle, and workflow orchestration. The **web app** (`apps/web`) is a Next.js frontend on port `3000` that talks to the runner through a same-origin `/api/runner/*` proxy, so the Docker install story only needs port `3000`.
 
 See [`apps/runner/README.md`](apps/runner/README.md) for a detailed breakdown of the runner architecture.
 
@@ -49,12 +54,12 @@ git clone <repo-url> cge-studio
 cd cge-studio
 ```
 
-### 2. Set up the upstream CLI submodule
+### 2. Set up the embedded toolkit checkout
 
-The runner expects the `claude-grc-engineering` toolkit at `cli/claude-grc-engineering`. If it wasn't included in your clone, add it:
+The runner expects the toolkit at `cli/cli-grc-engineering`. If it was not included in your clone:
 
 ```bash
-git submodule add https://github.com/ethanolivertroy/claude-grc-engineering.git cli/claude-grc-engineering
+git submodule add https://github.com/HZMonama/cli-grc-engineering.git cli/cli-grc-engineering
 git submodule update --init --recursive
 ```
 
@@ -66,6 +71,8 @@ If you cloned with `--recurse-submodules`, this step is already done.
 pnpm install
 ```
 
+The root `postinstall` hook also installs dependencies for the embedded `cli/cli-grc-engineering` package so runner-executed toolkit commands work without a second manual setup step.
+
 ### 4. (Optional) Override the toolkit path
 
 If you want to point the runner at a different toolkit checkout, create a local config file:
@@ -75,6 +82,23 @@ cp apps/runner/runner.config.json.example apps/runner/runner.config.local.json
 ```
 
 Then edit `runner.config.local.json` and set `toolkitPath` to your preferred path.
+
+## Docker install
+
+Single-container flow:
+
+```bash
+docker build -t maynframe/cge-studio .
+docker run --rm -p 3000:3000 -e ANTHROPIC_API_KEY=your-key maynframe/cge-studio
+```
+
+Compose flow with persistent app data:
+
+```bash
+docker compose up --build
+```
+
+The compose stack persists runner config, cache, workspace registry, and workspace folders in the `cge-studio-data` volume mounted at `/data`.
 
 ## Running locally
 
@@ -94,6 +118,7 @@ To start each service individually:
 ```bash
 pnpm dev:web     # Next.js only
 pnpm dev:runner  # runner only (with --watch)
+pnpm start       # production-style web + runner
 ```
 
 ## Other scripts
@@ -104,13 +129,17 @@ pnpm lint        # lint web + check runner
 pnpm typecheck   # type-check web + check runner
 ```
 
+## CLI package
+
+The embedded toolkit is kept separate from the UI package. Its package metadata lives in [`cli/cli-grc-engineering/package.json`](cli/cli-grc-engineering/package.json) and now exposes a `cli-grc-engineering` bin for npm-style installation or `npx` usage once published.
+
 ## Runner Form Engine
 
 The runner exposes a composable form engine that builds inline command forms from upstream toolkit docs plus local schema composition. Every toolkit command (`152 / 152` currently) resolves to a runner-backed form — even zero-field commands get a valid inline form state.
 
 Resolution order for each command:
 
-1. Parse baseline fields from the upstream command markdown under `cli/claude-grc-engineering/plugins/**/commands/*.md`.
+1. Parse baseline fields from the embedded toolkit markdown under `cli/cli-grc-engineering/plugins/**/commands/*.md`.
 2. Apply a command-family preset from `apps/runner/forms/_presets` when one matches.
 3. Compose reusable field groups from `apps/runner/forms/_groups`.
 4. Apply command-specific overlays from `apps/runner/forms/**/<command>.json`.

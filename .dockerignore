@@ -1,0 +1,16 @@
+.git
+cli/cli-grc-engineering/.git
+.gitmodules
+.claude
+.codex
+node_modules
+apps/web/.next
+apps/web/node_modules
+apps/runner/node_modules
+packages/*/node_modules
+coverage
+dist
+.turbo
+.env
+.env.local
+apps/runner/runner.config.local.json

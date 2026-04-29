@@ -29,7 +29,7 @@ Or from this directory:
 pnpm dev
 ```
 
-The app expects the runner to be reachable at `http://127.0.0.1:3333`. Start `pnpm dev:runner` from the repo root if you're running the services separately.
+By default the app talks to the runner through a same-origin `/api/runner/*` proxy that forwards to `http://127.0.0.1:3333`. Start `pnpm dev:runner` from the repo root if you're running the services separately.
 
 ## Key files
 

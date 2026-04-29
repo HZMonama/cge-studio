@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# sync-upstream-plugins.sh - Sync new plugins from upstream claude-grc-engineering to cool-grc-engineering
+# sync-upstream-plugins.sh - Sync new plugins from upstream claude-grc-engineering to cli-grc-engineering
 #
 # Usage: ./sync-upstream-plugins.sh [--dry-run]
 #
@@ -14,7 +14,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLI_DIR="${SCRIPT_DIR}/cli/cool-grc-engineering"
+CLI_DIR="${SCRIPT_DIR}/cli/cli-grc-engineering"
 DRY_RUN=false
 RESTART_RUNNER=false
 

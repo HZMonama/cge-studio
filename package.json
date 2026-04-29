@@ -5,9 +5,14 @@
   "license": "SEE LICENSE IN LICENSE",
   "packageManager": "pnpm@10.33.0",
   "scripts": {
+    "postinstall": "node scripts/postinstall.mjs",
     "dev": "node scripts/dev.mjs",
     "dev:web": "pnpm --dir apps/web dev",
     "dev:runner": "node --watch apps/runner/src/server.js",
+    "install:cli": "pnpm --dir cli/cli-grc-engineering install",
+    "start": "node scripts/start.mjs",
+    "start:web": "pnpm --dir apps/web start",
+    "start:runner": "node apps/runner/src/server.js",
     "build": "pnpm --dir apps/web build && node --check apps/runner/src/server.js",
     "lint": "pnpm --dir apps/web lint && node --check apps/runner/src/server.js",
     "typecheck": "pnpm --dir apps/web typecheck && node --check apps/runner/src/server.js"

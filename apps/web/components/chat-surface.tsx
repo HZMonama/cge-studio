@@ -196,10 +196,12 @@ function PathInput({
 
 function InlineFormField({
   field,
+  onOpenFrameworkPicker,
   value,
   onChange,
 }: {
   field: CommandFormField;
+  onOpenFrameworkPicker?: (field: CommandFormField) => void;
   value: CommandFormValue;
   onChange: (nextValue: CommandFormValue) => void;
 }) {
@@ -384,19 +386,38 @@ function InlineFormField({
     );
   }
 
+  const pickerEnabled =
+    field.type === "text" &&
+    field.picker?.kind === "framework-catalog" &&
+    onOpenFrameworkPicker;
+
   return (
     <label className="block">
       <span className="mb-1 block text-xs font-medium text-foreground">
         {field.label}
         {field.required && <span className="ml-1 text-rose-400">*</span>}
       </span>
-      <input
-        type="text"
-        value={typeof value === "string" ? value : ""}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={field.placeholder}
-        className="h-10 w-full border border-border/60 bg-transparent px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-border"
-      />
+      <div className={pickerEnabled ? "flex gap-2" : undefined}>
+        <input
+          type="text"
+          value={typeof value === "string" ? value : ""}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={field.placeholder}
+          className={cn(
+            "h-10 border border-border/60 bg-transparent px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-border",
+            pickerEnabled ? "min-w-0 flex-1" : "w-full",
+          )}
+        />
+        {pickerEnabled ? (
+          <button
+            type="button"
+            onClick={() => onOpenFrameworkPicker?.(field)}
+            className="h-10 shrink-0 border border-border/60 bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          >
+            Select…
+          </button>
+        ) : null}
+      </div>
       {field.description && (
         <p className="mt-1 text-xs text-muted-foreground">
           {field.description}
@@ -576,6 +597,7 @@ export function ChatSurface({
   onCommandFormChange,
   onCancelRun,
   onOpenArtifact,
+  onOpenFrameworkPicker,
   onSelectCommand,
   onOpenHistory,
   onSubmitPrompt,
@@ -601,6 +623,7 @@ export function ChatSurface({
   onCommandFormChange: (values: CommandFormValues) => void;
   onCancelRun: () => void;
   onOpenArtifact: (artifactId: string) => void;
+  onOpenFrameworkPicker: (field: CommandFormField) => void;
   onSelectCommand: (path: string) => void;
   onOpenHistory: () => void;
   onSubmitPrompt: (promptId: string, answers: Record<string, string>) => Promise<void>;
@@ -1092,6 +1115,7 @@ export function ChatSurface({
                         <InlineFormField
                           key={field.name}
                           field={field}
+                          onOpenFrameworkPicker={onOpenFrameworkPicker}
                           value={commandFormValues[field.name]}
                           onChange={(nextValue) => {
                             onCommandFormChange({

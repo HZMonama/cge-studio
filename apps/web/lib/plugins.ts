@@ -52,6 +52,14 @@ export interface InputFieldOption {
   label: string;
 }
 
+export interface FrameworkCatalogPickerConfig {
+  kind: "framework-catalog";
+  catalog: string;
+  selectionMode?: "single" | "multiple";
+  title?: string;
+  description?: string;
+}
+
 // New: Input field definition from schema.yaml
 export interface InputField {
   name: string;
@@ -69,6 +77,7 @@ export interface InputField {
   // Path input options
   pathType?: "file" | "directory" | "any";
   allowMultiple?: boolean;
+  picker?: FrameworkCatalogPickerConfig;
 }
 
 // New: Output schema from schema.yaml
@@ -132,6 +141,7 @@ export interface CommandFormField {
   defaultValue?: string | string[] | number | boolean | null;
   options?: CommandFormOption[];
   repeatable?: boolean;
+  picker?: FrameworkCatalogPickerConfig;
 }
 
 export interface CommandFormSchema {
@@ -221,6 +231,7 @@ export function inputsToFormFields(inputs: InputField[] = []): CommandFormField[
       placeholder: input.placeholder,
       defaultValue: input.default,
       options: input.options,
+      picker: input.picker,
     };
   });
 }

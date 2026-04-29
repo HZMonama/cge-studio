@@ -26,7 +26,7 @@ const instrumentSerif = Instrument_Serif({
 
 export const metadata: Metadata = {
   title: "cge-studio",
-  description: "Local UI for claude-grc-engineering cli.",
+  description: "Local UI for cli-grc-engineering.",
 };
 
 export default function RootLayout({

@@ -1,6 +1,6 @@
 import { type Plugin, type Command, getRunnerSupport } from "@/lib/plugins"
 
-export const RUNNER_BASE_URL = process.env.NEXT_PUBLIC_RUNNER_URL ?? "http://127.0.0.1:3333"
+export const RUNNER_BASE_URL = process.env.NEXT_PUBLIC_RUNNER_URL ?? "/api/runner"
 
 interface PluginRegistryResponse {
   plugins: Plugin[]

@@ -1,10 +1,9 @@
 "use client"
 
-import { ArrowSquareOutIcon, ShieldWarningIcon } from "@phosphor-icons/react"
+import { ArrowSquareOutIcon, CopySimpleIcon, FlaskIcon, FolderOpenIcon, ShieldWarningIcon, TicketIcon } from "@phosphor-icons/react"
 
-import { HeaderActionButton } from "@/components/header-action-button"
 import { type RunnerFindingDetail } from "@/lib/runner"
-import { RecordHeader } from "@/components/record-header"
+import { TabHeader, TabHeaderButton } from "@/components/tab-header"
 import { cn } from "@/lib/utils"
 
 const SEVERITY_BADGE: Record<string, string> = {
@@ -93,12 +92,22 @@ function FieldRow({
   )
 }
 
+function deriveProvider(source: string): string | null {
+  if (source.includes("aws")) return "aws"
+  if (source.includes("gcp")) return "gcp"
+  if (source.includes("azure")) return "azure"
+  if (source.includes("kubernetes") || source.includes("k8s")) return "kubernetes"
+  return null
+}
+
 export function FindingsSurface({
   finding,
   loading,
+  onInsertCommand,
 }: {
   finding: RunnerFindingDetail | null
   loading: boolean
+  onInsertCommand?: (prompt: string) => void
 }) {
   function copyFindingIdentifier() {
     const identifier =
@@ -115,14 +124,6 @@ export function FindingsSurface({
     void navigator.clipboard.writeText(identifier)
   }
 
-  function openReference() {
-    const ref = finding?.remediation?.ref
-    if (!ref || !ref.startsWith("http")) {
-      return
-    }
-
-    window.open(ref, "_blank", "noopener,noreferrer")
-  }
 
   if (loading) {
     return (
@@ -138,12 +139,14 @@ export function FindingsSurface({
     return (
       <div className="flex flex-1 flex-col overflow-hidden bg-[var(--editor-bg)]">
         <div className="flex-1 overflow-auto">
-          <RecordHeader
+          <TabHeader
             title="No finding selected"
             actions={
               <>
-                <HeaderActionButton disabled>Copy ID</HeaderActionButton>
-                <HeaderActionButton disabled>Open Ref</HeaderActionButton>
+                <TabHeaderButton icon={CopySimpleIcon} disabled>Copy ID</TabHeaderButton>
+                <TabHeaderButton icon={FlaskIcon} disabled>Test Control</TabHeaderButton>
+                <TabHeaderButton icon={FolderOpenIcon} disabled>Collect Evidence</TabHeaderButton>
+                <TabHeaderButton icon={TicketIcon} disabled>Create Ticket</TabHeaderButton>
               </>
             }
           />
@@ -168,7 +171,7 @@ export function FindingsSurface({
   return (
     <div className="flex flex-1 flex-col overflow-hidden bg-[var(--editor-bg)]">
       <div className="flex-1 overflow-auto">
-        <RecordHeader
+        <TabHeader
           title={finding.title}
           identifier={finding.resource?.id ?? null}
           badges={
@@ -193,13 +196,50 @@ export function FindingsSurface({
           ]}
           actions={
             <>
-              <HeaderActionButton onClick={copyFindingIdentifier}>Copy ID</HeaderActionButton>
-              <HeaderActionButton
-                disabled={!finding.remediation?.ref?.startsWith("http")}
-                onClick={openReference}
+              <TabHeaderButton icon={CopySimpleIcon} onClick={copyFindingIdentifier}>
+                Copy ID
+              </TabHeaderButton>
+              <TabHeaderButton
+                icon={FlaskIcon}
+                disabled={!finding.controlId || !onInsertCommand}
+                onClick={() => {
+                  if (!finding.controlId || !onInsertCommand) return
+                  const provider = deriveProvider(finding.source)
+                  const args = provider ? `${finding.controlId} ${provider}` : finding.controlId
+                  onInsertCommand(`/grc-engineer:test-control ${args}`)
+                }}
               >
-                Open Ref
-              </HeaderActionButton>
+                Test Control
+              </TabHeaderButton>
+              <TabHeaderButton
+                icon={FolderOpenIcon}
+                disabled={!onInsertCommand}
+                onClick={() => {
+                  if (!onInsertCommand) return
+                  const provider = deriveProvider(finding.source) ?? "aws"
+                  onInsertCommand(`/grc-engineer:collect-evidence "${finding.title}" ${provider}`)
+                }}
+              >
+                Collect Evidence
+              </TabHeaderButton>
+              <TabHeaderButton
+                icon={TicketIcon}
+                disabled={!onInsertCommand}
+                onClick={() => {
+                  if (!onInsertCommand) return
+                  const parts = [
+                    finding.title,
+                    `${finding.severity} severity`,
+                    finding.remediation?.summary ?? finding.message ?? null,
+                    finding.remediation?.effort_hours != null
+                      ? `Estimated effort: ${finding.remediation.effort_hours}h`
+                      : null,
+                  ].filter(Boolean)
+                  onInsertCommand(`/grc-engineer:transform-risk "${parts.join(". ")}"`)
+                }}
+              >
+                Create Ticket
+              </TabHeaderButton>
             </>
           }
         />

@@ -17,6 +17,7 @@ import {
 } from "@/components/app-shell-header";
 import { ArtifactsSurface } from "@/components/artifacts-surface";
 import { ChatSurface } from "@/components/chat-surface";
+import { FrameworkControlsPanel } from "@/components/framework-controls-panel";
 import { FindingsSurface } from "@/components/findings-surface";
 import { MetricsSurface } from "@/components/metrics-surface";
 import { MetricSnapshotsPanel } from "@/components/metric-snapshots-panel";
@@ -40,9 +41,16 @@ import {
   buildPromptFromCommandForm,
   createInitialFormValues,
   parsePromptToCommandFormValues,
+  type CommandFormValue,
   type CommandFormValues,
 } from "@/lib/command-form";
-import { FALLBACK_PLUGINS, getCommandForm, type Command, type Plugin } from "@/lib/plugins";
+import {
+  FALLBACK_PLUGINS,
+  getCommandForm,
+  type Command,
+  type CommandFormField,
+  type Plugin,
+} from "@/lib/plugins";
 import {
   fetchConnectors,
   createRun,
@@ -177,6 +185,8 @@ export default function Page() {
   const [commandFormValues, setCommandFormValues] = useState<CommandFormValues>(
     {},
   );
+  const [activeFrameworkPickerField, setActiveFrameworkPickerField] =
+    useState<CommandFormField | null>(null);
   const [sidebarFocusSearchToken, setSidebarFocusSearchToken] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -231,6 +241,15 @@ export default function Page() {
   const selectedMetricSnapshotSummary = selectedMetricSnapshotId
     ? metrics?.snapshots.find((snapshot) => snapshot.snapshot_id === selectedMetricSnapshotId) ?? null
     : null;
+  const activeFrameworkPickerSelectionMode =
+    activeFrameworkPickerField?.picker?.kind === "framework-catalog"
+      ? activeFrameworkPickerField.picker.selectionMode ?? "single"
+      : "single";
+  const activeFrameworkPickerSelections = parseFrameworkPickerSelections(
+    activeFrameworkPickerField
+      ? commandFormValues[activeFrameworkPickerField.name]
+      : undefined,
+  );
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -249,6 +268,12 @@ export default function Page() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
+
+  useEffect(() => {
+    if (activeSection !== "runner" || !selectedCommandPath) {
+      setActiveFrameworkPickerField(null);
+    }
+  }, [activeSection, selectedCommandPath]);
 
   useEffect(() => {
     const storedWorkspaceId = window.localStorage.getItem(
@@ -668,7 +693,37 @@ export default function Page() {
   function clearSelectedCommand() {
     setSelectedCommandPath(null);
     setCommandFormValues({});
+    setActiveFrameworkPickerField(null);
     setComposerFocusToken((prev) => prev + 1);
+  }
+
+  function openFrameworkPicker(field: CommandFormField) {
+    if (field.picker?.kind !== "framework-catalog") {
+      return;
+    }
+
+    setActiveFrameworkPickerField(field);
+  }
+
+  function closeFrameworkPicker() {
+    setActiveFrameworkPickerField(null);
+  }
+
+  function applyFrameworkPickerSelections(values: string[]) {
+    if (!activeFrameworkPickerField) {
+      return;
+    }
+
+    const nextValue =
+      activeFrameworkPickerSelectionMode === "multiple"
+        ? values.join(",")
+        : (values[0] ?? "");
+
+    updateSelectedCommandForm({
+      ...commandFormValues,
+      [activeFrameworkPickerField.name]: nextValue,
+    });
+    setActiveFrameworkPickerField(null);
   }
 
   function openAlert(title: string, description: string) {
@@ -1167,6 +1222,7 @@ export default function Page() {
                 setSelectedArtifactId(artifactId);
                 setActiveSection("artifacts");
               }}
+              onOpenFrameworkPicker={openFrameworkPicker}
               onOpenHistory={openHistory}
               onSubmitPrompt={async (promptId, answers) => {
                 if (!activeWorkspaceId || !selectedRunId) {
@@ -1225,6 +1281,13 @@ export default function Page() {
             <FindingsSurface
               finding={selectedFindingId ? selectedFinding : null}
               loading={findingLoading && selectedFindingId !== null}
+              onInsertCommand={(prompt) => {
+                setSelectedCommandPath(null);
+                setCommandFormValues({});
+                setComposerPrompt(prompt);
+                setActiveSection("runner");
+                setComposerFocusToken((prev) => prev + 1);
+              }}
             />
           ) : activeSection === "program" ? (
             <ProgramSurface
@@ -1288,6 +1351,13 @@ export default function Page() {
           onSelectSnapshot={(snapshotId) => void selectMetricSnapshot(snapshotId)}
           selectedSnapshotId={selectedMetricSnapshotId}
           snapshots={metrics?.snapshots ?? []}
+        />
+        <FrameworkControlsPanel
+          field={activeFrameworkPickerField}
+          open={activeFrameworkPickerField !== null}
+          onApply={applyFrameworkPickerSelections}
+          onClose={closeFrameworkPicker}
+          selectedValues={activeFrameworkPickerSelections}
         />
         <ConfigPanel
           claudeCodeStatus={claudeCodeStatus}
@@ -1397,4 +1467,19 @@ function getProgramRecordIds(program: ProgramSummary, tab: ProgramTab): string[]
 function extractCommandPath(prompt: string | null | undefined): string | null {
   const match = prompt?.trim().match(/^\/[a-z0-9-]+:[a-z0-9-]+/i);
   return match ? match[0] : null;
+}
+
+function parseFrameworkPickerSelections(value: CommandFormValue): string[] {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+
+  if (typeof value !== "string") {
+    return [];
+  }
+
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }

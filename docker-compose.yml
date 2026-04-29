@@ -1,0 +1,23 @@
+services:
+  cge-studio:
+    build:
+      context: .
+    image: maynframe/cge-studio:local
+    ports:
+      - "3000:3000"
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      PORT: 3000
+      CGE_WEB_PORT: 3000
+      CGE_RUNNER_PORT: 3333
+      CGE_RUNNER_HOST: 127.0.0.1
+      RUNNER_INTERNAL_URL: http://127.0.0.1:3333
+      CGE_CONFIG_ROOT: /data/config/claude-grc
+      CGE_CACHE_ROOT: /data/cache/claude-grc
+      CGE_APP_DATA_ROOT: /data/app
+      CGE_WORKSPACE_ROOT: /data/workspaces
+    volumes:
+      - cge-studio-data:/data
+
+volumes:
+  cge-studio-data:

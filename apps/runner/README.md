@@ -1,6 +1,6 @@
 # cge-studio — runner
 
-The runner is a plain Node.js HTTP server (port `3333`) that acts as the bridge between the web frontend and the local filesystem / `claude-grc-engineering` toolkit. The frontend never touches the filesystem or executes CLI commands directly — all of that goes through the runner.
+The runner is a plain Node.js HTTP server (port `3333`) that acts as the bridge between the web frontend and the local filesystem / `cli-grc-engineering` toolkit. The frontend never touches the filesystem or executes CLI commands directly — all of that goes through the runner.
 
 ## Architecture
 
@@ -29,8 +29,8 @@ The runner is a plain Node.js HTTP server (port `3333`) that acts as the bridge 
                        │ child_process / fs
                        ▼
 ┌─────────────────────────────────────────────────────┐
-│        claude-grc-engineering toolkit (CLI)          │
-│       cli/claude-grc-engineering/  (submodule)       │
+│         cli-grc-engineering toolkit (CLI)            │
+│         cli/cli-grc-engineering/  (submodule)        │
 └─────────────────────────────────────────────────────┘
                        │
                        ▼
@@ -163,9 +163,19 @@ The runner looks for its config in this order:
 1. `runner.config.local.json` (local override, not committed)
 2. `runner.config.json.example` (defaults)
 
-The only required field is `toolkitPath` — the path to the `claude-grc-engineering` checkout, relative to `apps/runner/`.
+The only required field is `toolkitPath` — the path to the `cli-grc-engineering` checkout, relative to `apps/runner/`.
 
-Default: `../../cli/claude-grc-engineering`
+Default: `../../cli/cli-grc-engineering`
+
+The runner also supports environment overrides that are useful in Docker:
+
+- `CGE_RUNNER_HOST`
+- `CGE_RUNNER_PORT`
+- `CGE_CONFIG_ROOT`
+- `CGE_CACHE_ROOT`
+- `CGE_APP_DATA_ROOT`
+- `CGE_WORKSPACE_ROOT`
+- `CGE_TOOLKIT_PATH`
 
 ## Running
 

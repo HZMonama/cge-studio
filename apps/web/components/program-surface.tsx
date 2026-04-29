@@ -1,12 +1,9 @@
 "use client"
 
-import { useEffect } from "react"
-import {
-  ShieldWarningIcon,
-} from "@phosphor-icons/react"
+import { useEffect, type ReactNode } from "react"
+import { CopySimpleIcon, FileIcon, ShieldWarningIcon } from "@phosphor-icons/react"
 
-import { HeaderActionButton } from "@/components/header-action-button"
-import { RecordHeader } from "@/components/record-header"
+import { TabHeader, TabHeaderButton } from "@/components/tab-header"
 import { cn } from "@/lib/utils"
 import {
   type ProgramException,
@@ -73,32 +70,8 @@ function copyText(value: string | null | undefined) {
 }
 
 function RiskDetail({ risk }: { risk: ProgramRisk }) {
-  const score = risk.residual?.score ?? risk.inherent?.score
   return (
     <div className="flex-1 overflow-auto">
-      <RecordHeader
-        eyebrow="Risk"
-        title={risk.title}
-        identifier={risk.risk_id}
-        badges={
-          <>
-            <Badge
-              label={risk.status}
-              className={RISK_STATUS_BADGE[risk.status] ?? "border-zinc-300/20 bg-zinc-500/10 text-zinc-400"}
-            />
-            {risk.treatment ? <Badge label={risk.treatment} /> : null}
-            {score != null ? <Badge label={`Score ${score}`} /> : null}
-          </>
-        }
-        meta={[
-          ...(risk.owner ? [{ label: "Owner", value: risk.owner }] : []),
-          ...(risk.created_at ? [{ label: "Created", value: new Date(risk.created_at).toLocaleDateString() }] : []),
-          ...(risk.updated_at ? [{ label: "Updated", value: new Date(risk.updated_at).toLocaleDateString() }] : []),
-        ]}
-        actions={
-          <HeaderActionButton onClick={() => copyText(risk.risk_id)}>Copy ID</HeaderActionButton>
-        }
-      />
       <div className="space-y-2 px-6 py-5">
         <FieldPair label="Owner" value={risk.owner} />
         <FieldPair label="Created" value={risk.created_at ? new Date(risk.created_at).toLocaleDateString() : null} />
@@ -140,28 +113,6 @@ function RiskDetail({ risk }: { risk: ProgramRisk }) {
 function ExceptionDetail({ exception: ex }: { exception: ProgramException }) {
   return (
     <div className="flex-1 overflow-auto">
-      <RecordHeader
-        eyebrow="Exception"
-        title={ex.exception_id}
-        identifier={ex.control_id}
-        badges={
-          <>
-            <Badge
-              label={ex.status}
-              className={EXCEPTION_STATUS_BADGE[ex.status] ?? "border-zinc-300/20 bg-zinc-500/10 text-zinc-400"}
-            />
-            <Badge label={`${ex.control_framework} / ${ex.control_id}`} />
-          </>
-        }
-        meta={[
-          ...(ex.owner ? [{ label: "Owner", value: ex.owner }] : []),
-          ...(ex.created_at ? [{ label: "Created", value: new Date(ex.created_at).toLocaleDateString() }] : []),
-          ...(ex.expires_at ? [{ label: "Expires", value: new Date(ex.expires_at).toLocaleDateString() }] : []),
-        ]}
-        actions={
-          <HeaderActionButton onClick={() => copyText(ex.exception_id)}>Copy ID</HeaderActionButton>
-        }
-      />
       <div className="space-y-2 px-6 py-5">
         <FieldPair label="Owner" value={ex.owner} />
         <FieldPair label="Created" value={ex.created_at ? new Date(ex.created_at).toLocaleDateString() : null} />
@@ -188,25 +139,6 @@ function ExceptionDetail({ exception: ex }: { exception: ProgramException }) {
 function VendorDetail({ vendor }: { vendor: ProgramVendor }) {
   return (
     <div className="flex-1 overflow-auto">
-      <RecordHeader
-        eyebrow="Vendor"
-        title={vendor.name}
-        identifier={vendor.vendor_id}
-        badges={
-          <>
-            <Badge label={`Tier ${vendor.tier}`} className={VENDOR_TIER_BADGE[vendor.tier] ?? "border-zinc-300/20 bg-zinc-500/10 text-zinc-400"} />
-            <Badge label={vendor.status} />
-          </>
-        }
-        meta={[
-          ...(vendor.owner ? [{ label: "Owner", value: vendor.owner }] : []),
-          ...(vendor.last_review_at ? [{ label: "Last review", value: new Date(vendor.last_review_at).toLocaleDateString() }] : []),
-          ...(vendor.next_review_at ? [{ label: "Next review", value: new Date(vendor.next_review_at).toLocaleDateString() }] : []),
-        ]}
-        actions={
-          <HeaderActionButton onClick={() => copyText(vendor.vendor_id)}>Copy ID</HeaderActionButton>
-        }
-      />
       <div className="space-y-2 px-6 py-5">
         <FieldPair label="Owner" value={vendor.owner} />
         <FieldPair label="Last review" value={vendor.last_review_at ? new Date(vendor.last_review_at).toLocaleDateString() : null} />
@@ -219,30 +151,6 @@ function VendorDetail({ vendor }: { vendor: ProgramVendor }) {
 function PolicyDetail({ policy }: { policy: ProgramPolicy }) {
   return (
     <div className="flex-1 overflow-auto">
-      <RecordHeader
-        eyebrow="Policy"
-        title={policy.title}
-        identifier={policy.policy_id}
-        badges={
-          <>
-            <Badge label={policy.status} className={POLICY_STATUS_BADGE[policy.status] ?? "border-zinc-300/20 bg-zinc-500/10 text-zinc-400"} />
-            <Badge label={`v${policy.version}`} />
-          </>
-        }
-        meta={[
-          ...(policy.owner ? [{ label: "Owner", value: policy.owner }] : []),
-          ...(policy.effective_at ? [{ label: "Effective", value: new Date(policy.effective_at).toLocaleDateString() }] : []),
-          ...(policy.next_review_at ? [{ label: "Next review", value: new Date(policy.next_review_at).toLocaleDateString() }] : []),
-        ]}
-        actions={
-          <>
-            <HeaderActionButton onClick={() => copyText(policy.policy_id)}>Copy ID</HeaderActionButton>
-            <HeaderActionButton onClick={() => copyText(policy.document_path)}>
-              Copy Path
-            </HeaderActionButton>
-          </>
-        }
-      />
       <div className="space-y-2 px-6 py-5">
         <FieldPair label="Owner" value={policy.owner} />
         <FieldPair label="Effective" value={policy.effective_at ? new Date(policy.effective_at).toLocaleDateString() : null} />
@@ -266,25 +174,6 @@ function PolicyDetail({ policy }: { policy: ProgramPolicy }) {
 function ControlDetail({ control }: { control: ProgramControl }) {
   return (
     <div className="flex-1 overflow-auto">
-      <RecordHeader
-        eyebrow="Control"
-        title={control.title}
-        identifier={control.control_id}
-        badges={
-          <>
-            <Badge label={control.status} />
-            {control.automation_status ? <Badge label={control.automation_status} /> : null}
-          </>
-        }
-        meta={[
-          ...(control.owner ? [{ label: "Owner", value: control.owner }] : []),
-          ...(control.last_tested_at ? [{ label: "Last tested", value: new Date(control.last_tested_at).toLocaleDateString() }] : []),
-          ...(control.next_test_at ? [{ label: "Next test", value: new Date(control.next_test_at).toLocaleDateString() }] : []),
-        ]}
-        actions={
-          <HeaderActionButton onClick={() => copyText(control.control_id)}>Copy ID</HeaderActionButton>
-        }
-      />
       <div className="space-y-2 px-6 py-5">
         <FieldPair label="Owner" value={control.owner} />
         <FieldPair label="Last tested" value={control.last_tested_at ? new Date(control.last_tested_at).toLocaleDateString() : null} />
@@ -331,28 +220,151 @@ export function ProgramSurface({
     window.localStorage.setItem("cge.program-active-tab", activeTab)
   }, [activeTab])
 
-  if (loading) {
-    return (
-      <div className="relative flex flex-1 flex-col overflow-hidden bg-[var(--editor-bg)]">
-        <div className="flex flex-1 items-center justify-center p-8">
-          <p className="text-sm text-muted-foreground">Loading program…</p>
-        </div>
-        <ProgramTabs activeTab={activeTab} onSelectTab={(tab) => tab && onSelectTab(tab)} />
-      </div>
-    )
+  const isEmpty =
+    !loading &&
+    (!program ||
+      ((program.risks?.length ?? 0) === 0 &&
+        (program.exceptions?.length ?? 0) === 0 &&
+        (program.vendors?.length ?? 0) === 0 &&
+        (program.policies?.length ?? 0) === 0 &&
+        (program.controls?.length ?? 0) === 0))
+
+  function resolveRecordHeader(): ReactNode {
+    if (loading || isEmpty || !program) {
+      const singular = activeTab.replace(/s$/, "")
+      return (
+        <TabHeader
+          title={`No ${singular} selected`}
+          actions={<TabHeaderButton icon={CopySimpleIcon} disabled>Copy ID</TabHeaderButton>}
+        />
+      )
+    }
+
+    if (activeTab === "risks") {
+      const risk = selectedItemId ? (program.risks ?? []).find((r) => r.risk_id === selectedItemId) : null
+      if (!risk) return <TabHeader title="No risk selected" actions={<TabHeaderButton icon={CopySimpleIcon} disabled>Copy ID</TabHeaderButton>} />
+      const score = risk.residual?.score ?? risk.inherent?.score
+      return (
+        <TabHeader
+         
+          title={risk.title}
+          identifier={risk.risk_id}
+          badges={<>
+            <Badge label={risk.status} className={RISK_STATUS_BADGE[risk.status] ?? "border-zinc-300/20 bg-zinc-500/10 text-zinc-400"} />
+            {risk.treatment ? <Badge label={risk.treatment} /> : null}
+            {score != null ? <Badge label={`Score ${score}`} /> : null}
+          </>}
+          meta={[
+            ...(risk.owner ? [{ label: "Owner", value: risk.owner }] : []),
+            ...(risk.created_at ? [{ label: "Created", value: new Date(risk.created_at).toLocaleDateString() }] : []),
+            ...(risk.updated_at ? [{ label: "Updated", value: new Date(risk.updated_at).toLocaleDateString() }] : []),
+          ]}
+          actions={<TabHeaderButton icon={CopySimpleIcon} onClick={() => copyText(risk.risk_id)}>Copy ID</TabHeaderButton>}
+        />
+      )
+    }
+
+    if (activeTab === "exceptions") {
+      const ex = selectedItemId ? (program.exceptions ?? []).find((e) => e.exception_id === selectedItemId) : null
+      if (!ex) return <TabHeader title="No exception selected" actions={<TabHeaderButton icon={CopySimpleIcon} disabled>Copy ID</TabHeaderButton>} />
+      return (
+        <TabHeader
+         
+          title={ex.exception_id}
+          identifier={ex.control_id}
+          badges={<>
+            <Badge label={ex.status} className={EXCEPTION_STATUS_BADGE[ex.status] ?? "border-zinc-300/20 bg-zinc-500/10 text-zinc-400"} />
+            <Badge label={`${ex.control_framework} / ${ex.control_id}`} />
+          </>}
+          meta={[
+            ...(ex.owner ? [{ label: "Owner", value: ex.owner }] : []),
+            ...(ex.created_at ? [{ label: "Created", value: new Date(ex.created_at).toLocaleDateString() }] : []),
+            ...(ex.expires_at ? [{ label: "Expires", value: new Date(ex.expires_at).toLocaleDateString() }] : []),
+          ]}
+          actions={<TabHeaderButton icon={CopySimpleIcon} onClick={() => copyText(ex.exception_id)}>Copy ID</TabHeaderButton>}
+        />
+      )
+    }
+
+    if (activeTab === "vendors") {
+      const vendor = selectedItemId ? (program.vendors ?? []).find((v) => v.vendor_id === selectedItemId) : null
+      if (!vendor) return <TabHeader title="No vendor selected" actions={<TabHeaderButton icon={CopySimpleIcon} disabled>Copy ID</TabHeaderButton>} />
+      return (
+        <TabHeader
+         
+          title={vendor.name}
+          identifier={vendor.vendor_id}
+          badges={<>
+            <Badge label={`Tier ${vendor.tier}`} className={VENDOR_TIER_BADGE[vendor.tier] ?? "border-zinc-300/20 bg-zinc-500/10 text-zinc-400"} />
+            <Badge label={vendor.status} />
+          </>}
+          meta={[
+            ...(vendor.owner ? [{ label: "Owner", value: vendor.owner }] : []),
+            ...(vendor.last_review_at ? [{ label: "Last review", value: new Date(vendor.last_review_at).toLocaleDateString() }] : []),
+            ...(vendor.next_review_at ? [{ label: "Next review", value: new Date(vendor.next_review_at).toLocaleDateString() }] : []),
+          ]}
+          actions={<TabHeaderButton icon={CopySimpleIcon} onClick={() => copyText(vendor.vendor_id)}>Copy ID</TabHeaderButton>}
+        />
+      )
+    }
+
+    if (activeTab === "policies") {
+      const policy = selectedItemId ? (program.policies ?? []).find((p) => p.policy_id === selectedItemId) : null
+      if (!policy) return <TabHeader title="No policy selected" actions={<TabHeaderButton icon={CopySimpleIcon} disabled>Copy ID</TabHeaderButton>} />
+      return (
+        <TabHeader
+         
+          title={policy.title}
+          identifier={policy.policy_id}
+          badges={<>
+            <Badge label={policy.status} className={POLICY_STATUS_BADGE[policy.status] ?? "border-zinc-300/20 bg-zinc-500/10 text-zinc-400"} />
+            <Badge label={`v${policy.version}`} />
+          </>}
+          meta={[
+            ...(policy.owner ? [{ label: "Owner", value: policy.owner }] : []),
+            ...(policy.effective_at ? [{ label: "Effective", value: new Date(policy.effective_at).toLocaleDateString() }] : []),
+            ...(policy.next_review_at ? [{ label: "Next review", value: new Date(policy.next_review_at).toLocaleDateString() }] : []),
+          ]}
+          actions={<>
+            <TabHeaderButton icon={CopySimpleIcon} onClick={() => copyText(policy.policy_id)}>Copy ID</TabHeaderButton>
+            <TabHeaderButton icon={FileIcon} onClick={() => copyText(policy.document_path)}>Copy Path</TabHeaderButton>
+          </>}
+        />
+      )
+    }
+
+    if (activeTab === "controls") {
+      const control = selectedItemId ? (program.controls ?? []).find((c) => c.control_id === selectedItemId) : null
+      if (!control) return <TabHeader title="No control selected" actions={<TabHeaderButton icon={CopySimpleIcon} disabled>Copy ID</TabHeaderButton>} />
+      return (
+        <TabHeader
+         
+          title={control.title}
+          identifier={control.control_id}
+          badges={<>
+            <Badge label={control.status} />
+            {control.automation_status ? <Badge label={control.automation_status} /> : null}
+          </>}
+          meta={[
+            ...(control.owner ? [{ label: "Owner", value: control.owner }] : []),
+            ...(control.last_tested_at ? [{ label: "Last tested", value: new Date(control.last_tested_at).toLocaleDateString() }] : []),
+            ...(control.next_test_at ? [{ label: "Next test", value: new Date(control.next_test_at).toLocaleDateString() }] : []),
+          ]}
+          actions={<TabHeaderButton icon={CopySimpleIcon} onClick={() => copyText(control.control_id)}>Copy ID</TabHeaderButton>}
+        />
+      )
+    }
+
+    return null
   }
 
-  const isEmpty =
-    !program ||
-    ((program.risks?.length ?? 0) === 0 &&
-      (program.exceptions?.length ?? 0) === 0 &&
-      (program.vendors?.length ?? 0) === 0 &&
-      (program.policies?.length ?? 0) === 0 &&
-      (program.controls?.length ?? 0) === 0)
+  function tabContent() {
+    if (loading) {
+      return <div className="flex flex-1 items-center justify-center p-8"><p className="text-sm text-muted-foreground">Loading program…</p></div>
+    }
 
-  if (isEmpty) {
-    return (
-      <div className="relative flex flex-1 flex-col overflow-hidden bg-[var(--editor-bg)]">
+    if (isEmpty || !program) {
+      return (
         <div className="flex flex-1 items-center justify-center p-8">
           <div className="max-w-md text-center">
             <ShieldWarningIcon className="mx-auto mb-3 size-8 text-muted-foreground/30" />
@@ -362,38 +374,29 @@ export function ProgramSurface({
             </p>
           </div>
         </div>
-        <ProgramTabs activeTab={activeTab} onSelectTab={(tab) => tab && onSelectTab(tab)} />
-      </div>
-    )
-  }
-
-  function tabContent() {
-    if (!program) return null
+      )
+    }
 
     if (activeTab === "risks") {
       const risks = program.risks ?? []
       const selected = selectedItemId ? risks.find((r) => r.risk_id === selectedItemId) : null
       return selected ? <RiskDetail risk={selected} /> : <EmptyDetail label="risk" />
     }
-
     if (activeTab === "exceptions") {
       const exceptions = program.exceptions ?? []
       const selected = selectedItemId ? exceptions.find((e) => e.exception_id === selectedItemId) : null
       return selected ? <ExceptionDetail exception={selected} /> : <EmptyDetail label="exception" />
     }
-
     if (activeTab === "vendors") {
       const vendors = program.vendors ?? []
       const selected = selectedItemId ? vendors.find((v) => v.vendor_id === selectedItemId) : null
       return selected ? <VendorDetail vendor={selected} /> : <EmptyDetail label="vendor" />
     }
-
     if (activeTab === "policies") {
       const policies = program.policies ?? []
       const selected = selectedItemId ? policies.find((p) => p.policy_id === selectedItemId) : null
       return selected ? <PolicyDetail policy={selected} /> : <EmptyDetail label="policy" />
     }
-
     if (activeTab === "controls") {
       const controls = program.controls ?? []
       const selected = selectedItemId ? controls.find((c) => c.control_id === selectedItemId) : null
@@ -405,6 +408,7 @@ export function ProgramSurface({
 
   return (
     <div className="relative flex flex-1 flex-col overflow-hidden bg-[var(--editor-bg)]">
+      {resolveRecordHeader()}
       <div className="flex flex-1 overflow-hidden">
         {tabContent()}
       </div>
@@ -415,15 +419,8 @@ export function ProgramSurface({
 
 function EmptyDetail({ label }: { label: string }) {
   return (
-    <div className="flex flex-1 flex-col overflow-auto">
-      <RecordHeader
-        eyebrow={label}
-        title={`No ${label} selected`}
-        actions={<HeaderActionButton disabled>Copy ID</HeaderActionButton>}
-      />
-      <div className="flex flex-1 items-center justify-center p-8 text-sm text-muted-foreground">
-        Select a {label} from the sidebar to view details
-      </div>
+    <div className="flex flex-1 items-center justify-center p-8 text-sm text-muted-foreground">
+      Select a {label} from the sidebar to view details
     </div>
   )
 }
