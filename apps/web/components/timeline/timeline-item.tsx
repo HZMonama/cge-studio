@@ -58,36 +58,46 @@ export function TimelineItemRow({
     artifactCreated ? "text-primary" : null,
   );
 
+  const iconOutline = cn("size-4 shrink-0 transition-opacity", !collapsed ? "opacity-0" : "group-hover:opacity-0");
+  const iconFill = cn("absolute inset-0 size-4 shrink-0 transition-opacity", !collapsed ? "opacity-100" : "opacity-0 group-hover:opacity-100");
+
   const header = (
     <>
       <span className="flex min-w-0 items-center gap-2">
         {item.kind === "stream" ? (
           <span className={iconContainerClassName}>
-            <TerminalWindowIcon className="size-4 shrink-0" />
+            <TerminalWindowIcon className={iconOutline} />
+            <TerminalWindowIcon weight="fill" className={iconFill} />
           </span>
         ) : item.event.type === "run.failed" ? (
           <span className={iconContainerClassName}>
-            <WarningCircleIcon className="size-4 shrink-0" />
+            <WarningCircleIcon className={iconOutline} />
+            <WarningCircleIcon weight="fill" className={iconFill} />
           </span>
         ) : item.event.type === "run.canceled" ? (
           <span className={iconContainerClassName}>
-            <WarningCircleIcon className="size-4 shrink-0" />
+            <WarningCircleIcon className={iconOutline} />
+            <WarningCircleIcon weight="fill" className={iconFill} />
           </span>
         ) : item.event.type === "run.completed" ? (
           <span className={iconContainerClassName}>
-            <FlagIcon className="size-4 shrink-0" />
+            <FlagIcon className={iconOutline} />
+            <FlagIcon weight="fill" className={iconFill} />
           </span>
         ) : artifactCreated ? (
           <span className={iconContainerClassName}>
-            <FileTextIcon className="size-4 shrink-0 text-primary" />
+            <FileTextIcon className={cn(iconOutline, "text-primary")} />
+            <FileTextIcon weight="fill" className={cn(iconFill, "text-primary")} />
           </span>
         ) : item.event.type.startsWith("tool.") ? (
           <span className={iconContainerClassName}>
-            <ToolboxIcon className="size-4 shrink-0" />
+            <ToolboxIcon className={iconOutline} />
+            <ToolboxIcon weight="fill" className={iconFill} />
           </span>
         ) : (
           <span className={iconContainerClassName}>
-            <CommandIcon className="size-4 shrink-0" />
+            <CommandIcon className={iconOutline} />
+            <CommandIcon weight="fill" className={iconFill} />
           </span>
         )}
         <span className={labelClassName}>
@@ -133,7 +143,7 @@ export function TimelineItemRow({
           {header}
         </button>
       ) : (
-        <div className={cn(rowClassName, headerClassName)}>{header}</div>
+        <div className={cn(rowClassName, headerClassName, "group")}>{header}</div>
       )}
       {!collapsed ? (
         item.kind === "stream" ? (
@@ -148,7 +158,7 @@ export function TimelineItemRow({
             {item.text}
           </pre>
         ) : (
-          <div className="px-6 pb-4">
+          <div className="px-6 pb-4 -mt-2">
             <EventBody
               event={item.event}
               onSelectArtifact={onSelectArtifact}

@@ -7,6 +7,32 @@ import { type RunnerRunEvent } from "@/lib/runner";
 import { coerceString } from "./utils";
 import { PromptForm } from "./prompt-form";
 
+function toolInputSummary(data: Record<string, unknown>): string | null {
+  const tool = coerceString(data.command);
+  const input = (data.toolInput ?? {}) as Record<string, unknown>;
+  switch (tool) {
+    case "Read":
+      return coerceString(input.file_path) || null;
+    case "Write":
+      return coerceString(input.file_path) || null;
+    case "Edit":
+    case "MultiEdit":
+      return coerceString(input.file_path) || null;
+    case "Bash":
+      return coerceString(input.description) || coerceString(input.command)?.split("\n")[0] || null;
+    case "Glob":
+      return coerceString(input.pattern) || null;
+    case "Grep":
+      return coerceString(input.pattern) || null;
+    case "WebFetch":
+      return coerceString(input.url) || null;
+    case "WebSearch":
+      return coerceString(input.query) || null;
+    default:
+      return null;
+  }
+}
+
 function MarkdownContent({ content }: { content: string }) {
   return (
     <div className="prose">
@@ -40,7 +66,7 @@ export function EventBody({
     );
   }
 
-  if (event.type === "run.started" || event.type === "tool.started") {
+  if (event.type === "run.started") {
     const command = Array.isArray(event.data.args)
       ? [coerceString(event.data.command), ...event.data.args.map((value) => String(value))]
       : [];
@@ -60,6 +86,24 @@ export function EventBody({
         ) : null}
       </div>
     );
+  }
+
+  if (event.type === "tool.started") {
+    const summary = toolInputSummary(event.data);
+    if (summary) {
+      return <p className="truncate text-xs text-muted-foreground">{summary}</p>;
+    }
+    const command = Array.isArray(event.data.args)
+      ? [coerceString(event.data.command), ...event.data.args.map((value) => String(value))]
+      : [];
+    if (command.length > 0) {
+      return (
+        <pre className="overflow-x-auto whitespace-pre-wrap wrap-break-word border border-border/60 bg-muted/20 px-3 py-2 text-xs leading-5 text-foreground">
+          {command.join(" ")}
+        </pre>
+      );
+    }
+    return null;
   }
 
   if (event.type === "tool.completed") {
@@ -97,13 +141,8 @@ export function EventBody({
   if (event.type === "message") {
     const text = coerceString(event.data.text);
     return (
-      <div>
-        <p className="text-sm font-medium text-foreground">
-          {coerceString(event.data.role) === "user" ? "Input captured" : "Runner message"}
-        </p>
-        <div className="mt-2 text-sm leading-6 text-muted-foreground">
-          <MarkdownContent content={text} />
-        </div>
+      <div className="text-sm leading-6 text-muted-foreground">
+        <MarkdownContent content={text} />
       </div>
     );
   }

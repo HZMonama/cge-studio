@@ -2766,7 +2766,7 @@ async function executeStep({ commandPath, args, stepIndex, runId, runDirectory, 
               await flushPendingText();
               await appendRunEvent(runDirectory, {
                 type: "tool.started",
-                data: { command: block.name, args: [], cwd: workspace.rootPath },
+                data: { command: block.name, args: [], cwd: workspace.rootPath, toolInput: block.input ?? {} },
               });
             }
           }

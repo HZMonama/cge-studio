@@ -80,8 +80,10 @@ export function timelineItemLabel(item: TimelineItem) {
       return "Run Queued";
     case "run.started":
       return "Run Started";
-    case "tool.started":
-      return "Tool Started";
+    case "tool.started": {
+      const toolName = coerceString(item.event.data.command);
+      return toolName ? toolName : "Tool Used";
+    }
     case "tool.completed":
       return "Tool Finished";
     case "artifact.created":

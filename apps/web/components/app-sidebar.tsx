@@ -683,6 +683,7 @@ export function AppSidebar({
   }, [focusSearchToken])
 
   const visible = plugins.filter((p) => {
+    if (p.id === "pipeline") return false
     const matchesPersona = !activePersona || p.personas.includes(activePersona)
     const matchesCategory = activeCategories.length === 0 || activeCategories.includes(getPluginCategory(p))
     const matchesQuery = !query || p.id.includes(query.toLowerCase()) || p.label.toLowerCase().includes(query.toLowerCase())

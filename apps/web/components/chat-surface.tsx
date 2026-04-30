@@ -645,8 +645,12 @@ export function ChatSurface({
   const [pipelinesOpen, setPipelinesOpen] = React.useState(false);
 
   function togglePipelines() {
-    setPipelinesOpen((v) => !v);
-    if (!pipelinesOpen) setPrompt("");
+    const opening = !pipelinesOpen;
+    setPipelinesOpen(opening);
+    if (opening) {
+      setPrompt("");
+      setComposerCollapsed(false);
+    }
   }
   const slashCommands = React.useMemo<SlashCommand[]>(
     () =>
@@ -748,6 +752,7 @@ export function ChatSurface({
 
   function applyCommand(path: string) {
     onSelectCommand(path);
+    setComposerCollapsed(false);
   }
 
   function handleRun() {
@@ -928,7 +933,7 @@ export function ChatSurface({
                       aria-label={composerCollapsed ? "Expand composer" : "Collapse composer"}
                     >
                       <motion.span
-                        animate={{ rotate: composerCollapsed ? 0 : 180 }}
+                        animate={{ rotate: composerCollapsed ? 180 : 0 }}
                         transition={{ duration: 0.2 }}
                         className="flex items-center justify-center"
                       >
@@ -1054,6 +1059,9 @@ export function ChatSurface({
                       setActiveCommandIndex(0);
                       setPipelinesOpen(false);
                       setPrompt(event.target.value);
+                      if (event.target.value.trimStart().startsWith("/")) {
+                        setComposerCollapsed(false);
+                      }
                     }}
                     onKeyDown={handleComposerKeyDown}
                     placeholder="Type / to choose a command"
