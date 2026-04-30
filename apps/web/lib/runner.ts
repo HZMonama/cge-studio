@@ -751,19 +751,6 @@ export interface RunnerMetricsResponse {
   snapshots: RunnerMetricSnapshotSummary[]
 }
 
-export interface ProgramException {
-  schema_version?: string
-  exception_id: string
-  control_id: string
-  control_framework: string
-  status: string
-  rationale: string
-  owner: string
-  created_at: string
-  expires_at?: string | null
-  compensating_controls?: string[]
-}
-
 export interface ProgramVendor {
   schema_version?: string
   vendor_id: string
@@ -802,12 +789,17 @@ export interface ProgramControl {
   automation_status?: string | null
   last_tested_at?: string | null
   next_test_at?: string | null
+  exception?: {
+    status: string
+    rationale: string
+    compensating_controls?: string[]
+    expires_at?: string | null
+  } | null
 }
 
 export interface ProgramSummary {
   risks: ProgramRisk[]
   metrics: ProgramMetric[]
-  exceptions: ProgramException[]
   vendors: ProgramVendor[]
   policies: ProgramPolicy[]
   controls: ProgramControl[]

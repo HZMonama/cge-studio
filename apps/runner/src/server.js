@@ -4489,12 +4489,11 @@ function humanizeArtifactTitle(filePath) {
   return humanizeId(path.basename(filePath, path.extname(filePath)));
 }
 
-const PROGRAM_ENTITY_KINDS = ["risks", "metrics", "exceptions", "vendors", "policies", "controls"];
+const PROGRAM_ENTITY_KINDS = ["risks", "metrics", "vendors", "policies", "controls"];
 
 const PROGRAM_KIND_LABELS = {
   risks: "Risk Record",
   metrics: "Metric Snapshot",
-  exceptions: "Exception Record",
   vendors: "Vendor Record",
   policies: "Policy Record",
   controls: "Control Record",
@@ -5182,7 +5181,6 @@ async function readWorkspaceProgram(workspace) {
   const dirs = {
     risks: workspace.folders.programRisks,
     metrics: workspace.folders.programMetrics,
-    exceptions: workspace.folders.programExceptions,
     vendors: workspace.folders.programVendors,
     policies: workspace.folders.programPolicies,
     controls: workspace.folders.programControls,
@@ -5238,6 +5236,10 @@ function singularProgramKind(kind) {
 }
 
 function normalizeFindingDocument(doc, filePath, fallbackSource) {
+  if (Array.isArray(doc)) {
+    return doc.flatMap((item) => normalizeFindingDocument(item, filePath, fallbackSource));
+  }
+
   if (!doc || !Array.isArray(doc.evaluations)) {
     return [];
   }

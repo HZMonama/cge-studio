@@ -1412,7 +1412,6 @@ function findCommandByPath(plugins: Plugin[], path: string): Command | null {
 function isProgramTab(value: string | null): value is ProgramTab {
   return (
     value === "risks" ||
-    value === "exceptions" ||
     value === "vendors" ||
     value === "policies" ||
     value === "controls"
@@ -1423,8 +1422,6 @@ function getProgramRecordIds(program: ProgramSummary, tab: ProgramTab): string[]
   switch (tab) {
     case "risks":
       return program.risks.map((risk) => risk.risk_id);
-    case "exceptions":
-      return program.exceptions.map((exception) => exception.exception_id);
     case "vendors":
       return program.vendors.map((vendor) => vendor.vendor_id);
     case "policies":

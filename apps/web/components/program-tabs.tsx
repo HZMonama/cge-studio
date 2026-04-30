@@ -2,7 +2,6 @@
 
 import {
   WarningCircleIcon,
-  ClockCounterClockwiseIcon,
   UsersIcon,
   FileTextIcon,
   ShieldCheckIcon,
@@ -10,11 +9,10 @@ import {
 
 import { cn } from "@/lib/utils"
 
-export type ProgramTab = "risks" | "exceptions" | "vendors" | "policies" | "controls"
+export type ProgramTab = "risks" | "vendors" | "policies" | "controls"
 
 const TABS: { id: ProgramTab; label: string; icon: typeof WarningCircleIcon }[] = [
   { id: "risks", label: "Risks", icon: WarningCircleIcon },
-  { id: "exceptions", label: "Exceptions", icon: ClockCounterClockwiseIcon },
   { id: "vendors", label: "Vendors", icon: UsersIcon },
   { id: "policies", label: "Policies", icon: FileTextIcon },
   { id: "controls", label: "Controls", icon: ShieldCheckIcon },

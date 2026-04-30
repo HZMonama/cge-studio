@@ -499,12 +499,19 @@ function MetadataCard({
   )
 }
 
+function stripFrontmatter(content: string): string {
+  if (!content.startsWith("---")) return content
+  const end = content.indexOf("\n---", 3)
+  if (end === -1) return content
+  return content.slice(end + 4).replace(/^\n/, "")
+}
+
 function MarkdownArtifactView({ content }: { content: string }) {
   return (
     <div className="h-full overflow-auto px-8 py-6">
       <div className="prose prose-sm max-w-none dark:prose-invert">
         <ReactMarkdown remarkPlugins={[remarkGfm]}>
-          {content}
+          {stripFrontmatter(content)}
         </ReactMarkdown>
       </div>
     </div>

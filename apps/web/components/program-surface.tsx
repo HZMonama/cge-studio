@@ -6,7 +6,6 @@ import { CopySimpleIcon, FileIcon, ShieldWarningIcon } from "@phosphor-icons/rea
 import { TabHeader, TabHeaderButton } from "@/components/tab-header"
 import { cn } from "@/lib/utils"
 import {
-  type ProgramException,
   type ProgramPolicy,
   type ProgramControl,
   type ProgramRisk,
@@ -20,12 +19,6 @@ const RISK_STATUS_BADGE: Record<string, string> = {
   mitigated: "border-emerald-300/30 bg-emerald-500/10 text-emerald-400",
   accepted: "border-amber-300/40 bg-amber-500/10 text-amber-400",
   closed: "border-zinc-300/20 bg-zinc-500/10 text-zinc-400",
-}
-
-const EXCEPTION_STATUS_BADGE: Record<string, string> = {
-  active: "border-amber-300/40 bg-amber-500/10 text-amber-400",
-  expired: "border-red-300/40 bg-red-500/10 text-red-400",
-  revoked: "border-zinc-300/20 bg-zinc-500/10 text-zinc-400",
 }
 
 const VENDOR_TIER_BADGE: Record<string, string> = {
@@ -110,32 +103,6 @@ function RiskDetail({ risk }: { risk: ProgramRisk }) {
   )
 }
 
-function ExceptionDetail({ exception: ex }: { exception: ProgramException }) {
-  return (
-    <div className="flex-1 overflow-auto">
-      <div className="space-y-2 px-6 py-5">
-        <FieldPair label="Owner" value={ex.owner} />
-        <FieldPair label="Created" value={ex.created_at ? new Date(ex.created_at).toLocaleDateString() : null} />
-        <FieldPair label="Expires" value={ex.expires_at ? new Date(ex.expires_at).toLocaleDateString() : null} />
-        <div className="pt-2">
-          <p className="mb-1.5 text-xs font-medium text-muted-foreground">Rationale</p>
-          <p className="text-sm leading-relaxed text-foreground">{ex.rationale}</p>
-        </div>
-        {ex.compensating_controls && ex.compensating_controls.length > 0 && (
-          <div className="pt-2">
-            <p className="mb-1.5 text-xs font-medium text-muted-foreground">Compensating controls</p>
-            <ul className="space-y-0.5">
-              {ex.compensating_controls.map((c) => (
-                <li key={c} className="font-mono text-xs text-foreground/80">{c}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 function VendorDetail({ vendor }: { vendor: ProgramVendor }) {
   return (
     <div className="flex-1 overflow-auto">
@@ -172,6 +139,7 @@ function PolicyDetail({ policy }: { policy: ProgramPolicy }) {
 }
 
 function ControlDetail({ control }: { control: ProgramControl }) {
+  const ex = control.exception
   return (
     <div className="flex-1 overflow-auto">
       <div className="space-y-2 px-6 py-5">
@@ -196,6 +164,25 @@ function ControlDetail({ control }: { control: ProgramControl }) {
                 <li key={p} className="font-mono text-xs text-foreground/80">{p}</li>
               ))}
             </ul>
+          </div>
+        )}
+        {ex && (
+          <div className="mt-4 rounded border border-amber-300/30 bg-amber-500/5 px-4 py-3">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-amber-400">Exception</span>
+              <Badge label={ex.status} className="border-amber-300/40 bg-amber-500/10 text-amber-400" />
+              {ex.expires_at && (
+                <span className="text-[11px] text-muted-foreground">Expires {new Date(ex.expires_at).toLocaleDateString()}</span>
+              )}
+            </div>
+            <p className="text-sm leading-relaxed text-foreground">{ex.rationale}</p>
+            {ex.compensating_controls && ex.compensating_controls.length > 0 && (
+              <ul className="mt-2 space-y-0.5">
+                {ex.compensating_controls.map((c) => (
+                  <li key={c} className="font-mono text-xs text-foreground/70">{c}</li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
       </div>
@@ -224,7 +211,6 @@ export function ProgramSurface({
     !loading &&
     (!program ||
       ((program.risks?.length ?? 0) === 0 &&
-        (program.exceptions?.length ?? 0) === 0 &&
         (program.vendors?.length ?? 0) === 0 &&
         (program.policies?.length ?? 0) === 0 &&
         (program.controls?.length ?? 0) === 0))
@@ -260,28 +246,6 @@ export function ProgramSurface({
             ...(risk.updated_at ? [{ label: "Updated", value: new Date(risk.updated_at).toLocaleDateString() }] : []),
           ]}
           actions={<TabHeaderButton icon={CopySimpleIcon} onClick={() => copyText(risk.risk_id)}>Copy ID</TabHeaderButton>}
-        />
-      )
-    }
-
-    if (activeTab === "exceptions") {
-      const ex = selectedItemId ? (program.exceptions ?? []).find((e) => e.exception_id === selectedItemId) : null
-      if (!ex) return <TabHeader title="No exception selected" actions={<TabHeaderButton icon={CopySimpleIcon} disabled>Copy ID</TabHeaderButton>} />
-      return (
-        <TabHeader
-         
-          title={ex.exception_id}
-          identifier={ex.control_id}
-          badges={<>
-            <Badge label={ex.status} className={EXCEPTION_STATUS_BADGE[ex.status] ?? "border-zinc-300/20 bg-zinc-500/10 text-zinc-400"} />
-            <Badge label={`${ex.control_framework} / ${ex.control_id}`} />
-          </>}
-          meta={[
-            ...(ex.owner ? [{ label: "Owner", value: ex.owner }] : []),
-            ...(ex.created_at ? [{ label: "Created", value: new Date(ex.created_at).toLocaleDateString() }] : []),
-            ...(ex.expires_at ? [{ label: "Expires", value: new Date(ex.expires_at).toLocaleDateString() }] : []),
-          ]}
-          actions={<TabHeaderButton icon={CopySimpleIcon} onClick={() => copyText(ex.exception_id)}>Copy ID</TabHeaderButton>}
         />
       )
     }
@@ -370,7 +334,7 @@ export function ProgramSurface({
             <ShieldWarningIcon className="mx-auto mb-3 size-8 text-muted-foreground/30" />
             <h2 className="text-sm font-medium text-foreground">No program records</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Create records in <span className="font-mono">grc-data/</span> within your workspace to populate risks, exceptions, vendors, policies, and controls.
+              Create records in <span className="font-mono">grc-data/</span> within your workspace to populate risks, vendors, policies, and controls.
             </p>
           </div>
         </div>
@@ -381,11 +345,6 @@ export function ProgramSurface({
       const risks = program.risks ?? []
       const selected = selectedItemId ? risks.find((r) => r.risk_id === selectedItemId) : null
       return selected ? <RiskDetail risk={selected} /> : <EmptyDetail label="risk" />
-    }
-    if (activeTab === "exceptions") {
-      const exceptions = program.exceptions ?? []
-      const selected = selectedItemId ? exceptions.find((e) => e.exception_id === selectedItemId) : null
-      return selected ? <ExceptionDetail exception={selected} /> : <EmptyDetail label="exception" />
     }
     if (activeTab === "vendors") {
       const vendors = program.vendors ?? []

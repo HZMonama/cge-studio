@@ -347,9 +347,6 @@ function ProgramSidebarContent({
   const risks = (program.risks ?? []).filter((r) =>
     !q || r.title.toLowerCase().includes(q) || r.status.toLowerCase().includes(q) || (r.owner ?? "").toLowerCase().includes(q) || r.risk_id.toLowerCase().includes(q)
   )
-  const exceptions = (program.exceptions ?? []).filter((e) =>
-    !q || e.exception_id.toLowerCase().includes(q) || e.control_framework.toLowerCase().includes(q) || e.control_id.toLowerCase().includes(q) || e.status.toLowerCase().includes(q)
-  )
   const vendors = (program.vendors ?? []).filter((v) =>
     !q || v.name.toLowerCase().includes(q) || v.vendor_id.toLowerCase().includes(q) || v.status.toLowerCase().includes(q)
   )
@@ -376,29 +373,6 @@ function ProgramSidebarContent({
             <p className="truncate font-medium">{risk.title}</p>
             <p className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-foreground/45">
               {risk.status}{risk.owner ? ` · ${risk.owner}` : ""}
-            </p>
-          </div>
-        </button>
-      </SidebarMenuItem>
-    ))
-  }
-
-  function renderExceptions(items: typeof exceptions) {
-    return items.map((ex) => (
-      <SidebarMenuItem key={ex.exception_id}>
-        <button
-          onClick={() => onSelectItem?.(ex.exception_id)}
-          className={cn(
-            "sidebar-fade-item flex h-auto w-full items-start gap-2 overflow-hidden px-4 py-3 text-left text-xs outline-none transition-colors hover:text-sidebar-accent-foreground",
-            selectedItemId === ex.exception_id
-              ? "sidebar-fade-item-active text-sidebar-accent-foreground"
-              : "text-foreground/60"
-          )}
-        >
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-medium">{ex.exception_id}</p>
-            <p className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-foreground/45">
-              {ex.control_framework}/{ex.control_id} · {ex.status}
             </p>
           </div>
         </button>
@@ -476,7 +450,7 @@ function ProgramSidebarContent({
   }
 
   if (activeTab === null) {
-    const total = risks.length + exceptions.length + vendors.length + policies.length + controls.length
+    const total = risks.length + vendors.length + policies.length + controls.length
     if (total === 0) {
       return (
         <div className="flex h-full items-center justify-center px-6 text-center">
@@ -489,7 +463,6 @@ function ProgramSidebarContent({
         <SidebarGroupContent>
           <SidebarMenu>
             {renderRisks(risks)}
-            {renderExceptions(exceptions)}
             {renderVendors(vendors)}
             {renderPolicies(policies)}
             {renderControls(controls)}
@@ -511,23 +484,6 @@ function ProgramSidebarContent({
       <SidebarGroup className="p-0">
         <SidebarGroupContent>
           <SidebarMenu>{renderRisks(risks)}</SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
-    )
-  }
-
-  if (activeTab === "exceptions") {
-    if (exceptions.length === 0) {
-      return (
-        <div className="flex h-full items-center justify-center px-6 text-center">
-          <p className="text-xs text-foreground/40">{q ? "No exceptions match" : "No exceptions recorded"}</p>
-        </div>
-      )
-    }
-    return (
-      <SidebarGroup className="p-0">
-        <SidebarGroupContent>
-          <SidebarMenu>{renderExceptions(exceptions)}</SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
     )
@@ -792,7 +748,7 @@ export function AppSidebar({
                   {activeSection === "artifacts" && visibleArtifacts.length}
                   {activeSection === "program" && program && (
                     activeProgramTab === null
-                      ? (program.risks?.length ?? 0) + (program.exceptions?.length ?? 0) + (program.vendors?.length ?? 0) + (program.policies?.length ?? 0) + (program.controls?.length ?? 0)
+                      ? (program.risks?.length ?? 0) + (program.vendors?.length ?? 0) + (program.policies?.length ?? 0) + (program.controls?.length ?? 0)
                       : (program[activeProgramTab]?.length ?? 0)
                   )}
                 </Kbd>
